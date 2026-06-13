@@ -1,0 +1,53 @@
+[project]
+name = "elite-system"
+version = "0.3.0"
+description = "Elite IDE Augmentation Layer — MCP Server for persistent memory, structured reasoning, and quality enforcement"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "mcp>=1.27.2",
+    "fastmcp>=0.1.0",
+    "pydantic>=2.0",
+    "rich>=13.0",
+    "python-dotenv>=1.0",
+    "fastapi>=0.136.3",
+    "uvicorn>=0.49.0",
+    "httpx>=0.28.1",
+]
+
+[project.optional-dependencies]
+vectors = [
+    "sqlite-vec>=0.1.9",
+    "sentence-transformers>=3.0.0",
+]
+graph = [
+    "langgraph>=0.2.0",
+    "langchain-core>=0.2.0",
+    "networkx>=3.0",
+]
+dev = [
+    "pytest",
+    "pytest-asyncio",
+    "ruff",
+    "pyright",
+]
+all = [
+    "elite-system[vectors,graph,dev]",
+]
+
+[project.scripts]
+elite-reasoning-mcp = "core.integration.mcp_server:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["core"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]

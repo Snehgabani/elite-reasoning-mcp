@@ -1,0 +1,1 @@
+{"name":"get_tool_usage_stats","description":"TRIGGER: Call this to review tool usage analytics.\n📈 Returns tool usage statistics for the specified period.\nArgs:\n    days: Number of days to analyze (default: 7)\n","parameters":{"properties":{"days":{"default":7,"title":"Days","type":"integer"}},"title":"get_tool_usage_statsArguments","type":"object"}}

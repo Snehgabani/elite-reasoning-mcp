@@ -1,0 +1,1 @@
+{"name":"delete_goal","description":"Permanently delete a goal (e.g., duplicates from stress tests).\nArgs:\n    goal_id: The ID of the goal to delete\n","parameters":{"properties":{"goal_id":{"title":"Goal Id","type":"integer"}},"required":["goal_id"],"title":"delete_goalArguments","type":"object"}}

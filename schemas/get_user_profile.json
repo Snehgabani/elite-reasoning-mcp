@@ -1,0 +1,1 @@
+{"name":"get_user_profile","description":"\nReturns the current user's profile, including their identity,\nIDE type, installed MCP/Skill counts, sync status, and preferences.\nUse this to understand WHO you are serving and what tools they have.\n","parameters":{"properties":{},"title":"get_user_profileArguments","type":"object"}}

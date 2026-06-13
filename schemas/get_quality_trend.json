@@ -1,0 +1,1 @@
+{"name":"get_quality_trend","description":"TRIGGER: Call this to check if the team's output quality is improving or declining over time.\n📊 Quality trend dashboard with per-dimension breakdown.","parameters":{"properties":{},"title":"get_quality_trendArguments","type":"object"}}

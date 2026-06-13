@@ -1,0 +1,1 @@
+{"name":"self_diagnose","description":"TRIGGER: Call this for a full health check of the adaptive learning system.\n🏥 Runs a complete diagnostic covering prevention rules, prompt intelligence, missed detections, tool usage, and autonomy rate.\n","parameters":{"properties":{},"title":"self_diagnoseArguments","type":"object"}}

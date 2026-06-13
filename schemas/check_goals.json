@@ -1,0 +1,1 @@
+{"name":"check_goals","description":"TRIGGER: Call this to check progress on OKRs before starting daily work.\n🎯 View all active goals and their progress.","parameters":{"properties":{},"title":"check_goalsArguments","type":"object"}}

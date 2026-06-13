@@ -1,0 +1,1 @@
+{"name":"list_team_users","description":"\nList all users registered with the team sync hub.\nShows each user's IDE type, MCP count, and skill count.\nArgs:\n    hub_url: Override sync hub URL (default: from user config)\n","parameters":{"properties":{"hub_url":{"default":"","title":"Hub Url","type":"string"}},"title":"list_team_usersArguments","type":"object"}}

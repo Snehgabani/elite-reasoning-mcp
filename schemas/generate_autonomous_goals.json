@@ -1,0 +1,1 @@
+{"name":"generate_autonomous_goals","description":"TRIGGER: Call this to generate prioritized goals from learned patterns.\n🎯 Analyzes missed detections, quality trends, and prompt patterns to create autonomous improvement goals.\n","parameters":{"properties":{},"title":"generate_autonomous_goalsArguments","type":"object"}}

@@ -1,0 +1,1 @@
+{"name":"ingest_context","description":"\nIngest raw context into the temporal knowledge graph using LangGraph background orchestration.\nArgs:\n    context: The raw text, discussion, or logs to analyze.\n","parameters":{"properties":{"context":{"title":"Context","type":"string"}},"required":["context"],"title":"ingest_contextArguments","type":"object"}}

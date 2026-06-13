@@ -1,0 +1,1 @@
+{"name":"autonomous_scan","description":"TRIGGER: Call this periodically or when the system seems to be underperforming.\n🔍 Runs the autonomous gap detector across all subsystems.\nChecks: missed detections, stale goals, quality regression, expired predictions, prompt health, rule effectiveness.\n","parameters":{"properties":{},"title":"autonomous_scanArguments","type":"object"}}

@@ -1,0 +1,1 @@
+{"name":"get_user_thinking_model","description":"TRIGGER: Call this to understand how the user thinks and what adaptations have been learned.\n🧠 Returns the current model of user thinking patterns with confidence scores.\n","parameters":{"properties":{},"title":"get_user_thinking_modelArguments","type":"object"}}

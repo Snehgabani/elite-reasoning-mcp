@@ -1,0 +1,1 @@
+{"name":"archive_goal","description":"Archive a completed or stale goal, removing it from the active view.\nArgs:\n    goal_id: The ID of the goal to archive\n","parameters":{"properties":{"goal_id":{"title":"Goal Id","type":"integer"}},"required":["goal_id"],"title":"archive_goalArguments","type":"object"}}

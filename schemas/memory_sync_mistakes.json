@@ -1,0 +1,1 @@
+{"name":"memory_sync_mistakes","description":"Generate mcp-server-memory payloads for recent anti-patterns/mistakes.\nReturns structured JSON for cross-session persistence.\n\nArgs:\n    limit: Max number of recent mistakes to sync.\n","parameters":{"properties":{"limit":{"default":10,"title":"Limit","type":"integer"}},"title":"memory_sync_mistakesArguments","type":"object"}}

@@ -1,0 +1,1 @@
+{"name":"search_thinking_patterns","description":"Search and display user thinking patterns learned over time.\n\nArgs:\n    pattern_name: Optional filter — search for a specific pattern by name\n","parameters":{"properties":{"pattern_name":{"default":"","title":"Pattern Name","type":"string"}},"title":"search_thinking_patternsArguments","type":"object"}}

@@ -1,0 +1,1 @@
+{"name":"get_autonomous_status","description":"TRIGGER: Call this for a complete view of what the adaptive learning system is doing autonomously.\n📋 Returns full status: diagnosis, autonomous goals, and gap scan results.\n","parameters":{"properties":{},"title":"get_autonomous_statusArguments","type":"object"}}
