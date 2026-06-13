@@ -5,6 +5,7 @@
 
   <p>
     <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square" alt="MIT License" /></a>
+    <a href="https://pypi.org/project/elite-reasoning-mcp/"><img src="https://img.shields.io/pypi/v/elite-reasoning-mcp?style=flat-square&color=blue" alt="PyPI" /></a>
     <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/Python-3.11+-3776AB.svg?style=flat-square&logo=python&logoColor=white" alt="Python 3.11+" /></a>
     <a href="https://glama.ai/mcp/servers/Snehgabani/elite-reasoning-mcp"><img src="https://glama.ai/mcp/servers/Snehgabani/elite-reasoning-mcp/badges/score.svg" alt="Glama Score" /></a>
     <a href="https://github.com/Snehgabani/elite-reasoning-mcp/actions"><img src="https://img.shields.io/github/actions/workflow/status/Snehgabani/elite-reasoning-mcp/ci.yml?style=flat-square&label=CI" alt="CI" /></a>
@@ -66,7 +67,13 @@ Everything runs locally. No API calls. No cloud. A single SQLite file stores ant
 
 ## Quick Install
 
-### macOS / Linux
+### pip (Recommended)
+
+```bash
+pip install elite-reasoning-mcp
+```
+
+### From Source (macOS / Linux)
 
 ```bash
 git clone https://github.com/Snehgabani/elite-reasoning-mcp.git ~/.elite-reasoning
