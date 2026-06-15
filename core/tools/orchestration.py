@@ -7,11 +7,10 @@ and Skills, then maps the user's intent to the optimal tool combination.
 PORTABLE: Uses $HOME-relative paths so every user gets their own
 personalized orchestration based on THEIR installed tools.
 """
-import os
-from typing import Optional
-
 import json as _json
+import os
 import urllib.request
+from typing import Optional
 
 
 def _resolve_user_paths() -> tuple[str, str]:
