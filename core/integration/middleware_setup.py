@@ -10,7 +10,6 @@ Usage (in mcp_server.py):
 import asyncio
 import functools
 import logging
-from typing import Any
 
 from mcp.server.fastmcp import FastMCP
 
