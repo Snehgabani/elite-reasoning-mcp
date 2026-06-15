@@ -1,6 +1,6 @@
 [project]
 name = "elite-reasoning-mcp"
-version = "0.4.0"
+version = "1.1.0"
 description = "Elite IDE Augmentation Layer — MCP Server for persistent memory, structured reasoning, and quality enforcement"
 readme = "README.md"
 requires-python = ">=3.11"
