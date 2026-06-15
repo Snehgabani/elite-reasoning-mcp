@@ -10,7 +10,8 @@ personalized orchestration based on THEIR installed tools.
 import os
 from typing import Optional
 
-import requests
+import json as _json
+import urllib.request
 
 
 def _resolve_user_paths() -> tuple[str, str]:
@@ -176,9 +177,14 @@ def _llm_orchestration(user_prompt: str, mcps: list[str], skills: list[str], use
         "contents": [{"parts": [{"text": prompt}]}]
     }
 
-    response = requests.post(url, headers={"Content-Type": "application/json"}, json=payload, timeout=15)
-    response.raise_for_status()
-    data = response.json()
+    req = urllib.request.Request(
+        url,
+        data=_json.dumps(payload).encode(),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    with urllib.request.urlopen(req, timeout=15) as resp:
+        data = _json.loads(resp.read())
     return data["candidates"][0]["content"]["parts"][0]["text"]
 
 
