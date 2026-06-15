@@ -243,8 +243,8 @@ def register(mcp, store, orchestrator=None):
         out += "|---|---|---|---|---|\n"
         for r in rules:
             out += (
-                f"| {r['name']} | {r['trigger']} | {r['severity']} | "
-                f"{r['triggered']}x | {r['check'][:60]}... |\n"
+                f"| {r['rule_name']} | {r['trigger_event']} | {r['severity']} | "
+                f"{r['times_triggered']}x | {r['check_query'][:60]}... |\n"
             )
         out += f"\n_Total: {len(rules)} rules_"
         return out
