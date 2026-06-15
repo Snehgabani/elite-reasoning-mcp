@@ -66,11 +66,10 @@ class RetryMiddleware(Middleware):
 
         # Return a result that signals "retry" to the chain
         return CallResult(
-            tool_name=ctx.tool_name,
-            output=None,
-            latency_ms=0,
+            value=None,
+            duration_ms=delay * 1000,
+            short_circuited=True,
             augmentations=[f"⟳ Retry {attempt + 1}/{self.max_retries} after {delay:.1f}s delay"],
-            metadata={'_retry': True, '_retry_attempt': attempt + 1},
         )
 
 
@@ -114,10 +113,8 @@ class FallbackMiddleware(Middleware):
         )
 
         return CallResult(
-            tool_name=ctx.tool_name,
-            output=suggestion,
-            latency_ms=(time.time() - ctx.started_at) * 1000,
-            error=str(error),
+            value=suggestion,
+            duration_ms=(time.time() - ctx.started_at) * 1000,
+            short_circuited=True,
             augmentations=[suggestion],
-            metadata={'_fallback_suggested': True, '_fallbacks': fallbacks},
         )

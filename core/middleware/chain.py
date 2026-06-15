@@ -75,7 +75,8 @@ class MiddlewareChain:
                 for mw in relevant:
                     try:
                         suppressed = await mw.on_error(ctx, exc)
-                    except Exception:
+                    except Exception as e:
+                        logger.debug(f"middleware.on_error {mw.name} failed: {e}")
                         continue
                     if suppressed is not None:
                         return _render(ctx, suppressed)

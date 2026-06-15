@@ -33,8 +33,8 @@ class UsageLogMiddleware(Middleware):
                 ctx.tool_name, args_summary, result_text,
                 self.session_id, int(result.duration_ms)
             )
-        except Exception:
-            pass  # Never let logging break tool execution
+        except Exception as e:
+            logger.debug(f'Usage logging failed for {ctx.tool_name}: {e}')
         return result
 
 
@@ -56,14 +56,20 @@ class LatencyBudgetMiddleware(Middleware):
 
 
 class PeriodicScanMiddleware(Middleware):
-    """Runs autonomous scan every N tool calls."""
+    """Runs autonomous scan every N tool calls.
+    
+    Optionally ticks the OptimizationLoop, which cascading-fires all
+    learning modules: injection_optimizer, rule_lifecycle, severity_inference,
+    trigger_learner.
+    """
     name = "periodic_scan"
     applies_to = "*"
 
-    def __init__(self, store, interval: int = 20):
+    def __init__(self, store, interval: int = 20, optimizer=None):
         self.store = store
         self.interval = interval
         self._counter = 0
+        self._optimizer = optimizer
 
     async def after(self, ctx: CallContext, result: CallResult) -> CallResult:
         self._counter += 1
@@ -76,8 +82,17 @@ class PeriodicScanMiddleware(Middleware):
                         if gap['severity'] == 'P0':
                             scan_text += f"  - {gap['detail']}\n"
                     result.augmentations.insert(0, scan_text)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"PeriodicScan: autonomous_scan error: {e}")
+            # ── Tick the OptimizationLoop (brings all learning modules to life)
+            if self._optimizer is not None:
+                try:
+                    if self._optimizer.should_check():
+                        opt_result = self._optimizer.tick()
+                        logger.info("OptimizationLoop ticked",
+                                   extra={"actions": len(opt_result) if isinstance(opt_result, list) else 0})
+                except Exception as e:
+                    logger.debug(f"PeriodicScan: optimizer.tick error: {e}")
         return result
 
 
@@ -113,7 +128,7 @@ class CostTrackingMiddleware(Middleware):
                     tool_name=ctx.tool_name,
                     session_id=self.session_id,
                 )
-        except Exception:
-            pass  # Never let cost logging break tool execution
+        except Exception as e:
+            logger.debug(f'Cost tracking failed for {ctx.tool_name}: {e}')
         return result
 

@@ -84,6 +84,16 @@ def create_mcp_server(brain_dir: str) -> FastMCP:
     #   5. PeriodicScan — lightweight post-hook (autonomous gap detection)
     #   6. Fallback    — suggests alternatives on failure
     #   7. Retry       — INNERMOST: avoids duplicate injections/prevention evals
+    # ── Optimization Loop (5-trigger autonomy controller) ──
+    # Must be initialized BEFORE middleware chain so it can be wired in.
+    _optimization_loop = None
+    try:
+        from core.scheduler.optimizer import OptimizationLoop
+        _optimization_loop = OptimizationLoop(store)
+        logger.info("OptimizationLoop initialized (5 triggers, hook-based)")
+    except ImportError as e:
+        logger.debug(f"OptimizationLoop not available: {e}")
+
     try:
         from core.middleware.chain import MiddlewareChain
         from core.middleware.fallback import FallbackMiddleware, RetryMiddleware
@@ -102,24 +112,17 @@ def create_mcp_server(brain_dir: str) -> FastMCP:
             .use(LatencyBudgetMiddleware(p99_ms=2000))                     # 2. Bracket entire call
             .use(PreventionRuleMiddleware(store))                          # 3. Pre-execution check
             .use(AntiPatternInjectionMiddleware(store))                    # 4. Context augmentation
-            .use(PeriodicScanMiddleware(store, interval=20))               # 5. Post-hook gap scan
+            .use(PeriodicScanMiddleware(store, interval=20,
+                                       optimizer=_optimization_loop))      # 5. Post-hook scan + optimizer tick
             .use(CostTrackingMiddleware(store))                            # 6. Auto-log embedding costs
             .use(FallbackMiddleware())                                     # 7. Suggest alternatives on fail
             .use(RetryMiddleware(max_retries=2, initial_delay=0.5))        # 8. Retry INNERMOST
         )
-        logger.info("Middleware chain built (R2 order)", extra={"middlewares": 8})
+        logger.info("Middleware chain built (R2 order)", extra={"middlewares": 8,
+                    "optimizer_wired": _optimization_loop is not None})
     except ImportError as e:
         _middleware_chain = None
         logger.warning("Middleware chain not available, falling back to interceptor", extra={"error": str(e)})
-
-    # ── Optimization Loop (5-trigger autonomy controller) ──
-    try:
-        from core.scheduler.optimizer import OptimizationLoop
-        _optimization_loop = OptimizationLoop(store)
-        logger.info("OptimizationLoop initialized (5 triggers, hook-based)")
-    except ImportError as e:
-        _optimization_loop = None
-        logger.debug(f"OptimizationLoop not available: {e}")
 
 
     # ── User Identity Tools ────────────────────────────────
@@ -272,8 +275,8 @@ def create_mcp_server(brain_dir: str) -> FastMCP:
                     },
                     timeout=10.0,
                 )
-            except Exception:
-                pass  # Best-effort
+            except Exception as e:
+                logger.debug(f'Skill share HTTP request failed: {e}')
 
         return f"✅ Skill `{skill_name}` shared. Other team members will see it after their next sync."
 
@@ -343,11 +346,25 @@ def create_mcp_server(brain_dir: str) -> FastMCP:
 
         # Check embedding model
         try:
-            if hasattr(store, 'embedding_model') and store.embedding_model:
+            from core.memory.embedding_service import EmbeddingService
+            if isinstance(getattr(store, '_embedding_service', None), EmbeddingService):
+                checks.append("| Embedding Model | ✅ Loaded | Ready for encoding |")
+            elif hasattr(store, 'embedding_model') and store.embedding_model:
                 checks.append("| Embedding Model | ✅ Loaded | Ready for encoding |")
             else:
                 checks.append("| Embedding Model | ⚠️ Not loaded | Will load on first use |")
-        except Exception:
+        except ImportError:
+            # EmbeddingService not available, fall back to hasattr check
+            try:
+                if hasattr(store, 'embedding_model') and store.embedding_model:
+                    checks.append("| Embedding Model | ✅ Loaded | Ready for encoding |")
+                else:
+                    checks.append("| Embedding Model | ⚠️ Not loaded | Will load on first use |")
+            except Exception as e:
+                logger.debug(f'Embedding model check failed: {e}')
+                checks.append("| Embedding Model | ❌ Error | Embedding generation unavailable |")
+        except Exception as e:
+            logger.debug(f'Embedding availability check failed: {e}')
             checks.append("| Embedding Model | ❌ Error | Embedding generation unavailable |")
 
         # Check databases
@@ -427,8 +444,8 @@ def create_mcp_server(brain_dir: str) -> FastMCP:
                     },
                     timeout=5.0,
                 )
-            except Exception:
-                pass  # Silent — don't block MCP startup
+            except Exception as e:
+                logger.debug(f'Boot sync HTTP request failed: {e}')
 
         threading.Thread(target=_boot_sync, daemon=True).start()
 
@@ -439,10 +456,20 @@ def create_mcp_server(brain_dir: str) -> FastMCP:
     # ── Gap #6+#11 Fix: Wrap ALL tools (moved to end so identity tools are included)
     _wrap_tools_with_error_boundary(mcp)
 
-    # ── Gap #2 FIX: Orchestrator Pre-Hook (TRANSPORT LEVEL) ──────────
-    # Monkey-patches call_tool so EVERY tool invocation passes through
-    # a lightweight orchestration check. No request bypasses the system.
-    _install_orchestration_interceptor(mcp, store, _session_id)
+    # ── Execution Path Selection ──────────────────────────────
+    # Default: Middleware chain (R2 architecture)
+    # Legacy: Monkey-patch interceptor (opt-in via env var for debugging)
+    if os.environ.get('ELITE_ENABLE_LEGACY_INTERCEPTOR', '').strip() == '1':
+        logger.warning("Legacy interceptor enabled via ELITE_ENABLE_LEGACY_INTERCEPTOR=1")
+        _install_orchestration_interceptor(mcp, store, _session_id)
+    elif _middleware_chain is not None:
+        from core.integration.middleware_setup import wrap_registered_tools
+        wrapped = wrap_registered_tools(mcp, _middleware_chain)
+        logger.info("Middleware chain connected to tools",
+                    extra={"wrapped": wrapped, "path": "middleware_chain"})
+    else:
+        logger.warning("No middleware chain available and legacy interceptor disabled — "
+                      "tools will run without orchestration hooks")
 
     return mcp
 
@@ -637,8 +664,8 @@ def _seed_prevention_rules(store: EliteStore):
         try:
             store.register_prevention_rule(name, trigger, check, action, severity)
             seeded += 1
-        except Exception:
-            pass  # Rule already exists — idempotent
+        except Exception as e:
+            logger.debug(f'Prevention rule seeding skipped for {name}: {e}')
     logger.info("Prevention rules seeded", extra={"new": seeded, "total": len(rules)})
 
 
@@ -670,10 +697,10 @@ def _execute_prevention_rules(store: EliteStore, trigger_event: str, context: di
                             f"   Check: {check}\n"
                             f"   Action: {action}"
                         )
-            except Exception:
-                pass  # Individual rule failure must not block others
-    except Exception:
-        pass  # Rule system failure must not block tool execution
+            except Exception as e:
+                logger.debug(f'Individual rule evaluation failed: {e}')
+    except Exception as e:
+        logger.debug(f'Rule system retrieval failed: {e}')
     return warnings
 
 
@@ -725,14 +752,15 @@ def _install_orchestration_interceptor(mcp: FastMCP, store: EliteStore, session_
                 args_text = ' '.join(str(v) for v in (arguments or {}).values() if isinstance(v, str))[:200]
                 rule_ctx = {'tool_name': name, 'args_text': args_text}
 
-                # Map tool names to trigger events
+                # Map tool names to canonical trigger events
                 trigger_map = {
-                    'record_decision': 'before_design',
-                    'set_goal': 'before_design',
-                    'record_mistake': 'after_audit',
-                    'check_anti_patterns': 'after_audit',
+                    'record_decision': 'tool.before:record_decision',
+                    'set_goal': 'tool.before:set_goal',
+                    'record_mistake': 'tool.after:record_mistake',
+                    'check_anti_patterns': 'tool.after:check_anti_patterns',
+                    'orchestrate_request_tool': 'prompt.received',
                 }
-                trigger = trigger_map.get(name, 'after_tool_call')
+                trigger = trigger_map.get(name, f'tool.before:{name}')
                 rule_warnings = _execute_prevention_rules(store, trigger, rule_ctx)
                 if rule_warnings:
                     pre_context_parts.append(
@@ -740,8 +768,8 @@ def _install_orchestration_interceptor(mcp: FastMCP, store: EliteStore, session_
                         + "\n".join(rule_warnings)
                         + "\n╚═══════════════════════════════╝"
                     )
-            except Exception:
-                pass  # Never let rules block tool execution
+            except Exception as e:
+                logger.debug(f'Prevention rules pre-hook failed: {e}')
 
         # ── PRE-HOOK 2: Anti-pattern scan ──
         if name not in EXEMPT_TOOLS:
@@ -766,8 +794,8 @@ def _install_orchestration_interceptor(mcp: FastMCP, store: EliteStore, session_
                         + "\n\n".join(mistake_warns)
                         + "\n╚══════════════════════════════════╝"
                     )
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f'Anti-pattern scan failed: {e}')
 
         # ── PROMPT ANALYSIS: classify intent on orchestration calls ──
         if name == 'orchestrate_request_tool' and arguments:
@@ -903,8 +931,8 @@ def _install_orchestration_interceptor(mcp: FastMCP, store: EliteStore, session_
                             + "\n".join(prompt_rules)
                             + "\n╚═════════════════════╝"
                         )
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f'Prompt analysis failed: {e}')
 
         # ── EXECUTE: run the original tool (timed) ──
         start_time = _time.time()
@@ -921,8 +949,8 @@ def _install_orchestration_interceptor(mcp: FastMCP, store: EliteStore, session_
                         result_text = item.text[:200]
                         break
             store.log_tool_usage(name, args_summary, result_text, session_id, duration_ms)
-        except Exception:
-            pass  # Never let logging break tool execution
+        except Exception as e:
+            logger.debug(f'Tool usage logging failed for {name}: {e}')
 
         # ── PERIODIC AUTONOMOUS SCAN: every 20 calls ──
         _tool_call_counter[0] += 1
@@ -935,8 +963,8 @@ def _install_orchestration_interceptor(mcp: FastMCP, store: EliteStore, session_
                         if gap['severity'] == 'P0':
                             scan_text += f"  - {gap['detail']}\n"
                     pre_context_parts.insert(0, scan_text)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f'Periodic autonomous scan failed: {e}')
 
         # ── POST-HOOK: inject context into result ──
         if pre_context_parts and result:
@@ -949,8 +977,8 @@ def _install_orchestration_interceptor(mcp: FastMCP, store: EliteStore, session_
                         text=combined + result_list[0].text
                     )
                     return result_list
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f'Post-hook result injection failed: {e}')
 
         return result
 
@@ -958,13 +986,13 @@ def _install_orchestration_interceptor(mcp: FastMCP, store: EliteStore, session_
     mcp.call_tool = _intercepted_call_tool
     try:
         mcp._mcp_server._handlers['tools/call'] = _intercepted_call_tool
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug(f'Handler registration for tools/call failed: {e}')
 
 
 def main():
     import os
-    brain_dir = os.path.expanduser("~/.elite-reasoning/brain")
+    brain_dir = os.environ.get('ELITE_BRAIN_DIR', os.path.expanduser("~/.elite-reasoning/brain"))
     server = create_mcp_server(brain_dir)
     server.run()
 

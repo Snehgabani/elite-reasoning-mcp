@@ -74,8 +74,8 @@ class AntiPatternInjectionMiddleware(Middleware):
                 ap_ids = [h.get('id', 0) for h in unique[:len(bullets)]]
                 try:
                     self.store.log_injection(self.session_id, ap_ids, prompt_hash)
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug(f"Injection logging failed: {e}")
         except Exception as e:
             logger.warning(f"Anti-pattern injection failed: {e}")
 

@@ -502,6 +502,18 @@ class EliteStore:
             )
         """)
 
+        # --- Optimization Events (v5: cost/metric self-optimization) ---
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS optimization_events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                metric TEXT NOT NULL,
+                value REAL NOT NULL,
+                threshold REAL NOT NULL,
+                action_taken TEXT,
+                created_at REAL NOT NULL
+            )
+        """)
+
         # --- INDEXES (P0 fix: 0 indexes existed across 13 tables) ---
         index_stmts = [
             "CREATE INDEX IF NOT EXISTS idx_anti_patterns_created ON anti_patterns(created_at)",
@@ -537,6 +549,7 @@ class EliteStore:
             "CREATE INDEX IF NOT EXISTS idx_anti_patterns_trust ON anti_patterns(trust_score) WHERE quarantined = 0",
             "CREATE INDEX IF NOT EXISTS idx_anti_patterns_quarantine ON anti_patterns(quarantined) WHERE quarantined = 1",
             "CREATE INDEX IF NOT EXISTS idx_rules_lifecycle ON prevention_rules(lifecycle_state)",
+            "CREATE INDEX IF NOT EXISTS idx_optimization_metric ON optimization_events(metric, created_at)",
         ]
         for stmt in index_stmts:
             try:
@@ -1550,8 +1563,16 @@ class EliteStore:
             "FROM reasoning_traces WHERE session_id = ? AND branch_id = ? ORDER BY created_at ASC",
             (session_id, branch_id)
         )
-        return [{'thought_id': r[0], 'parent': r[1], 'type': r[2], 'content': r[3],
+        traces = [{'thought_id': r[0], 'parent': r[1], 'type': r[2], 'content': r[3],
                  'confidence': r[4], 'status': r[5], 'created_at': r[6]} for r in c.fetchall()]
+        # Wire temporal_confidence: compute live confidence for each trace
+        try:
+            from core.memory.temporal_confidence import current_confidence
+            for trace in traces:
+                trace['live_confidence'] = current_confidence(trace)
+        except Exception:
+            pass  # Never break trace retrieval if temporal_confidence unavailable
+        return traces
 
     def conclude_branch(self, session_id: str, branch_id: str, winning_thought_id: str) -> dict:
         """Mark a branch as winning and others as abandoned."""
@@ -2022,24 +2043,34 @@ class EliteStore:
             return False
         conn = self._connect()
         c = conn.cursor()
-        updates = ["lifecycle_state = ?"]
-        params = [new_state]
+        now = time.time()
+        # Use explicit branches instead of dynamic SQL construction
         if new_state == 'active':
-            updates.append("promoted_at = ?")
-            params.append(time.time())
+            c.execute(
+                "UPDATE prevention_rules SET lifecycle_state = ?, promoted_at = ? WHERE id = ?",
+                (new_state, now, rule_id)
+            )
         elif new_state == 'retired':
-            updates.append("retired_at = ?")
-            params.append(time.time())
-            updates.append("enabled = 0")
+            c.execute(
+                "UPDATE prevention_rules SET lifecycle_state = ?, retired_at = ?, enabled = 0 WHERE id = ?",
+                (new_state, now, rule_id)
+            )
+        else:
+            c.execute(
+                "UPDATE prevention_rules SET lifecycle_state = ? WHERE id = ?",
+                (new_state, rule_id)
+            )
+        # Update optional counters separately (safe parameterized queries)
         if true_positives is not None:
-            updates.append("true_positive_count = ?")
-            params.append(true_positives)
+            c.execute(
+                "UPDATE prevention_rules SET true_positive_count = ? WHERE id = ?",
+                (true_positives, rule_id)
+            )
         if false_positives is not None:
-            updates.append("false_positive_count = ?")
-            params.append(false_positives)
-        params.append(rule_id)
-        c.execute(f"UPDATE prevention_rules SET {', '.join(updates)} WHERE id = ?",
-                  tuple(params))
+            c.execute(
+                "UPDATE prevention_rules SET false_positive_count = ? WHERE id = ?",
+                (false_positives, rule_id)
+            )
         affected = c.rowcount
         self._close(conn)
         return affected > 0

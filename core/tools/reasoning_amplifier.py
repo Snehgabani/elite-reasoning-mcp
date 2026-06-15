@@ -751,6 +751,7 @@ def _register_hidden_tools(mcp, store):
         what_was_missed: str,
         how_found: str = "",
         suggested_rule: str = "",
+        severity: str = "auto",
     ) -> str:
         """Record something the system missed detecting — feeds the autonomous improvement loop.
 
@@ -759,13 +760,24 @@ def _register_hidden_tools(mcp, store):
             what_was_missed: Description of what should have been caught
             how_found: How it was eventually discovered
             suggested_rule: Optional suggestion for a prevention rule
+            severity: Severity level (P0/P1/P2) or 'auto' to infer from signals
         """
+        # Wire severity_inference: auto-infer severity when not explicitly provided
+        inferred_info = ""
+        if not severity or severity == 'auto':
+            try:
+                from core.learning.severity_inference import infer_severity
+                result = infer_severity(detection_type, what_was_missed, store)
+                severity = result.get('severity', 'P1')
+                inferred_info = f"\nSeverity auto-inferred as {severity} (confidence: {result.get('confidence', 'N/A')})"
+            except Exception:
+                severity = 'P1'  # Safe default if inference unavailable
         try:
             store.record_missed_detection(detection_type, what_was_missed, how_found, suggested_rule)
             return (
                 f"✅ Missed detection recorded: {detection_type}\n"
                 f"What was missed: {what_was_missed}\n"
-                f"This will be used to improve autonomous scanning."
+                f"This will be used to improve autonomous scanning.{inferred_info}"
             )
         except Exception as e:
             return f"❌ Failed to record: {e}"

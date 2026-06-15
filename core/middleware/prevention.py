@@ -112,8 +112,8 @@ class EventBus:
                 elapsed_ms = (time.perf_counter() - start) * 1000
                 try:
                     self.store.update_rule_evaluation(rule['id'], error=error, check_ms=elapsed_ms)
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug(f'Rule evaluation tracking failed for rule {rule.get("id", "?")}: {e}')
 
         return warnings
 
@@ -127,10 +127,17 @@ class PreventionRuleMiddleware(Middleware):
         'get_user_profile', 'update_user_config',
     })
 
-    def __init__(self, store):
+    def __init__(self, store, reload_interval: int = 50):
         self.bus = EventBus(store)
+        self._eval_count = 0
+        self._reload_interval = reload_interval
 
     async def before(self, ctx: CallContext) -> Optional[CallResult]:
+        # Periodic reload to pick up rules added at runtime
+        self._eval_count += 1
+        if self._eval_count % self._reload_interval == 0:
+            self.bus._reload()
+
         if ctx.tool_name in self.EXEMPT_TOOLS:
             return None
 

@@ -119,6 +119,14 @@ def register(mcp, store, orchestrator=None):
                 severity: P0/P1/P2
                 source_detection_id: ID of the missed detection this rule was derived from (0 = manual)
         """
+        # Wire trigger_learner: auto-suggest trigger when not provided
+        if not trigger_event or not trigger_event.strip():
+            try:
+                from core.learning.trigger_learner import TriggerLearner
+                learner = TriggerLearner(store)
+                trigger_event = learner.suggest_trigger(rule_name)
+            except Exception:
+                trigger_event = 'prompt.received'  # Safe default
         src_id = source_detection_id if source_detection_id > 0 else None
         result = store.register_prevention_rule(
             rule_name, trigger_event, check_query, action_on_match,

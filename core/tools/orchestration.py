@@ -155,7 +155,11 @@ def orchestrate_request(user_prompt: str) -> str:
 
 def _llm_orchestration(user_prompt: str, mcps: list[str], skills: list[str], user_id: str, api_key: str) -> str:
     """Use Gemini to generate a smart, personalized orchestration plan."""
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
+    base_url = os.environ.get(
+        'ELITE_GEMINI_BASE_URL',
+        'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent'
+    )
+    url = f"{base_url}?key={api_key}"
 
     system_instruction = (
         "You are the Elite Orchestrator for an AI coding assistant. "
