@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+*.pyo
+brain/
+*.db
+*.db-journal
+mcp_error.log
+.venv/
+*.egg-info/
+dist/
+build/
+test_brain/
+data/

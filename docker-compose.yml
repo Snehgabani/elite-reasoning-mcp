@@ -1,0 +1,25 @@
+services:
+  # MCP Server (stdio transport - used by IDE)
+  # Note: The MCP server uses stdio, so it runs locally.
+  # This Docker image is for packaging and distribution.
+  
+  sync-server:
+    build: .
+    ports:
+      - "8765:8765"
+    environment:
+      - ELITE_BRAIN_DIR=/data/brain
+      - ELITE_LOG_LEVEL=INFO
+      - SYNC_API_KEY=${SYNC_API_KEY:-}
+    volumes:
+      - brain-data:/data/brain
+    command: ["python", "-m", "uvicorn", "core.integration.sync_server:app", "--host", "0.0.0.0", "--port", "8765"]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8765/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  brain-data:

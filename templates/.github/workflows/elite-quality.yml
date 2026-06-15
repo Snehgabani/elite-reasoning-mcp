@@ -1,0 +1,41 @@
+name: Elite Quality Audit
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          
+      - name: Install uv
+        uses: astral-sh/setup-uv@v2
+
+      - name: Install Elite System
+        run: uv pip install elite-system  # In real usage, install from package registry or repository
+
+      - name: Fetch Elite Memory Brain
+        run: |
+          # Example of fetching the shared team memory database
+          # curl -O https://team-bucket.s3.amazonaws.com/elite_memory.db ~/.elite-reasoning/brain/elite_memory.db
+
+      - name: Get PR Title & Body
+        id: pr_info
+        run: |
+          echo "PR_TITLE=${{ github.event.pull_request.title }}" >> $GITHUB_ENV
+          echo "PR_BODY<<EOF" >> $GITHUB_ENV
+          echo "${{ github.event.pull_request.body }}" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
+      - name: Run Elite Anti-Pattern Audit
+        run: |
+          elite-ci audit "$PR_TITLE: $PR_BODY"

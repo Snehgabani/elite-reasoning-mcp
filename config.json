@@ -1,0 +1,28 @@
+{
+  "user_id": "snehgabani",
+  "display_name": "snehgabani",
+  "ide_type": "antigravity",
+  "sync": {
+    "enabled": false,
+    "hub_url": "http://localhost:8000",
+    "api_key": "",
+    "auto_sync_on_boot": true,
+    "sync_interval_minutes": 60
+  },
+  "orchestration": {
+    "mode": "auto",
+    "gemini_api_key": "",
+    "disabled_mcps": [],
+    "disabled_skills": [],
+    "priority_mcps": [],
+    "priority_skills": []
+  },
+  "quality": {
+    "auto_check_anti_patterns": true,
+    "auto_record_decisions": true,
+    "min_quality_score": 70
+  },
+  "shared_skills": [],
+  "created_at": "2026-06-12 17:32:20",
+  "updated_at": "2026-06-12 17:32:20"
+}
