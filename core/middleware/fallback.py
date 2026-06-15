@@ -6,6 +6,7 @@ Implements:
 1. RetryMiddleware — retries transient errors with exponential backoff
 2. FallbackMiddleware — tries alternative tool when primary fails
 """
+import asyncio
 import logging
 import time
 
@@ -62,7 +63,7 @@ class RetryMiddleware(Middleware):
                     extra={"tool": ctx.tool_name, "attempt": attempt + 1,
                            "delay_s": delay, "error": error_str[:100]})
 
-        time.sleep(delay)
+        await asyncio.sleep(delay)
 
         # Return a result that signals "retry" to the chain
         return CallResult(
@@ -114,7 +115,7 @@ class FallbackMiddleware(Middleware):
 
         return CallResult(
             value=suggestion,
-            duration_ms=(time.time() - ctx.started_at) * 1000,
+            duration_ms=(time.perf_counter() - ctx.started_at) * 1000,
             short_circuited=True,
             augmentations=[suggestion],
         )

@@ -921,9 +921,9 @@ def _install_orchestration_interceptor(mcp: FastMCP, store: EliteStore, session_
 
                         pre_context_parts.append("\n".join(preflight_lines))
 
-                    # Execute on_prompt prevention rules
+                    # Execute prompt.received prevention rules (canonical event)
                     prompt_rules = _execute_prevention_rules(
-                        store, 'on_prompt', {'tool_name': name, 'args_text': prompt[:200]}
+                        store, 'prompt.received', {'tool_name': name, 'args_text': prompt[:200]}
                     )
                     if prompt_rules:
                         pre_context_parts.append(

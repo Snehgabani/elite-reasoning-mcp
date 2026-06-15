@@ -149,8 +149,9 @@ class PreventionRuleMiddleware(Middleware):
         # Emit tool.before:<tool_name>
         warnings = self.bus.emit(f'tool.before:{ctx.tool_name}', payload)
 
-        # Emit tool.before:*
-        warnings.extend(self.bus.emit('tool.before:*', payload))
+        # NOTE: EventBus.emit() already handles wildcard matching internally
+        # (tool.before:<name> → also checks tool.before:*), so no explicit
+        # wildcard emit is needed here.
 
         # For orchestrate — also emit prompt.received
         if ctx.tool_name == 'orchestrate_request_tool':
