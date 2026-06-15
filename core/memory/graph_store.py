@@ -1,9 +1,10 @@
-import sqlite3
 import json
+import sqlite3
+import threading
 import uuid
 from datetime import datetime, timezone
-from typing import Dict, Any, List, Optional
-import threading
+from typing import Any, Dict, List, Optional
+
 
 class TemporalGraphStore:
     def __init__(self, db_path: str):
@@ -69,7 +70,7 @@ class TemporalGraphStore:
         nid = node_id or str(uuid.uuid4())
         created_at = datetime.now(timezone.utc).isoformat()
         props_str = json.dumps(properties) if properties else "{}"
-        
+
         conn = self._get_conn()
         try:
             conn.execute(
@@ -102,7 +103,7 @@ class TemporalGraphStore:
         eid = str(uuid.uuid4())
         props_str = json.dumps(properties) if properties else "{}"
         v_from = valid_from or datetime.now(timezone.utc).isoformat()
-        
+
         conn = self._get_conn()
         try:
             conn.execute(
@@ -131,15 +132,15 @@ class TemporalGraphStore:
         node = self.get_node(node_id)
         if not node:
             raise ValueError(f"Node {node_id} not found.")
-            
+
         if node["label"] not in ("Hypothesis", "Prospective_Failure"):
             raise ValueError(f"Node {node_id} is a {node['label']}, not a Hypothesis or Prospective_Failure.")
-            
+
         properties = node["properties"]
         properties["state"] = outcome
         properties["evidence"] = evidence
         properties["evaluated_at"] = datetime.now(timezone.utc).isoformat()
-        
+
         props_str = json.dumps(properties)
         conn = self._get_conn()
         try:
@@ -191,11 +192,11 @@ class TemporalGraphStore:
         node = self.get_node(node_id)
         if not node or node["label"] != "Prospective_Failure":
             raise ValueError(f"Valid Prospective_Failure node {node_id} not found.")
-            
+
         properties = node["properties"]
         properties["state"] = "TRUE" if occurred else "FALSE"
         properties["evaluated_at"] = datetime.now(timezone.utc).isoformat()
-        
+
         props_str = json.dumps(properties)
         conn = self._get_conn()
         try:
@@ -212,13 +213,13 @@ class TemporalGraphStore:
         Returns a list of nodes and their outgoing edges.
         """
         query_time = at_time or datetime.now(timezone.utc).isoformat()
-        
+
         nodes_query = "SELECT * FROM graph_nodes"
         params = []
         if node_label:
             nodes_query += " WHERE label = ?"
             params.append(node_label)
-            
+
         result = []
         conn = self._get_conn()
         try:
@@ -230,7 +231,7 @@ class TemporalGraphStore:
                     "properties": json.loads(node["properties"]),
                     "edges": []
                 }
-                
+
                 # Fetch valid edges
                 edges = conn.execute('''
                     SELECT * FROM graph_edges 
@@ -238,7 +239,7 @@ class TemporalGraphStore:
                     AND (valid_from IS NULL OR valid_from <= ?)
                     AND (valid_to IS NULL OR valid_to > ?)
                 ''', (node["id"], query_time, query_time)).fetchall()
-                
+
                 for edge in edges:
                     node_data["edges"].append({
                         "id": edge["id"],
@@ -246,10 +247,10 @@ class TemporalGraphStore:
                         "relation": edge["relation"],
                         "properties": json.loads(edge["properties"])
                     })
-                
+
                 result.append(node_data)
         finally:
             if not getattr(self._local, 'in_transaction', False):
                 conn.close()
-                
+
         return result

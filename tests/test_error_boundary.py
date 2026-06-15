@@ -10,12 +10,8 @@ Covers:
 """
 
 import asyncio
-import inspect
-
-import pytest
 
 from core.tools.error_boundary import safe_tool, safe_tool_async
-
 
 # ──────────────────────────────────────────────
 # 1. safe_tool wrapping a normal function

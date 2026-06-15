@@ -13,7 +13,6 @@ Covers:
   - Error recovery on stale connections
 """
 
-import json
 import os
 import sqlite3
 import tempfile
@@ -22,7 +21,6 @@ import threading
 import pytest
 
 from core.memory.persistent_store import EliteStore
-
 
 # ──────────────────────────────────────────────
 # Fixtures
@@ -200,7 +198,7 @@ class TestDecisions:
 
     def test_get_all_decisions_ordering(self, store):
         store.record_decision("first", "r1")
-        import time; time.sleep(0.01)  # Ensure different timestamps
+        import time; time.sleep(0.01)  # noqa: I001, E702 - Ensure different timestamps
         store.record_decision("second", "r2")
         all_d = store.get_all_decisions()
         # With same-second timestamps, ordering may vary
@@ -371,7 +369,6 @@ class TestQualityScores:
         assert trend["average"] == 70.0
 
     def test_quality_trend_latest(self, store):
-        import time
         store.record_quality_score(60)
         store.record_quality_score(80)
         store.record_quality_score(95)

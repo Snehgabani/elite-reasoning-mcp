@@ -33,7 +33,7 @@ def register(mcp, store, orchestrator=None):
         out = f'⚠️ {len(results)} matching anti-patterns!\n\n'
         for r in results:
             out += f"### 🚨 [{r['severity'].upper()}] {r['mistake']}\n- Root Cause: {r['root_cause']}\n- Fix: {r['fix']}\n\n"
-            
+
         # Semantic Compression: Token bounding to prevent context window overflow
         MAX_CHARS = 6000
         if len(out) > MAX_CHARS:
@@ -162,11 +162,12 @@ def register(mcp, store, orchestrator=None):
         Args:
             remote_url: The URL of the central sync server (default: http://localhost:8000)
         """
-        import httpx
-        import os
-        import json
         import getpass
+        import json
+        import os
         from datetime import datetime
+
+        import httpx
 
         # Override URL from env if available
         remote_url = os.environ.get("TEAM_SYNC_URL", remote_url)
@@ -216,7 +217,7 @@ def register(mcp, store, orchestrator=None):
             pull_resp = httpx.get(pull_url, params=pull_params, headers=headers, timeout=30.0)
             pull_resp.raise_for_status()
             remote_data = pull_resp.json()
-            
+
             # Merge remote into local
             existing_aps = {ap['mistake'] for ap in store.get_all_anti_patterns()}
             added_aps = 0
@@ -262,7 +263,7 @@ def register(mcp, store, orchestrator=None):
             new_cursor_time = datetime.utcnow().isoformat()
             with open(cursor_path, 'w') as f:
                 json.dump({"last_synced_at": new_cursor_time, "user_id": user_id}, f)
-            
+
             return f"✅ Sync Complete (user: {user_id})! Pulled {added_aps} anti-patterns and {added_decs} decisions. Pushed: {accepted} accepted, {rejected} rejected. Team size: {total_users} users."
         except Exception as e:
             return f"❌ Sync Failed: {str(e)}"

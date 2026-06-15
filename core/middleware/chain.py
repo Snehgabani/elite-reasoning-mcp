@@ -1,8 +1,9 @@
 """Middleware chain that wraps tool functions with composable hooks."""
-import time
 import logging
-from typing import Any, Callable, Awaitable
-from core.middleware.base import Middleware, CallContext, CallResult
+import time
+from typing import Any, Awaitable, Callable
+
+from core.middleware.base import CallContext, CallResult, Middleware
 
 logger = logging.getLogger(__name__)
 
@@ -30,19 +31,19 @@ class MiddlewareChain:
         
         wrapped_fn = chain.wrap("tool_name", original_fn)
     """
-    
+
     def __init__(self):
         self._middlewares: list[Middleware] = []
-    
+
     def use(self, mw: Middleware) -> "MiddlewareChain":
         """Add a middleware to the chain. Order matters."""
         self._middlewares.append(mw)
         return self
-    
+
     def wrap(self, tool_name: str, fn: Callable[..., Awaitable[Any]]) -> Callable:
         """Returns a new async function with the chain applied."""
         relevant = [m for m in self._middlewares if m.matches(tool_name)]
-        
+
         async def wrapped(**kwargs):
             ctx = CallContext(
                 tool_name=tool_name,
@@ -50,7 +51,7 @@ class MiddlewareChain:
                 session_id=kwargs.pop("_session_id", "default"),
                 started_at=time.perf_counter(),
             )
-            
+
             # ── PRE chain: first one to return a result short-circuits ──
             for mw in relevant:
                 try:
@@ -61,7 +62,7 @@ class MiddlewareChain:
                 if early is not None:
                     early.short_circuited = True
                     return _render(ctx, early)
-            
+
             # ── EXECUTE: run the original tool (timed) ──
             try:
                 value = await fn(**kwargs)
@@ -79,14 +80,14 @@ class MiddlewareChain:
                     if suppressed is not None:
                         return _render(ctx, suppressed)
                 raise
-            
+
             # ── POST chain: reverse order, each can modify result ──
             for mw in reversed(relevant):
                 try:
                     result = await mw.after(ctx, result)
                 except Exception as e:
                     logger.warning(f"middleware.after {mw.name} failed: {e}")
-            
+
             return _render(ctx, result)
-        
+
         return wrapped

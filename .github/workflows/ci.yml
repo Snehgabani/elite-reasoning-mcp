@@ -10,6 +10,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         python-version: ["3.11", "3.12", "3.13"]
     
@@ -23,7 +24,7 @@ jobs:
         run: uv python install ${{ matrix.python-version }}
       
       - name: Install dependencies
-        run: uv sync --frozen
+        run: uv sync --frozen --extra dev
       
       - name: Run linter
         run: uv run ruff check core/ tests/
@@ -36,3 +37,4 @@ jobs:
         run: uv run pytest tests/ -v --tb=short
         env:
           ELITE_BRAIN_DIR: /tmp/elite-test-brain
+

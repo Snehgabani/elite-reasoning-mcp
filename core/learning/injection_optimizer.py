@@ -2,8 +2,8 @@
 
 Reads injection_events (previously write-only), computes per-pattern
 effectiveness, retires ineffective patterns, boosts effective ones."""
-import time
 import logging
+import time
 from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)

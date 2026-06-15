@@ -1,9 +1,9 @@
 """Temporal confidence model for reasoning traces.
 Different thought types decay at different rates.
 Reinforced (cited/used) facts stay alive; unused facts fade."""
+import logging
 import math
 import time
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +36,7 @@ def current_confidence(trace: dict) -> float:
     status = trace.get('status', 'active')
     if status in ('abandoned', 'superseded'):
         return 0.0
-    
+
     # Age from last reinforcement (or creation)
     now = time.time()
     anchor = trace.get('reinforced_at') or trace.get('created_at', now)
@@ -47,23 +47,23 @@ def current_confidence(trace: dict) -> float:
             anchor = datetime.fromisoformat(anchor).timestamp()
         except (ValueError, TypeError):
             anchor = now
-    
+
     age_days = max(0, (now - anchor) / 86400)
-    
+
     # Half-life: explicit > type-based > default
     hl = (
         trace.get('confidence_half_life_days')
         or HALF_LIFE_DAYS.get(trace.get('thought_type', ''), DEFAULT_HALF_LIFE)
     )
-    
+
     # Exponential decay
     initial = trace.get('confidence_initial', 0.8)
     decay = 0.5 ** (age_days / hl)
-    
+
     # Reinforcement gives diminishing returns (logistic, not linear)
     reinforcement_count = trace.get('reinforcement_count', 0)
     boost = 1.0 + (0.1 * math.log1p(reinforcement_count))
-    
+
     return min(1.0, initial * decay * boost)
 
 
@@ -100,7 +100,7 @@ def batch_compute_confidences(store, limit: int = 100) -> list[dict]:
             (limit,)
         ).fetchall()
         store._close(conn)
-        
+
         results = []
         for r in rows:
             trace = dict(r)

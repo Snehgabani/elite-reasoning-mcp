@@ -130,11 +130,10 @@ For each path, assume the `{proposed_action}` was executed, but resulted in cata
         Args:
             scenarios: Comma-separated 'probability:value' pairs. Example: '0.7:100, 0.2:-50, 0.1:0'
         """
-        import json as _json
         pairs = []
         total_prob = 0.0
         ev = 0.0
-        
+
         for pair in scenarios.split(","):
             pair = pair.strip()
             if ":" not in pair:
@@ -174,7 +173,7 @@ For each path, assume the `{proposed_action}` was executed, but resulted in cata
         p = max(0.001, min(0.999, prior))
         sens = max(0.001, min(0.999, sensitivity))
         spec = max(0.001, min(0.999, specificity))
-        
+
         prob_b = (sens * p) + ((1 - spec) * (1 - p))
         posterior = (sens * p) / prob_b if prob_b > 0 else 0
 

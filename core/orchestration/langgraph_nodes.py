@@ -1,6 +1,7 @@
-import json
-from typing import TypedDict, List, Dict, Any, Optional
-from langgraph.graph import StateGraph, START, END
+from typing import Any, Dict, List, TypedDict
+
+from langgraph.graph import END, START, StateGraph
+
 
 class ContextState(TypedDict):
     raw_text: str
@@ -16,16 +17,16 @@ def extract_entities(state: ContextState) -> Dict[str, Any]:
     """
     text = state["raw_text"]
     entities = []
-    
+
     # Heuristic mock for extraction
     if "error" in text.lower():
         entities.append({"label": "ErrorContext", "properties": {"summary": text[:50]}})
     if "refactor" in text.lower():
         entities.append({"label": "RefactorEvent", "properties": {"summary": text[:50]}})
-        
+
     if not entities:
         entities.append({"label": "GeneralContext", "properties": {"snippet": text[:50]}})
-        
+
     return {"extracted_entities": entities}
 
 def traverse_and_link(state: ContextState) -> Dict[str, Any]:
@@ -53,14 +54,14 @@ def synthesize(state: ContextState) -> Dict[str, Any]:
 def build_ingestion_graph() -> StateGraph:
     """Compiles and returns the LangGraph application."""
     workflow = StateGraph(ContextState)
-    
+
     workflow.add_node("extract", extract_entities)
     workflow.add_node("link", traverse_and_link)
     workflow.add_node("synthesize", synthesize)
-    
+
     workflow.add_edge(START, "extract")
     workflow.add_edge("extract", "link")
     workflow.add_edge("link", "synthesize")
     workflow.add_edge("synthesize", END)
-    
+
     return workflow.compile()

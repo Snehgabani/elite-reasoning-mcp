@@ -10,9 +10,7 @@ Tests cover:
 - Self-Diagnostics
 """
 import json
-import os
 import tempfile
-import time
 
 import pytest
 

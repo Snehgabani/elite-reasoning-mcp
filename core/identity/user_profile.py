@@ -10,12 +10,11 @@ Each user gets:
 Config lives at: ~/.elite-reasoning/config.json
 Brain lives at:  ~/.elite-reasoning/brain/
 """
-import os
-import json
 import getpass
+import json
+import os
 import time
 from typing import Optional
-
 
 DEFAULT_CONFIG = {
     "user_id": "",

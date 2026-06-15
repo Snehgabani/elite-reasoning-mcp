@@ -1,4 +1,3 @@
-import json
 
 
 def register(mcp, store, orchestrator=None):
@@ -36,7 +35,7 @@ def register(mcp, store, orchestrator=None):
         if result['health'] == 'no_data':
             return '📊 No prompt data yet. Prompts will be analyzed as they are recorded.'
 
-        out = f"## 📊 Prompt Sequence Analysis\n\n"
+        out = "## 📊 Prompt Sequence Analysis\n\n"
         out += f"**Health Score**: {result['health_score']}/100 ({result['health'].upper()})\n"
         out += f"**Total Prompts**: {result['total_prompts']} ({result['substantive_prompts']} substantive, {result['waste_prompts']} waste)\n"
         out += f"**Detection Failures**: {result['detection_failures']}\n\n"
@@ -89,7 +88,7 @@ def register(mcp, store, orchestrator=None):
             Checks: missed detections, stale goals, quality regression, expired predictions, prompt health, rule effectiveness.
         """
         result = store.autonomous_scan()
-        out = f"## 🔍 Autonomous Gap Scan\n\n"
+        out = "## 🔍 Autonomous Gap Scan\n\n"
         out += f"**Total Gaps**: {result['total_gaps']} (P0: {result['p0_count']}, P1: {result['p1_count']}, P2: {result['p2_count']})\n"
         out += f"**Scan Time**: {result['scan_time']}\n\n"
 
@@ -178,7 +177,7 @@ def register(mcp, store, orchestrator=None):
             📋 Returns full status: diagnosis, autonomous goals, and gap scan results.
         """
         result = store.get_autonomous_status()
-        out = f"## 📋 Autonomous Status Report\n\n"
+        out = "## 📋 Autonomous Status Report\n\n"
         out += f"**Summary**: {result['summary']}\n\n"
 
         # Inline the diagnosis
@@ -321,8 +320,6 @@ def register(mcp, store, orchestrator=None):
 
         # 5. Stale goals
         goals = store.get_active_goals()
-        import time
-        now = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
         for g in goals:
             if g.get('overall_pct', 0) < 10:
                 predictions.append({

@@ -9,10 +9,8 @@ Runs benchmark queries against the store, measures:
 4. Prevention rule fire rate
 5. Cost per query
 """
-import time
-import json
 import logging
-import statistics
+import time
 from dataclasses import dataclass, field
 
 logger = logging.getLogger(__name__)
@@ -252,7 +250,7 @@ class EvalHarness:
     def _bench_calibration_roundtrip(self) -> BenchmarkResult:
         """Calibration predict/resolve roundtrip."""
         try:
-            pred_id = self.store.log_calibration(
+            self.store.log_calibration(
                 prediction_id="eval_bench_test",
                 claim="[EVAL_BENCH] test claim",
                 confidence=0.7,

@@ -1,8 +1,7 @@
 """Telemetry middleware: usage logging, latency budgets, periodic scans, cost tracking."""
-import time
 import logging
-from typing import Optional
-from core.middleware.base import Middleware, CallContext, CallResult
+
+from core.middleware.base import CallContext, CallResult, Middleware
 
 logger = logging.getLogger(__name__)
 
@@ -17,11 +16,11 @@ class UsageLogMiddleware(Middleware):
     """Logs every tool call for adaptive learning."""
     name = "usage_log"
     applies_to = "*"
-    
+
     def __init__(self, store, session_id: str = 'default'):
         self.store = store
         self.session_id = session_id
-    
+
     async def after(self, ctx: CallContext, result: CallResult) -> CallResult:
         try:
             args_summary = str(ctx.args)[:200] if ctx.args else ''
@@ -43,10 +42,10 @@ class LatencyBudgetMiddleware(Middleware):
     """Warns when tool calls exceed latency budget."""
     name = "latency_budget"
     applies_to = "*"
-    
+
     def __init__(self, p99_ms: int = 2000):
         self.p99_ms = p99_ms
-    
+
     async def after(self, ctx: CallContext, result: CallResult) -> CallResult:
         if result.duration_ms > self.p99_ms:
             result.augmentations.append(
@@ -60,12 +59,12 @@ class PeriodicScanMiddleware(Middleware):
     """Runs autonomous scan every N tool calls."""
     name = "periodic_scan"
     applies_to = "*"
-    
+
     def __init__(self, store, interval: int = 20):
         self.store = store
         self.interval = interval
         self._counter = 0
-    
+
     async def after(self, ctx: CallContext, result: CallResult) -> CallResult:
         self._counter += 1
         if self._counter % self.interval == 0:
@@ -90,7 +89,7 @@ class CostTrackingMiddleware(Middleware):
     """
     name = "cost_tracking"
     applies_to = "*"
-    
+
     # Estimated costs per operation type (USD)
     COST_ESTIMATES = {
         'embedding_local': 0.0001,     # local SentenceTransformer
@@ -98,11 +97,11 @@ class CostTrackingMiddleware(Middleware):
         'fts_search': 0.00001,         # FTS5 is essentially free
         'vec_search': 0.00005,         # vec search with distance calc
     }
-    
+
     def __init__(self, store, session_id: str = 'default'):
         self.store = store
         self.session_id = session_id
-    
+
     async def after(self, ctx: CallContext, result: CallResult) -> CallResult:
         try:
             if ctx.tool_name in EMBEDDING_TOOLS:

@@ -9,7 +9,6 @@ Covers:
   - Connection caching (thread-local)
 """
 
-import json
 import os
 import sqlite3
 import tempfile
@@ -19,7 +18,6 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from core.memory.graph_store import TemporalGraphStore
-
 
 # ──────────────────────────────────────────────
 # Fixtures

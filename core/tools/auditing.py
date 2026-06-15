@@ -74,7 +74,7 @@ def register(mcp, store, orchestrator=None):
             if d['alternatives_rejected']:
                 out += f"- Rejected: {d['alternatives_rejected']}\n"
             out += f"- _Decided: {d['created_at']}_\n\n"
-        
+
         # Semantic Compression: Token bounding to prevent context window overflow
         MAX_CHARS = 6000
         if len(out) > MAX_CHARS:
@@ -92,7 +92,7 @@ def register(mcp, store, orchestrator=None):
             """
         if not 0 <= score <= 100:
             return '❌ Score must be 0-100.'
-        
+
         # Gap #7: Enforce concrete dimensions
         VALID_DIMENSIONS = {
             "test_pass_rate", "tool_availability", "sync_latency",
@@ -101,11 +101,11 @@ def register(mcp, store, orchestrator=None):
         }
         if dimension not in VALID_DIMENSIONS:
             return f"❌ Invalid dimension `{dimension}`. Use one of: {', '.join(sorted(VALID_DIMENSIONS))}"
-        
+
         warning = ""
         if dimension == "overall" and not notes:
             warning = "\n⚠️ 'overall' without notes is a vanity metric. Specify HOW you measured this."
-        
+
         store.record_quality_score(score, dimension, notes)
         t = store.get_quality_trend()
         return f"📊 {score}/100 ({dimension}) recorded. Avg: {t['average']}/100. Trend: {t['trend']}.{warning}"
@@ -117,7 +117,7 @@ def register(mcp, store, orchestrator=None):
         t = store.get_quality_trend()
         if t['trend'] == 'no_data':
             return 'No quality data yet.'
-        
+
         # Build per-dimension breakdown
         dimensions = {}
         for s in t.get("scores", []):
@@ -125,14 +125,14 @@ def register(mcp, store, orchestrator=None):
             if dim not in dimensions:
                 dimensions[dim] = []
             dimensions[dim].append(s.get("score", 0))
-        
+
         breakdown = ""
         if dimensions:
             breakdown = "\n\n**Per-Dimension:**\n| Dimension | Avg | Count | Latest |\n|---|---|---|---|\n"
             for dim, scores in sorted(dimensions.items()):
                 avg = sum(scores) / len(scores)
                 breakdown += f"| {dim} | {avg:.0f}/100 | {len(scores)} | {scores[-1]}/100 |\n"
-        
+
         return f"📊 Average: **{t['average']}/100** | Latest: **{t['latest']}/100** | Trend: **{t['trend'].upper()}** | Points: {t['count']}{breakdown}"
 
 
@@ -230,10 +230,10 @@ def register(mcp, store, orchestrator=None):
             unresolved = store.graph.get_unresolved_predictions()
             if not unresolved:
                 return "✅ No unresolved predictions to validate."
-            
+
             out = f"## 🔮 Prediction Validation Engine\n\nI found {len(unresolved)} unresolved prediction(s). Please evaluate them against the current state.\n\n"
             out += f"**Current State Summary:** {current_state_summary}\n\n"
-            
+
             for p in unresolved:
                 props = p['properties']
                 out += f"### Prediction [{p['id']}]\n"
@@ -241,7 +241,7 @@ def register(mcp, store, orchestrator=None):
                 out += f"- **Predicted Failure:** {props.get('predicted_failure')}\n"
                 out += f"- **Trigger Condition:** {props.get('trigger_condition')}\n"
                 out += "-> *Task: Evaluate if this trigger condition has been met. If YES, call `resolve_prediction(occurred=true)` and generate an anti-pattern. If NO, do nothing or resolve as FALSE if you know it cannot happen anymore.*\n\n"
-                
+
             return out
         except Exception as e:
             return f"❌ Failed to fetch predictions: {str(e)}"

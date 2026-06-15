@@ -1,10 +1,12 @@
-from mcp.server.fastmcp import FastMCP
-from core.memory.persistent_store import EliteStore
-from core.identity.user_profile import UserProfile
-from core.tools.error_boundary import safe_tool, smart_wrap
-from core.logging_config import get_logger
 import os
 import uuid
+
+from mcp.server.fastmcp import FastMCP
+
+from core.identity.user_profile import UserProfile
+from core.logging_config import get_logger
+from core.memory.persistent_store import EliteStore
+from core.tools.error_boundary import smart_wrap
 
 logger = get_logger(__name__)
 
@@ -56,9 +58,8 @@ def create_mcp_server(brain_dir: str) -> FastMCP:
     _seed_prevention_rules(store)
 
     # ── Register Tool Modules (legacy individual tools) ────
-    from core.tools import planning, auditing, analysis, graph_tools, orchestration, adaptive
-    from core.tools import reasoning_amplifier
     from core.integration import memory_bridge
+    from core.tools import adaptive, analysis, auditing, graph_tools, orchestration, planning, reasoning_amplifier
 
     planning.register(mcp, store)
     auditing.register(mcp, store)
@@ -85,10 +86,15 @@ def create_mcp_server(brain_dir: str) -> FastMCP:
     #   7. Retry       — INNERMOST: avoids duplicate injections/prevention evals
     try:
         from core.middleware.chain import MiddlewareChain
-        from core.middleware.prevention import PreventionRuleMiddleware
+        from core.middleware.fallback import FallbackMiddleware, RetryMiddleware
         from core.middleware.injection import AntiPatternInjectionMiddleware
-        from core.middleware.telemetry import UsageLogMiddleware, LatencyBudgetMiddleware, PeriodicScanMiddleware, CostTrackingMiddleware
-        from core.middleware.fallback import RetryMiddleware, FallbackMiddleware
+        from core.middleware.prevention import PreventionRuleMiddleware
+        from core.middleware.telemetry import (
+            CostTrackingMiddleware,
+            LatencyBudgetMiddleware,
+            PeriodicScanMiddleware,
+            UsageLogMiddleware,
+        )
 
         _middleware_chain = (
             MiddlewareChain()
@@ -155,14 +161,14 @@ def create_mcp_server(brain_dir: str) -> FastMCP:
 
         # Auto-convert types
         old_type = type(target[final_key])
-        if old_type == bool:
+        if old_type is bool:
             parsed = value.lower() in ("true", "1", "yes")
-        elif old_type == int:
+        elif old_type is int:
             try:
                 parsed = int(value)
             except ValueError:
                 return f"❌ Expected integer for `{key}`, got: {value}"
-        elif old_type == list:
+        elif old_type is list:
             parsed = [v.strip() for v in value.split(",")]
         else:
             parsed = value
@@ -179,8 +185,9 @@ def create_mcp_server(brain_dir: str) -> FastMCP:
         Args:
             hub_url: Override sync hub URL (default: from user config)
         """
-        import httpx
         from urllib.parse import urlparse
+
+        import httpx
 
         url = hub_url or profile.sync_hub_url
         url = url.rstrip("/")
@@ -234,6 +241,7 @@ def create_mcp_server(brain_dir: str) -> FastMCP:
             description: Optional description override
         """
         import httpx
+
         from core.tools.orchestration import scan_available_skills
 
         skills = scan_available_skills()
@@ -321,7 +329,7 @@ def create_mcp_server(brain_dir: str) -> FastMCP:
 
         # Check sqlite_vec
         try:
-            import sqlite_vec
+            import sqlite_vec  # noqa: F401
             checks.append("| sqlite_vec | ✅ Installed | Full vector search available |")
         except ImportError:
             checks.append("| sqlite_vec | ❌ Missing | Falling back to FTS text search |")
@@ -685,8 +693,8 @@ def _install_orchestration_interceptor(mcp: FastMCP, store: EliteStore, session_
     This ensures no tool call bypasses the orchestration system.
     """
     import time as _time
-    import json
     from typing import Any, Sequence
+
     from mcp.types import TextContent
 
     # Tools exempt from the anti-pattern pre-hook (meta tools + identity tools)

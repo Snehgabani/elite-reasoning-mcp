@@ -4,7 +4,6 @@ testable, composable middleware."""
 from abc import ABC
 from dataclasses import dataclass, field
 from typing import Any, Optional
-import time
 
 
 @dataclass

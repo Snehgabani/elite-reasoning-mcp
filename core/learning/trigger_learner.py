@@ -2,9 +2,8 @@
 
 Analyzes trigger_effectiveness table to learn which triggers work best
 for which detection types. Uses Wilson score lower bound for small-sample confidence."""
-import time
-import math
 import logging
+import math
 
 logger = logging.getLogger(__name__)
 

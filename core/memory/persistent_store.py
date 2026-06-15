@@ -4,20 +4,25 @@ Handles ONLY our unique moat: anti-patterns, decisions, quality scores,
 benchmarks, goals, smoke tests, and after-action reviews.
 Memory/context is delegated to AgentMemory or Mem0.
 """
+import contextlib
+import json
 import os
 import sqlite3
-import time
-import json
 import threading
-import contextlib
+import time
 
 try:
+    import struct  # noqa: F401
+
     import sqlite_vec
-    import struct
 except ImportError:
     sqlite_vec = None
 
-from core.memory.graph_store import TemporalGraphStore
+import logging
+
+logger = logging.getLogger(__name__)
+
+from core.memory.graph_store import TemporalGraphStore  # noqa: E402
 
 
 class EliteStore:
@@ -131,11 +136,11 @@ class EliteStore:
                 sqlite_vec.load(conn)
             except Exception:
                 pass
-        
+
         conn.isolation_level = None
         self._local.in_transaction = True
         self._local.conn = conn
-        
+
         same_db = (os.path.abspath(self.db_path) == os.path.abspath(self.graph.db_path))
         if same_db:
             graph_conn = conn
@@ -680,8 +685,9 @@ class EliteStore:
 
     def _get_embedding(self, text: str) -> list[float] | None:
         try:
-            from core.memory.embedding import get_embedding
             import os
+
+            from core.memory.embedding import get_embedding
             os.environ["HF_HUB_DISABLE_SYMLINKS_WARNING"] = "1"
             return get_embedding(text)
         except Exception:
@@ -692,12 +698,12 @@ class EliteStore:
         with self.transaction():
             conn = self._connect()
             c = conn.cursor()
-            
+
             # Compute embedding ONCE and reuse (Gap #8 fix: was called twice)
             emb = None
             if sqlite_vec is not None:
                 emb = self._get_embedding(f"{mistake} {root_cause} {fix}")
-            
+
             # Dedup: check embedding similarity before inserting
             if emb is not None:
                 try:
@@ -713,23 +719,23 @@ class EliteStore:
                         return row[0]  # Return existing ID — dedup
                 except Exception:
                     pass
-            
+
             c.execute(
                 "INSERT INTO anti_patterns (mistake, root_cause, fix, severity, tags, created_at) VALUES (?, ?, ?, ?, ?, ?)",
                 (mistake, root_cause, fix, severity, tags, time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()))
             )
             row_id = c.lastrowid
-            
+
             # Reuse the SAME embedding for vector insert (no second call)
             if emb is not None:
                 try:
                     c.execute(
-                        "INSERT INTO anti_patterns_vec(id, embedding) VALUES (?, ?)", 
+                        "INSERT INTO anti_patterns_vec(id, embedding) VALUES (?, ?)",
                         (row_id, sqlite_vec.serialize_float32(emb))
                     )
                 except Exception:
                     pass
-            
+
             # Extract graph node (inside same transaction boundary)
             self.graph.add_node(
                 label="AntiPattern",
@@ -741,7 +747,7 @@ class EliteStore:
                 },
                 node_id=f"ap_{row_id}"
             )
-        
+
         return row_id
 
     def check_anti_patterns(self, query: str, limit: int = 5) -> list[dict]:
@@ -804,21 +810,21 @@ class EliteStore:
             (decision, rationale, alternatives_rejected, context, time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()))
         )
         row_id = c.lastrowid
-        
+
         # Embed the decision for vector search
         if sqlite_vec is not None:
             emb = self._get_embedding(f"{decision} {rationale} {context}")
             if emb:
                 try:
                     c.execute(
-                        "INSERT INTO decisions_vec(id, embedding) VALUES (?, ?)", 
+                        "INSERT INTO decisions_vec(id, embedding) VALUES (?, ?)",
                         (row_id, sqlite_vec.serialize_float32(emb))
                     )
                 except Exception:
                     pass
-        
+
         self._close(conn)
-        
+
         # Extract graph node
         self.graph.add_node(
             label="Decision",
@@ -830,7 +836,7 @@ class EliteStore:
             },
             node_id=f"dec_{row_id}"
         )
-        
+
         return row_id
 
     def search_decisions(self, query: str, limit: int = 10) -> list[dict]:
@@ -972,13 +978,11 @@ class EliteStore:
     # ==================== GOALS (OKR) ====================
 
     def set_goal(self, objective: str, key_results: list[str]) -> int:
-        import hashlib
         conn = self._connect()
         c = conn.cursor()
         now = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
         progress = {kr: 0 for kr in key_results}
         # Dedup: check if an active goal with the same objective already exists
-        dedup_hash = hashlib.sha256(objective.strip().lower().encode()).hexdigest()[:16]
         c.execute("SELECT id FROM goals WHERE status = 'active' AND objective = ?", (objective,))
         existing = c.fetchone()
         if existing:
@@ -1186,7 +1190,7 @@ class EliteStore:
 
         patterns = []
         if loop_kicks > 0:
-            patterns.append({"type": "LOOP_FAILURE", "count": loop_kicks, 
+            patterns.append({"type": "LOOP_FAILURE", "count": loop_kicks,
                            "pct": round(100 * loop_kicks / total, 1),
                            "fix": "System stops when it should continue. Set auto_continue=True after 2+ go prompts."})
         if gap_injections > 0:
@@ -1584,7 +1588,7 @@ class EliteStore:
     def autonomous_scan(self) -> dict:
         """Run the autonomous gap detector. Checks for unresolved issues across all subsystems."""
         gaps = []
-        
+
         # 1. Check unresolved missed detections
         unresolved = self.get_unautomated_detections()
         if unresolved:
@@ -1596,7 +1600,7 @@ class EliteStore:
                 "action": "Call register_prevention_rule for each",
                 "auto_executable": False
             })
-        
+
         # 2. Check stale goals (active goals with no progress update in 7 days)
         conn = self._connect()
         c = conn.cursor()
@@ -1616,7 +1620,7 @@ class EliteStore:
                 "action": "Review and update or archive stale goals",
                 "auto_executable": False
             })
-        
+
         # 3. Check quality regression
         trend = self.get_quality_trend()
         if trend.get("trend") == "declining":
@@ -1628,11 +1632,11 @@ class EliteStore:
                 "action": "Investigate root cause of quality regression",
                 "auto_executable": False
             })
-        
+
         # 4. Check unresolved predictions
         try:
             unresolved_preds = self.graph.get_unresolved_predictions()
-            expired = [p for p in unresolved_preds 
+            expired = [p for p in unresolved_preds
                        if p.get('created_at', '') < cutoff]
             if expired:
                 gaps.append({
@@ -1645,7 +1649,7 @@ class EliteStore:
                 })
         except Exception:
             pass
-        
+
         # 5. Check prompt health
         prompt_analysis = self.analyze_prompt_sequence(limit=50)
         if prompt_analysis.get("health") == "critical":
@@ -1657,7 +1661,7 @@ class EliteStore:
                 "action": "Review and address the dominant failure patterns",
                 "auto_executable": False
             })
-        
+
         # 6. Check prevention rule effectiveness
         rules = self.get_active_prevention_rules()
         never_triggered = [r for r in rules if r.get('times_triggered', 0) == 0]
@@ -1673,7 +1677,7 @@ class EliteStore:
 
         if not getattr(self._local, 'in_transaction', False):
             self._close(conn)
-        
+
         return {
             "total_gaps": len(gaps),
             "p0_count": sum(1 for g in gaps if g['severity'] == 'P0'),
@@ -1687,43 +1691,43 @@ class EliteStore:
         """Run a full diagnostic of the adaptive learning system's health."""
         conn = self._connect()
         c = conn.cursor()
-        
+
         # Prevention rules stats
         c.execute("SELECT COUNT(*) FROM prevention_rules WHERE enabled = 1")
         active_rules = c.fetchone()[0]
         c.execute("SELECT SUM(times_triggered) FROM prevention_rules")
         total_triggers = c.fetchone()[0] or 0
-        
+
         # Prompt stats
         c.execute("SELECT COUNT(*) FROM prompt_sessions")
         total_prompts = c.fetchone()[0]
-        
+
         # Missed detection stats
         c.execute("SELECT COUNT(*) FROM missed_detections")
         total_missed = c.fetchone()[0]
         c.execute("SELECT COUNT(*) FROM missed_detections WHERE automated = 1")
         automated_missed = c.fetchone()[0]
-        
+
         # Tool usage stats
         c.execute("SELECT COUNT(DISTINCT tool_name) FROM tool_usage_log")
         unique_tools = c.fetchone()[0]
         c.execute("SELECT COUNT(*) FROM tool_usage_log")
         total_tool_calls = c.fetchone()[0]
-        
+
         # User thinking patterns
         c.execute("SELECT COUNT(*) FROM user_thinking_patterns")
         pattern_count = c.fetchone()[0]
-        
+
         if not getattr(self._local, 'in_transaction', False):
             self._close(conn)
-        
+
         # Calculate autonomy rate
         autonomy_rate = (automated_missed / max(total_missed, 1)) * 100
-        
+
         return {
             "prevention_rules": {"active": active_rules, "total_triggers": total_triggers},
             "prompt_intelligence": {"total_prompts": total_prompts, "patterns_learned": pattern_count},
-            "missed_detections": {"total": total_missed, "automated": automated_missed, 
+            "missed_detections": {"total": total_missed, "automated": automated_missed,
                                    "pending": total_missed - automated_missed},
             "tool_usage": {"unique_tools": unique_tools, "total_calls": total_tool_calls},
             "autonomy_rate": round(autonomy_rate, 1),
@@ -1736,7 +1740,7 @@ class EliteStore:
     def generate_autonomous_goals(self) -> list[dict]:
         """Analyze all data sources and generate prioritized autonomous goals."""
         goals = []
-        
+
         # 1. From missed detections: reduce recurring failure types
         conn = self._connect()
         c = conn.cursor()
@@ -1753,7 +1757,7 @@ class EliteStore:
                     "auto_executable": False,
                     "confidence": min(0.9, 0.5 + row[1] * 0.1)
                 })
-        
+
         # 2. From quality trend: if declining, create improvement goal
         trend = self.get_quality_trend()
         if trend.get("trend") == "declining":
@@ -1764,7 +1768,7 @@ class EliteStore:
                 "auto_executable": False,
                 "confidence": 0.8
             })
-        
+
         # 3. From unautomated detections: convert to prevention rules
         pending = self.get_unautomated_detections()
         if pending:
@@ -1775,7 +1779,7 @@ class EliteStore:
                 "auto_executable": True,
                 "confidence": 0.9
             })
-        
+
         # 4. From prompt analysis: address dominant failure type
         analysis = self.analyze_prompt_sequence(limit=50)
         for pattern in analysis.get("patterns", []):
@@ -1787,10 +1791,10 @@ class EliteStore:
                     "auto_executable": False,
                     "confidence": 0.7
                 })
-        
+
         if not getattr(self._local, 'in_transaction', False):
             self._close(conn)
-        
+
         return sorted(goals, key=lambda g: {'P0': 0, 'P1': 1, 'P2': 2}.get(g['priority'], 3))
 
     def get_autonomous_status(self) -> dict:
@@ -1798,7 +1802,7 @@ class EliteStore:
         diagnosis = self.self_diagnose()
         goals = self.generate_autonomous_goals()
         scan = self.autonomous_scan()
-        
+
         return {
             "diagnosis": diagnosis,
             "autonomous_goals": goals,

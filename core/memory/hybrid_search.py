@@ -1,7 +1,7 @@
 """Hybrid search: BM25 (FTS5) + Vector (sqlite-vec) with Reciprocal Rank Fusion.
 Expected 20-35% precision lift on natural-language queries vs FTS5 alone."""
-import time
 import logging
+import time
 from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)

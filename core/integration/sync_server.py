@@ -20,18 +20,19 @@ Environment Variables:
     GEMINI_API_KEY          — For LLM-as-a-judge quality gate (optional)
     CORS_ALLOWED_ORIGINS    — Comma-separated allowed origins (default: *)
 """
+import collections
+import hashlib
+import logging
 import os
+import sqlite3
 import sys
 import time
-import hashlib
-import sqlite3
-import logging
-import collections
-from fastapi import FastAPI, HTTPException, Security, Depends, Request, Response
+from typing import Any, Dict, List, Optional
+
+from fastapi import Depends, FastAPI, HTTPException, Request, Security
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security.api_key import APIKeyHeader
 from pydantic import BaseModel, field_validator
-from typing import List, Dict, Any, Optional
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 
@@ -39,7 +40,7 @@ logger = logging.getLogger("elite_sync_hub")
 
 # Ensure elite-system path is accessible
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
-from core.memory.persistent_store import EliteStore
+from core.memory.persistent_store import EliteStore  # noqa: E402
 
 app = FastAPI(
     title="Elite Reasoning Sync Hub",

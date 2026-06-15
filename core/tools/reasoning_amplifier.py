@@ -9,9 +9,9 @@ these tools ACTIVELY improve reasoning quality in-flight:
 3. decompose_with_steps: Structured step-by-step decomposition (wraps sequential-thinking concepts)
 """
 import time
-import json
-from core.memory.persistent_store import EliteStore
+
 from core.logging_config import get_logger
+from core.memory.persistent_store import EliteStore
 
 logger = get_logger(__name__)
 

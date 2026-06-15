@@ -3,9 +3,9 @@
 Replaces if/elif trees in verb_tools.py with testable action classes.
 Auto-generates enum schema from registrations.
 Fuzzy-matches typos with difflib.get_close_matches."""
-import logging
 import difflib
-from typing import Protocol, Any, runtime_checkable
+import logging
+from typing import Protocol, runtime_checkable
 
 logger = logging.getLogger(__name__)
 

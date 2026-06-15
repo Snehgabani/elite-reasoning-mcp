@@ -1,8 +1,8 @@
-import os
-import subprocess
 import logging
+import subprocess
 from pathlib import Path
-from typing import Optional, List, Any
+from typing import Any, List
+
 from langchain_core.tools import tool
 
 logger = logging.getLogger(__name__)
@@ -13,7 +13,7 @@ class NativeTools:
         self.auto_approve = auto_approve
         # List of dangerous commands that bypass auto-approve
         self.critical_commands = [
-            "rm", "mv", "sudo", "npm install", "pip install", 
+            "rm", "mv", "sudo", "npm install", "pip install",
             "apt", "brew install", "chown", "chmod", "git push",
             "docker rm", "docker kill"
         ]
@@ -27,7 +27,7 @@ class NativeTools:
             return False
 
     def get_tools(self) -> List[Any]:
-        
+
         @tool
         def read_host_file(filepath: str) -> str:
             """Read the contents of a file in the workspace."""
@@ -58,16 +58,16 @@ class NativeTools:
             """Execute a terminal command. The system will automatically intercept critical commands for user approval."""
             cmd_lower = command.strip().lower()
             is_critical = any(cmd_lower.startswith(cmd) for cmd in self.critical_commands)
-            
+
             requires_approval = True
             if self.auto_approve and not is_critical:
                 requires_approval = False
-                
+
             if requires_approval:
                 reason = "Critical command detected" if is_critical else "Auto-approve is disabled"
                 print(f"\n[GOVERNANCE INTERCEPT: {reason}]")
                 print(f"The agent wants to execute: `{command}`")
-                
+
                 # We use input() to block execution and prompt the user in the CLI.
                 try:
                     response = input("Approve execution? (y/N): ").strip().lower()
@@ -75,13 +75,13 @@ class NativeTools:
                         return "Command execution rejected by user."
                 except EOFError:
                     return "Command execution rejected (EOF)."
-            
+
             try:
                 result = subprocess.run(
-                    command, 
-                    shell=True, 
-                    capture_output=True, 
-                    text=True, 
+                    command,
+                    shell=True,
+                    capture_output=True,
+                    text=True,
                     timeout=120,
                     cwd=str(self.workspace_dir) # Jail terminal execution default dir
                 )

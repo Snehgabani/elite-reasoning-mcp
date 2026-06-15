@@ -6,9 +6,10 @@ Implements:
 1. RetryMiddleware — retries transient errors with exponential backoff
 2. FallbackMiddleware — tries alternative tool when primary fails
 """
-import time
 import logging
-from core.middleware.base import Middleware, CallContext, CallResult
+import time
+
+from core.middleware.base import CallContext, CallResult, Middleware
 
 logger = logging.getLogger(__name__)
 

@@ -4,8 +4,8 @@ States: probation → active → trusted → dormant → retired
 
 Runs periodically (via OptimizationLoop) to evaluate all rules and
 transition them based on measured effectiveness."""
-import time
 import logging
+import time
 from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)

@@ -4,11 +4,12 @@ Fixes the 0/26 rule firing rate by:
 2. Tracking evaluation_count vs times_triggered for observability
 3. Supporting wildcard event matching
 """
-import time
 import logging
+import time
 from collections import defaultdict
 from typing import Optional
-from core.middleware.base import Middleware, CallContext, CallResult
+
+from core.middleware.base import CallContext, CallResult, Middleware
 
 logger = logging.getLogger(__name__)
 
@@ -49,12 +50,12 @@ INTENT_PHASE_MAP = {
 
 class EventBus:
     """Event bus for prevention rules with wildcard matching and observability."""
-    
+
     def __init__(self, store):
         self.store = store
         self._rules_by_event: dict[str, list[dict]] = {}
         self._reload()
-    
+
     def _reload(self):
         """Load and index all enabled prevention rules."""
         try:
@@ -68,20 +69,20 @@ class EventBus:
         except Exception as e:
             logger.warning(f"EventBus reload failed: {e}")
             self._rules_by_event = {}
-    
+
     def emit(self, event: str, payload: dict) -> list[str]:
         """Emit an event and collect all matching rule warnings."""
         warnings = []
         matched_rules = []
-        
+
         # Exact match
         matched_rules.extend(self._rules_by_event.get(event, []))
-        
+
         # Wildcard match: tool.after:record_decision → also check tool.after:*
         if ':' in event:
             wildcard = event.split(':')[0] + ':*'
             matched_rules.extend(self._rules_by_event.get(wildcard, []))
-        
+
         for rule in matched_rules:
             start = time.perf_counter()
             error = None
@@ -89,12 +90,12 @@ class EventBus:
                 # Keyword-based check against payload
                 check = rule.get('check_query', rule.get('check', '')).lower()
                 context_text = ' '.join(str(v) for v in payload.values() if isinstance(v, str)).lower()
-                
+
                 check_words = [w for w in check.split() if len(w) > 3]
                 if check_words:
                     match_count = sum(1 for w in check_words if w in context_text)
                     match_ratio = match_count / len(check_words)
-                    
+
                     if match_ratio >= 0.25:  # 25% keyword overlap
                         self.store.increment_rule_trigger(rule['id'])
                         warnings.append(
@@ -113,7 +114,7 @@ class EventBus:
                     self.store.update_rule_evaluation(rule['id'], error=error, check_ms=elapsed_ms)
                 except Exception:
                     pass
-        
+
         return warnings
 
 
@@ -121,45 +122,45 @@ class PreventionRuleMiddleware(Middleware):
     """Fires prevention rules via EventBus on every tool call."""
     name = "prevention_rules"
     applies_to = "*"  # Evaluate on every tool
-    
+
     EXEMPT_TOOLS = frozenset({
         'get_user_profile', 'update_user_config',
     })
-    
+
     def __init__(self, store):
         self.bus = EventBus(store)
-    
+
     async def before(self, ctx: CallContext) -> Optional[CallResult]:
         if ctx.tool_name in self.EXEMPT_TOOLS:
             return None
-        
+
         payload = {
             'tool_name': ctx.tool_name,
             'args_text': ' '.join(str(v) for v in ctx.args.values() if isinstance(v, str))[:500],
         }
-        
+
         # Emit tool.before:<tool_name>
         warnings = self.bus.emit(f'tool.before:{ctx.tool_name}', payload)
-        
+
         # Emit tool.before:*
         warnings.extend(self.bus.emit('tool.before:*', payload))
-        
+
         # For orchestrate — also emit prompt.received
         if ctx.tool_name == 'orchestrate_request_tool':
             prompt = ctx.args.get('user_prompt', '')
             payload['prompt'] = prompt[:500]
             warnings.extend(self.bus.emit('prompt.received', payload))
-        
+
         if warnings:
             ctx.metadata['prevention_warnings'] = warnings
-        
+
         return None  # Never short-circuit — just record
-    
+
     async def after(self, ctx: CallContext, result: CallResult) -> CallResult:
         # Emit tool.after:<tool_name>
         payload = {'tool_name': ctx.tool_name}
         post_warnings = self.bus.emit(f'tool.after:{ctx.tool_name}', payload)
-        
+
         # Inject any prevention warnings into result
         all_warnings = ctx.metadata.get('prevention_warnings', []) + post_warnings
         if all_warnings:

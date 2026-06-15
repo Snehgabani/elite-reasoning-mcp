@@ -3,8 +3,8 @@
 5 triggers that fire when metrics breach thresholds.
 Runs as a hook (every Nth tool call) since MCP is request-driven.
 Each trigger has an independent cooldown."""
-import time
 import logging
+import time
 from dataclasses import dataclass
 from typing import Any
 

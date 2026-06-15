@@ -4,10 +4,10 @@ Each verb has an explicit 'action' parameter — no prompt inspection.
 
 Design: Opus 4.7 Blueprint #1
 """
-import time
+import inspect
 import json
 import logging
-import inspect
+import time
 from typing import Any
 
 logger = logging.getLogger(__name__)
