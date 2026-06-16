@@ -85,6 +85,12 @@ def wrap_registered_tools(mcp: FastMCP, chain: MiddlewareChain) -> int:
                 wrapped_fn._has_error_boundary = True
 
             tool_obj.fn = wrapped_fn
+            # chain.wrap() ALWAYS returns an async function, so we must
+            # update the is_async flag. FastMCP caches this at creation
+            # time and uses it to decide whether to await the fn.
+            # Without this, sync tools wrapped by async middleware return
+            # unawaited coroutine objects instead of results.
+            tool_obj.is_async = True
             wrapped_count += 1
 
         logger.info("Middleware chain connected to tools",

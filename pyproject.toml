@@ -1,6 +1,6 @@
 [project]
 name = "elite-reasoning-mcp"
-version = "1.1.2"
+version = "1.1.3"
 description = "73-tool MCP server that makes any LLM think harder, reason better, and never repeat mistakes. Persistent memory, anti-pattern detection, confidence calibration, and self-improving prevention rules."
 readme = "README.md"
 requires-python = ">=3.11"
