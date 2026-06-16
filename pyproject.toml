@@ -1,9 +1,41 @@
 [project]
 name = "elite-reasoning-mcp"
 version = "1.1.2"
-description = "Elite IDE Augmentation Layer — MCP Server for persistent memory, structured reasoning, and quality enforcement"
+description = "73-tool MCP server that makes any LLM think harder, reason better, and never repeat mistakes. Persistent memory, anti-pattern detection, confidence calibration, and self-improving prevention rules."
 readme = "README.md"
 requires-python = ">=3.11"
+license = {text = "MIT"}
+authors = [
+    {name = "Sneh Gabani", email = "snehgabani@gmail.com"},
+]
+keywords = [
+    "mcp",
+    "model-context-protocol",
+    "mcp-server",
+    "reasoning",
+    "ai-agent",
+    "llm",
+    "memory",
+    "anti-pattern",
+    "decision-making",
+    "confidence-calibration",
+    "knowledge-graph",
+    "cursor",
+    "vscode",
+    "ai-tools",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Typing :: Typed",
+]
 dependencies = [
     "mcp>=1.27.2",
     "fastmcp>=0.1.0",
@@ -14,6 +46,13 @@ dependencies = [
     "uvicorn>=0.49.0",
     "httpx>=0.28.1",
 ]
+
+[project.urls]
+Homepage = "https://github.com/Snehgabani/elite-reasoning-mcp"
+Repository = "https://github.com/Snehgabani/elite-reasoning-mcp"
+Documentation = "https://github.com/Snehgabani/elite-reasoning-mcp#readme"
+"Bug Tracker" = "https://github.com/Snehgabani/elite-reasoning-mcp/issues"
+Changelog = "https://github.com/Snehgabani/elite-reasoning-mcp/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
 vectors = [
