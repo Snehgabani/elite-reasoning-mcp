@@ -452,6 +452,8 @@ Public repository hardening includes:
 
 Security reports should use [GitHub private vulnerability reporting](https://github.com/Snehgabani/elite-reasoning-mcp/security/advisories/new), not public issues.
 
+For the next tracking and monitoring layer, see the [Elite Telemetry Roadmap](docs/elite_telemetry_roadmap.md).
+
 ---
 
 ## 🤝 Contributing
