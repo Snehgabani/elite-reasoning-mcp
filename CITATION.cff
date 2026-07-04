@@ -1,0 +1,17 @@
+cff-version: 1.2.0
+message: "If Elite Reasoning MCP helps your research or engineering workflow, please cite it."
+title: "Elite Reasoning MCP"
+version: "1.2.1"
+date-released: "2026-07-04"
+authors:
+  - family-names: "Gabani"
+    given-names: "Sneh"
+repository-code: "https://github.com/Snehgabani/elite-reasoning-mcp"
+url: "https://pypi.org/project/elite-reasoning-mcp/"
+license: "MIT"
+keywords:
+  - "Model Context Protocol"
+  - "AI coding agents"
+  - "agent memory"
+  - "reasoning safety"
+  - "software engineering automation"

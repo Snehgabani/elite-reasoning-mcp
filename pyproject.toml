@@ -1,7 +1,7 @@
 [project]
 name = "elite-reasoning-mcp"
-version = "1.2.0"
-description = "90+ tool MCP server that makes any LLM think harder, reason better, and never repeat mistakes. Workflow flight recording, persistent memory, confidence calibration, release doctor checks, and self-improving prevention rules."
+version = "1.2.1"
+description = "90+ tool Model Context Protocol server for AI coding agents: workflow flight recorder, quality-gated memory, confidence calibration, release doctor, eval harness exports, and reasoning safety."
 readme = "README.md"
 requires-python = ">=3.11"
 license = {text = "MIT"}
@@ -12,16 +12,31 @@ keywords = [
     "mcp",
     "model-context-protocol",
     "mcp-server",
+    "ai-ide",
     "reasoning",
+    "reasoning-safety",
     "ai-agent",
+    "ai-coding",
+    "coding-agent",
     "llm",
+    "agent-memory",
     "memory",
+    "workflow-automation",
+    "workflow-recorder",
+    "evals",
+    "promptfoo",
+    "deepeval",
+    "inspect-ai",
+    "release-automation",
     "anti-pattern",
     "decision-making",
     "confidence-calibration",
     "knowledge-graph",
     "cursor",
     "vscode",
+    "claude",
+    "gemini",
+    "windsurf",
     "ai-tools",
 ]
 classifiers = [
@@ -33,6 +48,7 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Software Development :: Quality Assurance",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
     "Typing :: Typed",
 ]

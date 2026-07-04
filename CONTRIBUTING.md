@@ -1,6 +1,6 @@
 # Contributing to Elite Reasoning MCP
 
-Thank you for your interest in contributing! Here's how to get started.
+Elite Reasoning MCP is a Model Context Protocol server for AI coding agents. Contributions should improve reliability, reasoning quality, workflow evidence, security, or developer adoption without weakening the local-first privacy model.
 
 ## Development Setup
 
@@ -13,8 +13,7 @@ cd elite-reasoning-mcp
 uv sync --extra dev
 
 # Verify everything works
-uv run pytest tests/ -v
-uv run ruff check core/ tests/
+uv run python scripts/release_check.py
 ```
 
 ## Making Changes
@@ -24,12 +23,20 @@ uv run ruff check core/ tests/
 3. **Make** your changes
 4. **Run** the full CI pipeline locally before committing:
    ```bash
-   uv run ruff check core/ tests/          # Lint
-   uv run pytest tests/ -v --tb=short      # Tests
-   uv build                                 # Build
+   uv run python scripts/release_check.py
    ```
 5. **Commit** using [Conventional Commits](https://www.conventionalcommits.org/)
 6. **Open** a Pull Request
+
+## Pull Request Quality Bar
+
+Every non-trivial PR should include:
+- Problem statement and user impact
+- MCP tool/resource behavior changes
+- Memory, privacy, or security impact
+- Release-gate output from `uv run python scripts/release_check.py`
+- Screenshots or CLI output when changing docs, UX, telemetry, or installation behavior
+- Tests for new behavior, regressions, and security-sensitive edge cases
 
 ## Commit Convention
 
@@ -52,7 +59,7 @@ elite-reasoning-mcp/
 │   ├── middleware/       # 8-layer middleware chain
 │   ├── learning/        # Self-improving modules
 │   ├── scheduler/       # Optimization loop
-│   └── tools/           # All 73 MCP tool implementations
+│   └── tools/           # MCP tool implementations
 ├── tests/               # Pytest test suite
 ├── assets/              # Images and branding
 └── pyproject.toml       # Project configuration
@@ -63,14 +70,16 @@ elite-reasoning-mcp/
 1. Add your tool function in the appropriate file under `core/tools/`
 2. Register it with `@mcp.tool()` in `core/integration/mcp_server.py`
 3. Add tests in `tests/`
-4. Update the tool count in `README.md`
+4. Update README/tool docs and release-doctor expectations if the exposed surface changes
+5. Confirm `elite_doctor_json` and `scripts/release_check.py` still pass
 
 ## Code Style
 
 - We use **ruff** for linting
 - Type hints are encouraged but not strictly enforced (pyright runs with `continue-on-error`)
 - All new code should include docstrings
+- Security-sensitive parsing, SQL, filesystem, subprocess, and network changes need explicit tests
 
 ## Questions?
 
-Open an [issue](https://github.com/Snehgabani/elite-reasoning-mcp/issues) — we're happy to help!
+Use [GitHub Discussions](https://github.com/Snehgabani/elite-reasoning-mcp/discussions) for questions and design ideas. Use [GitHub Security Advisories](https://github.com/Snehgabani/elite-reasoning-mcp/security/advisories/new) for vulnerabilities.

@@ -1,0 +1,30 @@
+name: Q&A
+description: Ask usage, setup, or workflow questions.
+title: "[Q&A]: "
+labels:
+  - question
+body:
+  - type: textarea
+    id: question
+    attributes:
+      label: Question
+      description: What are you trying to do with Elite Reasoning MCP?
+    validations:
+      required: true
+  - type: dropdown
+    id: client
+    attributes:
+      label: MCP Client
+      options:
+        - Cursor
+        - Antigravity
+        - VS Code + Continue
+        - Windsurf
+        - Claude Desktop
+        - Gemini CLI
+        - Other
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Include version, Python version, operating system, and sanitized config snippets if relevant.
