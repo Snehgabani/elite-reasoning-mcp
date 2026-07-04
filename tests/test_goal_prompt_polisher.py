@@ -1,7 +1,8 @@
 """Tests for the Goal-Aligned Prompt Polisher."""
-import pytest
-import sys
 import os
+import sys
+
+import pytest
 
 # Add project root to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
