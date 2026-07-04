@@ -97,6 +97,10 @@ exclude = [
     "*.pyc",
 ]
 
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+norecursedirs = ["_archive", ".venv", "telemetry-ui", "brain", "brain_central"]
+
 [tool.ruff]
 line-length = 120
 target-version = "py311"
@@ -114,4 +118,3 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["F401", "F841", "E402"]  # tests use inline imports and temp vars
-

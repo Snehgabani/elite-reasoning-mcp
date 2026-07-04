@@ -10,16 +10,18 @@ v3.1 HARDENING:
   - In-memory sliding-window rate limiter (60 req/min/IP, no external deps)
   - Request body size limit (10KB)
   - Input validation: string fields max 5000 chars, required fields checked
-  - SYNC_API_KEY env var mandatory by default (warn-only if unset)
+  - SYNC_API_KEY env var mandatory by default (fail-closed if unset)
   - CORS middleware with configurable origins
 
 Environment Variables:
     ELITE_CENTRAL_DIR       — Directory for the central store (default: brain_central)
-    SYNC_API_KEY            — API key for authentication (mandatory, warn if unset)
+    SYNC_API_KEY            — API key for authentication (mandatory by default)
     ELITE_SYNC_SERVER_KEY   — Legacy alias for API key (fallback)
+    ELITE_ALLOW_OPEN_SYNC   — Set to 1 to explicitly allow unauthenticated local/dev sync
     GEMINI_API_KEY          — For LLM-as-a-judge quality gate (optional)
     CORS_ALLOWED_ORIGINS    — Comma-separated allowed origins (default: *)
 """
+
 import collections
 import hashlib
 import logging
@@ -133,6 +135,7 @@ app.add_middleware(RequestSizeLimitMiddleware)
 # ────────────────────────────────────────────────────────────
 # RATE LIMIT MIDDLEWARE
 # ────────────────────────────────────────────────────────────
+
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
     """Enforce per-IP rate limiting on all endpoints."""
@@ -250,21 +253,34 @@ def _skill_count() -> int:
 
 
 # ────────────────────────────────────────────────────────────
-# AUTH — SYNC_API_KEY mandatory by default (warn if unset)
+# AUTH — SYNC_API_KEY mandatory by default (fail closed)
 # ────────────────────────────────────────────────────────────
 
-# Read API key from env: SYNC_API_KEY takes priority, fall back to legacy name
+# Read API key from env: SYNC_API_KEY takes priority, fall back to legacy name.
+# Elite upgrade: open access is now an explicit dev-only opt-in, never an implicit default.
 _configured_api_key = os.environ.get("SYNC_API_KEY") or os.environ.get("ELITE_SYNC_SERVER_KEY")
+_open_sync_allowed = os.environ.get("ELITE_ALLOW_OPEN_SYNC") == "1"
 if not _configured_api_key:
-    logger.warning(
-        "SYNC_API_KEY is not set! The server is running in OPEN ACCESS mode. "
-        "Set SYNC_API_KEY environment variable to enforce authentication."
-    )
+    if _open_sync_allowed:
+        logger.warning(
+            "SYNC_API_KEY is not set, but ELITE_ALLOW_OPEN_SYNC=1 is enabled. "
+            "The sync server is running in explicit OPEN ACCESS development mode."
+        )
+    else:
+        logger.error(
+            "SYNC_API_KEY is not set. Sync API requests will be rejected. "
+            "Set SYNC_API_KEY/ELITE_SYNC_SERVER_KEY, or explicitly set ELITE_ALLOW_OPEN_SYNC=1 for local development."
+        )
 
 
 async def get_api_key(api_key_header: str = Security(api_key_header)):
     if not _configured_api_key:
-        return None  # Open access — warn was logged at startup
+        if _open_sync_allowed:
+            return None
+        raise HTTPException(
+            status_code=503,
+            detail="Sync server authentication is not configured. Set SYNC_API_KEY or ELITE_ALLOW_OPEN_SYNC=1 for dev.",
+        )
     if api_key_header == _configured_api_key:
         return api_key_header
     raise HTTPException(status_code=403, detail="Could not validate credentials")
@@ -273,6 +289,7 @@ async def get_api_key(api_key_header: str = Security(api_key_header)):
 # ────────────────────────────────────────────────────────────
 # QUALITY GATE
 # ────────────────────────────────────────────────────────────
+
 
 async def evaluate_quality(ap: Dict[str, Any]) -> tuple[bool, str]:
     """LLM-as-a-judge quality gate (with heuristic fallback)."""
@@ -299,6 +316,7 @@ async def evaluate_quality(ap: Dict[str, Any]) -> tuple[bool, str]:
             return True, "Passed (Heuristic Only)"
 
         import httpx
+
         prompt = f"""
 You are an expert principal software engineer acting as a strict quality gate for a shared team intelligence database.
 Review the following "Anti-Pattern" submission.
@@ -316,9 +334,9 @@ Reply EXACTLY with either 'PASS' or 'FAIL: <reason>'. Do not include any other t
                 f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={gemini_key}",
                 json={
                     "contents": [{"parts": [{"text": prompt}]}],
-                    "generationConfig": {"temperature": 0.1, "maxOutputTokens": 50}
+                    "generationConfig": {"temperature": 0.1, "maxOutputTokens": 50},
                 },
-                timeout=10.0
+                timeout=10.0,
             )
             resp.raise_for_status()
             data = resp.json()
@@ -335,6 +353,7 @@ Reply EXACTLY with either 'PASS' or 'FAIL: <reason>'. Do not include any other t
 # ────────────────────────────────────────────────────────────
 # CONTENT HASH DEDUP (Gap #3 fix)
 # ────────────────────────────────────────────────────────────
+
 
 def _content_hash(mistake: str, root_cause: str, fix: str) -> str:
     """SHA-256 of normalized content for dedup."""
@@ -358,7 +377,7 @@ def _record_push_hash(content_hash: str, user_id: str):
     try:
         conn.execute(
             "INSERT OR IGNORE INTO push_hashes (content_hash, user_id, pushed_at) VALUES (?, ?, ?)",
-            (content_hash, user_id, time.strftime("%Y-%m-%d %H:%M:%S"))
+            (content_hash, user_id, time.strftime("%Y-%m-%d %H:%M:%S")),
         )
         conn.commit()
     finally:
@@ -451,6 +470,7 @@ class SkillShare(BaseModel):
 # USER REGISTRY — Persistent (Gap #1 fix)
 # ────────────────────────────────────────────────────────────
 
+
 @app.post("/api/users/register")
 def register_user(reg: UserRegistration, api_key: str = Depends(get_api_key)):
     """Register a user with the sync hub. Persisted to SQLite."""
@@ -458,7 +478,8 @@ def register_user(reg: UserRegistration, api_key: str = Depends(get_api_key)):
         now = time.strftime("%Y-%m-%d %H:%M:%S")
         conn = _hub_db()
         try:
-            conn.execute("""
+            conn.execute(
+                """
                 INSERT INTO users (user_id, display_name, ide_type, mcp_count, skill_count, registered_at, last_seen_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(user_id) DO UPDATE SET
@@ -467,7 +488,9 @@ def register_user(reg: UserRegistration, api_key: str = Depends(get_api_key)):
                     mcp_count = excluded.mcp_count,
                     skill_count = excluded.skill_count,
                     last_seen_at = excluded.last_seen_at
-            """, (reg.user_id, reg.display_name or reg.user_id, reg.ide_type, reg.mcp_count, reg.skill_count, now, now))
+            """,
+                (reg.user_id, reg.display_name or reg.user_id, reg.ide_type, reg.mcp_count, reg.skill_count, now, now),
+            )
             conn.commit()
         finally:
             conn.close()
@@ -497,6 +520,7 @@ def list_users(api_key: str = Depends(get_api_key)):
 # ────────────────────────────────────────────────────────────
 # SYNC — Push & Pull with dedup + user namespacing
 # ────────────────────────────────────────────────────────────
+
 
 @app.get("/api/sync/pull")
 def pull_sync(
@@ -532,11 +556,7 @@ async def push_sync(payload: SyncPayload, api_key: str = Depends(get_api_key)):
     try:
         for ap in payload.anti_patterns:
             # Gap #3: Content-hash dedup BEFORE quality gate
-            ch = _content_hash(
-                ap.get("mistake", ""),
-                ap.get("root_cause", ""),
-                ap.get("fix", "")
-            )
+            ch = _content_hash(ap.get("mistake", ""), ap.get("root_cause", ""), ap.get("fix", ""))
             if _is_duplicate_push(ch):
                 deduped_aps += 1
                 continue
@@ -590,6 +610,7 @@ async def push_sync(payload: SyncPayload, api_key: str = Depends(get_api_key)):
 # SKILL SHARING — Persistent (Gap #1 fix)
 # ────────────────────────────────────────────────────────────
 
+
 @app.post("/api/skills/share")
 def share_skill(payload: SkillShare, api_key: str = Depends(get_api_key)):
     """Publish a skill so other team members can discover it. Persisted to SQLite."""
@@ -597,14 +618,17 @@ def share_skill(payload: SkillShare, api_key: str = Depends(get_api_key)):
         now = time.strftime("%Y-%m-%d %H:%M:%S")
         conn = _hub_db()
         try:
-            conn.execute("""
+            conn.execute(
+                """
                 INSERT INTO shared_skills (skill_name, user_id, description, shared_at)
                 VALUES (?, ?, ?, ?)
                 ON CONFLICT(skill_name) DO UPDATE SET
                     user_id = excluded.user_id,
                     description = excluded.description,
                     shared_at = excluded.shared_at
-            """, (payload.skill_name, payload.user_id, payload.description, now))
+            """,
+                (payload.skill_name, payload.user_id, payload.description, now),
+            )
             conn.commit()
         finally:
             conn.close()
@@ -634,6 +658,7 @@ def discover_skills(api_key: str = Depends(get_api_key)):
 # ────────────────────────────────────────────────────────────
 # DASHBOARD — Full team overview
 # ────────────────────────────────────────────────────────────
+
 
 @app.get("/api/dashboard")
 def team_dashboard(api_key: str = Depends(get_api_key)):
@@ -673,6 +698,7 @@ def team_dashboard(api_key: str = Depends(get_api_key)):
 # HEALTH — Status endpoint for monitoring
 # ────────────────────────────────────────────────────────────
 
+
 @app.get("/api/health")
 def health():
     """Health check with system stats."""
@@ -702,5 +728,6 @@ def health():
 
 if __name__ == "__main__":
     import uvicorn
+
     port = int(os.environ.get("SYNC_PORT", 8000))
     uvicorn.run(app, host="0.0.0.0", port=port)

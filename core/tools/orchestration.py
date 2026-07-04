@@ -8,9 +8,27 @@ PORTABLE: Uses $HOME-relative paths so every user gets their own
 personalized orchestration based on THEIR installed tools.
 """
 import json as _json
+import logging
 import os
 import urllib.request
 from typing import Optional
+
+from core.eval.open_source_integrations import integrations_markdown
+from core.eval.outcome_runner import elite_eval_suite_markdown
+from core.eval.research_benchmarks import (
+    benchmark_catalog_markdown,
+    budget_policy_markdown,
+    recommend_budget_tier,
+    scorecard_markdown,
+)
+from core.orchestration.capabilities import build_capability_registry, format_capability_report
+from core.reasoning.experiment_tree import experiment_tree_markdown
+from core.reasoning.nuclear_prompt import nuclear_prompt_markdown, protocol_recommendation_markdown
+
+logger = logging.getLogger(__name__)
+
+# Module-level polisher instance (set by register())
+_polisher = None
 
 
 def _resolve_user_paths() -> tuple[str, str]:
@@ -115,12 +133,41 @@ def orchestrate_request(user_prompt: str) -> str:
     """
     Analyzes the user's request and dynamically routes it to the most
     relevant MCP servers and Skills installed in THIS user's environment.
+    Now includes Goal-Aligned Prompt Polishing for maximum output quality.
     Respects per-user preferences: disabled/priority MCPs and skills.
+
+    Elite upgrade: route from a capability registry that prefers what the
+    active IDE can expose (e.g. Zed context_servers) over cross-IDE folders.
     """
-    mcp_dir, skills_dir = _resolve_user_paths()
-    mcps = scan_available_mcps(mcp_dir)
-    skills = scan_available_skills(skills_dir)
+    global _polisher
+    registry = build_capability_registry()
+    mcps = registry.names("mcp")
+    skills = registry.names("skill")
     user_id = _get_user_identity()
+
+    # ── Goal-Aligned Prompt Polishing ──────────────────────
+    polish_result = None
+    if _polisher is not None:
+        try:
+            polish_result = _polisher.polish(user_prompt)
+            logger.debug(
+                f"Prompt polished: {polish_result.original_score} → {polish_result.polished_score} "
+                f"(+{polish_result.polished_score - polish_result.original_score})"
+            )
+            # Record the prompt intent and scores for the optimization loop
+            import uuid
+            session_id = str(uuid.uuid4())
+            _polisher._store.record_prompt_intent(
+                session_id=session_id,
+                prompt_text=user_prompt,
+                intent=polish_result.intent,
+                original_score=polish_result.original_score,
+                polished_score=polish_result.polished_score,
+                complexity_score=polish_result.complexity,
+                enhancements_applied=polish_result.enhancements_applied
+            )
+        except Exception as e:
+            logger.debug(f"Prompt polishing failed (non-fatal): {e}")
 
     # Load user profile for personalization
     try:
@@ -146,11 +193,23 @@ def orchestrate_request(user_prompt: str) -> str:
     if orch_mode == "llm" or (orch_mode == "auto" and api_key):
         if api_key:
             try:
-                return _llm_orchestration(user_prompt, mcps, skills, user_id, api_key)
+                plan = _llm_orchestration(user_prompt, mcps, skills, user_id, api_key)
+                return _append_elite_metadata(plan, user_prompt, registry.active_ide, registry.warnings, polish_result)
             except Exception as e:
-                return _heuristic_orchestration(user_prompt, mcps, skills, user_id, f"LLM fallback: {e}")
+                return _heuristic_orchestration(
+                    user_prompt, mcps, skills, user_id,
+                    f"LLM fallback: {e}",
+                    active_ide=registry.active_ide,
+                    capability_warnings=registry.warnings,
+                    polish_result=polish_result
+                )
 
-    return _heuristic_orchestration(user_prompt, mcps, skills, user_id, "Heuristic mode")
+    return _heuristic_orchestration(
+        user_prompt, mcps, skills, user_id, "Heuristic mode",
+        active_ide=registry.active_ide,
+        capability_warnings=registry.warnings,
+        polish_result=polish_result
+    )
 
 
 def _llm_orchestration(user_prompt: str, mcps: list[str], skills: list[str], user_id: str, api_key: str) -> str:
@@ -191,7 +250,50 @@ def _llm_orchestration(user_prompt: str, mcps: list[str], skills: list[str], use
     return data["candidates"][0]["content"]["parts"][0]["text"]
 
 
-def _heuristic_orchestration(user_prompt: str, mcps: list[str], skills: list[str], user_id: str, reason: str = "") -> str:
+def _append_elite_metadata(plan: str, user_prompt: str, active_ide: str, capability_warnings: tuple[str, ...], polish_result=None) -> str:
+    """Append deterministic guardrails to LLM-generated plans."""
+    policy = recommend_budget_tier(user_prompt)
+    extra = [
+        "",
+        "## Capability & ROI Guardrails",
+        f"- Active IDE: `{active_ide or 'unknown'}`",
+        f"- Budget tier: `{policy.tier}` ({policy.max_tool_calls} tool calls, {policy.max_latency_ms} ms target)",
+    ]
+    for warning in capability_warnings:
+        extra.append(f"- ⚠️ {warning}")
+    extra.append("- Do not use recommended tools unless the current client exposes them as callable MCP tools.")
+    
+    plan = plan.rstrip() + "\n" + "\n".join(extra) + "\n"
+    
+    # ── Quality Directives (from polisher) ──
+    if polish_result is not None and polish_result.enhancements_applied:
+        plan += "\n## Quality Directives\n"
+        plan += "_Auto-injected by the Goal-Aligned Prompt Polisher:_\n\n"
+        # Extract just the directive text from the polished prompt
+        if "## Quality Directives" in polish_result.polished_prompt:
+            directives_section = polish_result.polished_prompt.split("## Quality Directives")[1]
+            if "## Output Standard" in directives_section:
+                directives_section = directives_section.split("## Output Standard")[0]
+            plan += directives_section.strip() + "\n"
+
+    # ── Output Standard (from polisher) ──
+    if polish_result is not None and "## Output Standard" in polish_result.polished_prompt:
+        standard = polish_result.polished_prompt.split("## Output Standard")[1].strip()
+        plan += f"\n## Output Standard\n{standard}\n"
+
+    return plan
+
+
+def _heuristic_orchestration(
+    user_prompt: str,
+    mcps: list[str],
+    skills: list[str],
+    user_id: str,
+    reason: str = "",
+    active_ide: str = "",
+    capability_warnings: tuple[str, ...] = (),
+    polish_result=None
+) -> str:
     """Keyword-based routing when no LLM is available."""
     prompt_lower = user_prompt.lower()
 
@@ -318,8 +420,39 @@ def _heuristic_orchestration(user_prompt: str, mcps: list[str], skills: list[str
 
     # ── Build the plan ─────────────────────────────────────────
     plan = "# Elite Orchestrator Plan\n\n"
+    policy = recommend_budget_tier(user_prompt)
     plan += f"**User:** `{user_id}` | **Mode:** Heuristic ({reason})\n\n"
-    plan += f"## Environment\n- **{len(mcps)}** MCP servers installed\n- **{len(skills)}** Skills available\n\n"
+    plan += "## Environment\n"
+    plan += f"- **Active IDE:** `{active_ide or 'unknown'}`\n"
+    plan += f"- **Recommendable MCP servers:** {len(mcps)}\n"
+    plan += f"- **Recommendable Skills:** {len(skills)}\n"
+    plan += f"- **ROI budget tier:** `{policy.tier}` — max {policy.max_tool_calls} tool calls / {policy.max_latency_ms} ms target\n"
+    if capability_warnings:
+        for warning in capability_warnings:
+            plan += f"- ⚠️ {warning}\n"
+    plan += "\n"
+
+    # ── Prompt Quality & Goal Alignment Section ──
+    if polish_result is not None:
+        plan += "## 📊 Prompt Quality\n"
+        plan += "| Metric | Value |\n|--------|-------|\n"
+        plan += f"| Original Score | {polish_result.original_score}/100 |\n"
+        plan += f"| Polished Score | {polish_result.polished_score}/100 |\n"
+        plan += f"| Improvement | +{polish_result.polished_score - polish_result.original_score} |\n"
+        plan += f"| Complexity | {polish_result.complexity}/5 |\n"
+        plan += f"| Intent | {polish_result.intent} |\n\n"
+
+        if polish_result.goals_aligned:
+            plan += "### 🎯 Goals Aligned\n"
+            for g in polish_result.goals_aligned:
+                plan += f"- {g}\n"
+            plan += "\n"
+
+        if polish_result.enhancements_applied:
+            plan += "### ✨ Enhancements Applied\n"
+            for e in polish_result.enhancements_applied:
+                plan += f"- `{e}`\n"
+            plan += "\n"
 
     plan += "## Recommended MCPs\n"
     if selected_mcps:
@@ -340,18 +473,140 @@ def _heuristic_orchestration(user_prompt: str, mcps: list[str], skills: list[str
     plan += "2. **Gather Context** — Use the recommended MCP tools to query/scan relevant infrastructure.\n"
     plan += "3. **Execute** — Fulfill the user's request using the discovered leverage.\n"
     plan += "4. **Verify** — Run quality checks and record decisions via `elite-reasoning` MCP.\n"
+    plan += (
+        "5. **ROI Gate** — Stay within the recommended tool budget unless risk or uncertainty justifies escalation.\n"
+    )
+    plan += "\n## Evidence / Benchmark Guidance\n"
+    if any(kw in prompt_lower for kw in ["research", "paper", "benchmark", "evidence", "model", "quality", "roi"]):
+        plan += "- Use research-backed metrics: task success, regression prevention, tool efficiency, evidence quality, calibration, latency/cost ROI, and robustness.\n"
+        plan += "- Prefer SWE-bench-style executable validation for coding-agent changes and API-Bank/ToolBench-style metrics for tool routing.\n"
+        plan += "- For model/framework adoption, call `recommend_open_source_integrations` and keep heavy frameworks optional until evals justify them.\n"
+    else:
+        plan += "- Use executable validation where available; record confidence only when making predictions or recommendations.\n"
+
+    if any(kw in prompt_lower for kw in ["think", "reason", "break down", "loop", "experiment", "stress", "top tier"]):
+        plan += "- For deep work, start with `nuclear_prompt_breakdown`, choose a protocol with `select_reasoning_protocol`, then branch with `build_experiment_tree` when complexity is high.\n"
+    if any(kw in prompt_lower for kw in ["eval", "evaluate", "score", "quality", "benchmark", "regression"]):
+        plan += "- Use `run_elite_eval_suite` as a cheap local smoke gate before heavier external eval frameworks.\n"
+
+    # ── Quality Directives (from polisher) ──
+    if polish_result is not None and polish_result.enhancements_applied:
+        plan += "\n## Quality Directives\n"
+        plan += "_Auto-injected by the Goal-Aligned Prompt Polisher:_\n\n"
+        # Extract just the directive text from the polished prompt
+        if "## Quality Directives" in polish_result.polished_prompt:
+            directives_section = polish_result.polished_prompt.split("## Quality Directives")[1]
+            if "## Output Standard" in directives_section:
+                directives_section = directives_section.split("## Output Standard")[0]
+            plan += directives_section.strip() + "\n"
+
+    # ── Output Standard (from polisher) ──
+    if polish_result is not None and "## Output Standard" in polish_result.polished_prompt:
+        standard = polish_result.polished_prompt.split("## Output Standard")[1].strip()
+        plan += f"\n## Output Standard\n{standard}\n"
 
     return plan
 
 
 def register(mcp, store):
     """Register orchestration tools with the MCP server."""
+    global _polisher
+
+    # Initialize the prompt polisher with store access
+    try:
+        from core.tools.goal_prompt_polisher import GoalPromptPolisher
+        _polisher = GoalPromptPolisher(store)
+        logger.info("GoalPromptPolisher initialized for orchestration")
+    except Exception as e:
+        logger.debug(f"GoalPromptPolisher not available: {e}")
+        _polisher = None
 
     @mcp.tool()
     def orchestrate_request_tool(user_prompt: str) -> str:
         """
         Analyzes the user's request and dynamically routes it to the most relevant
         MCP servers and Skills installed in THIS user's IDE environment.
-        Returns a structured Execution Plan. Call at the very start of complex requests.
+        Now includes Goal-Aligned Prompt Polishing for maximum output quality.
+        Returns a structured Execution Plan with quality directives and goal alignment.
+        Call at the very start of complex requests.
         """
         return orchestrate_request(user_prompt)
+
+    @mcp.tool()
+    def verify_capabilities_tool() -> str:
+        """
+        Verify which MCP servers and skills are actually recommendable for the active IDE.
+        Use before relying on optional tools or cross-IDE skills.
+        """
+        return format_capability_report(build_capability_registry())
+
+    @mcp.tool()
+    def research_benchmark_catalog(task_class: str = "") -> str:
+        """
+        Return a research-backed benchmark catalog for evaluating reasoning, coding,
+        tool use, research grounding, calibration, and ROI.
+        Args:
+            task_class: Optional filter such as coding_agent, tool_use, calibration, research_grounding.
+        """
+        return benchmark_catalog_markdown(task_class)
+
+    @mcp.tool()
+    def elite_outcome_scorecard() -> str:
+        """
+        Return the weighted Elite scorecard used to measure whether reasoning tools
+        improved outcomes instead of merely adding process.
+        """
+        return scorecard_markdown()
+
+    @mcp.tool()
+    def roi_tool_budget(prompt: str = "", complexity: int = 0) -> str:
+        """
+        Recommend a reasoning/tool-call budget based on risk and complexity.
+        Use this to prevent tool theater and keep quality improvements ROI-positive.
+        """
+        return budget_policy_markdown(prompt, complexity)
+
+    @mcp.tool()
+    def nuclear_prompt_breakdown(prompt: str) -> str:
+        """
+        Decompose a prompt into explicit requirements, implicit requirements,
+        constraints, risks, evidence needs, success criteria, validation plan,
+        allowed tools, and stop conditions. Works without external LLM calls.
+        """
+        return nuclear_prompt_markdown(prompt)
+
+    @mcp.tool()
+    def select_reasoning_protocol(prompt: str, complexity: int = 0) -> str:
+        """
+        Select a model-agnostic reasoning protocol stack for a prompt:
+        direct, ReAct, Tree-of-Thoughts, Reflexion, Self-Consistency,
+        Self-Debugging, or Evidence-Grounded Research.
+        """
+        return protocol_recommendation_markdown(prompt, complexity)
+
+    @mcp.tool()
+    def build_experiment_tree(prompt: str, max_branches: int = 3) -> str:
+        """
+        Generate a deterministic experiment tree with hypotheses, candidate
+        approaches, validation methods, risks, fallbacks, expected observations,
+        and stopping criteria.
+        """
+        return experiment_tree_markdown(prompt, max_branches)
+
+    @mcp.tool()
+    def run_elite_eval_suite(scope: str = "smoke") -> str:
+        """
+        Run the lightweight local Elite eval suite. No external model calls.
+        Scores task_success, regression_prevention, tool_efficiency,
+        evidence_quality, calibration, latency_cost_roi, and robustness.
+        """
+        return elite_eval_suite_markdown(scope)
+
+    @mcp.tool()
+    def recommend_open_source_integrations(use_case: str = "") -> str:
+        """
+        Recommend optional open-source integrations for prompt optimization,
+        eval/red-team/CI, pytest-native LLM evals, rigorous agent benchmarks,
+        and local/open-source model providers without adding core dependencies.
+        """
+        return integrations_markdown(use_case)

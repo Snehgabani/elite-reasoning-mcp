@@ -69,6 +69,13 @@ def create_mcp_server(brain_dir: str) -> FastMCP:
     adaptive.register(mcp, store)
     reasoning_amplifier.register(mcp, store)
     memory_bridge.register(mcp, store)
+
+    # ── Register Goal-Aligned Prompt Polisher ──────────────
+    from core.tools import goal_prompt_polisher
+    _polisher_instance = goal_prompt_polisher.register(mcp, store)
+    logger.info("Goal-Aligned Prompt Polisher registered",
+                extra={"action": "polisher_registered", "has_polisher": _polisher_instance is not None})
+
     logger.info("Tool modules registered", extra={"action": "tools_registered"})
 
     # ── Register Verb Tools (Blueprint #1: 66→8 surface) ──
