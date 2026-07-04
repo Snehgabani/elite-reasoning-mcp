@@ -59,13 +59,25 @@ def create_mcp_server(brain_dir: str) -> FastMCP:
 
     # ── Register Tool Modules (legacy individual tools) ────
     from core.integration import memory_bridge
-    from core.tools import adaptive, analysis, auditing, graph_tools, orchestration, planning, reasoning_amplifier
+    from core.tools import (
+        adaptive,
+        analysis,
+        auditing,
+        doctor,
+        graph_tools,
+        orchestration,
+        planning,
+        reasoning_amplifier,
+        workflow,
+    )
 
     planning.register(mcp, store)
     auditing.register(mcp, store)
     analysis.register(mcp, store)
     graph_tools.register(mcp, store)
     orchestration.register(mcp, store)
+    workflow.register(mcp, store)
+    doctor.register(mcp, store, profile=profile)
     adaptive.register(mcp, store)
     reasoning_amplifier.register(mcp, store)
     memory_bridge.register(mcp, store)
@@ -353,7 +365,7 @@ def create_mcp_server(brain_dir: str) -> FastMCP:
 
         # Check embedding model
         try:
-            from core.memory.embedding_service import EmbeddingService
+            from core.memory.embedding import EmbeddingService
             if isinstance(getattr(store, '_embedding_service', None), EmbeddingService):
                 checks.append("| Embedding Model | ✅ Loaded | Ready for encoding |")
             elif hasattr(store, 'embedding_model') and store.embedding_model:

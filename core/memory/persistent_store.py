@@ -5,6 +5,7 @@ benchmarks, goals, smoke tests, and after-action reviews.
 Memory/context is delegated to AgentMemory or Mem0.
 """
 import contextlib
+import hashlib
 import json
 import os
 import sqlite3
@@ -514,6 +515,58 @@ class EliteStore:
             )
         """)
 
+        # --- Workflow Flight Recorder (release-grade task execution audit) ---
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS workflow_runs (
+                run_id TEXT PRIMARY KEY,
+                user_prompt TEXT NOT NULL,
+                intent TEXT NOT NULL DEFAULT 'general',
+                complexity INTEGER DEFAULT 1,
+                budget_tier TEXT DEFAULT 'direct',
+                status TEXT NOT NULL DEFAULT 'planned',
+                confidence REAL DEFAULT 0.0,
+                evidence_requirements TEXT DEFAULT '[]',
+                validation_gates TEXT DEFAULT '[]',
+                memory_context TEXT DEFAULT '[]',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+        """)
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS workflow_steps (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                run_id TEXT NOT NULL,
+                step_index INTEGER NOT NULL,
+                step_name TEXT NOT NULL,
+                action TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'pending',
+                evidence TEXT DEFAULT '',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                FOREIGN KEY(run_id) REFERENCES workflow_runs(run_id) ON DELETE CASCADE
+            )
+        """)
+
+        # --- Quality-Gated Memory Items (selective, scoped long-term context) ---
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS memory_items (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                memory_type TEXT NOT NULL,
+                scope TEXT NOT NULL DEFAULT 'global',
+                source TEXT NOT NULL DEFAULT 'manual',
+                content TEXT NOT NULL,
+                confidence REAL NOT NULL DEFAULT 0.7,
+                trust_score REAL NOT NULL DEFAULT 0.7,
+                privacy_class TEXT NOT NULL DEFAULT 'internal',
+                expires_at TEXT DEFAULT '',
+                tags TEXT DEFAULT '',
+                quarantined INTEGER DEFAULT 0,
+                content_hash TEXT NOT NULL UNIQUE,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+        """)
+
         # --- INDEXES (P0 fix: 0 indexes existed across 13 tables) ---
         index_stmts = [
             "CREATE INDEX IF NOT EXISTS idx_anti_patterns_created ON anti_patterns(created_at)",
@@ -550,6 +603,12 @@ class EliteStore:
             "CREATE INDEX IF NOT EXISTS idx_anti_patterns_quarantine ON anti_patterns(quarantined) WHERE quarantined = 1",
             "CREATE INDEX IF NOT EXISTS idx_rules_lifecycle ON prevention_rules(lifecycle_state)",
             "CREATE INDEX IF NOT EXISTS idx_optimization_metric ON optimization_events(metric, created_at)",
+            "CREATE INDEX IF NOT EXISTS idx_workflow_runs_created ON workflow_runs(created_at)",
+            "CREATE INDEX IF NOT EXISTS idx_workflow_runs_status ON workflow_runs(status, created_at)",
+            "CREATE INDEX IF NOT EXISTS idx_workflow_steps_run ON workflow_steps(run_id, step_index)",
+            "CREATE INDEX IF NOT EXISTS idx_memory_items_lookup ON memory_items(scope, memory_type, trust_score)",
+            "CREATE INDEX IF NOT EXISTS idx_memory_items_quarantine ON memory_items(quarantined, trust_score)",
+            "CREATE INDEX IF NOT EXISTS idx_memory_items_hash ON memory_items(content_hash)",
         ]
         for stmt in index_stmts:
             try:
@@ -923,9 +982,12 @@ class EliteStore:
             older = sum(scores[mid:]) / (len(scores) - mid)
             trend = "improving" if recent > older else "declining" if recent < older else "stable"
         else:
+            recent = avg
+            older = avg
             trend = "insufficient_data"
         return {
             "average": round(avg, 1), "trend": trend, "latest": scores[0] if scores else 0,
+            "recent_avg": round(recent, 1), "older_avg": round(older, 1),
             "count": len(scores),
             "scores": [{"score": r[0], "dimension": r[1], "notes": r[2], "date": r[3]} for r in rows]
         }
@@ -1222,7 +1284,18 @@ class EliteStore:
             "health_score": health_score,
             "health": "healthy" if health_score >= 80 else "degraded" if health_score >= 50 else "critical",
             "patterns": patterns,
-            "detection_failures": detection_failures
+            "detection_failures": detection_failures,
+            "prompts": [
+                {
+                    "id": r[0],
+                    "prompt_text": r[1],
+                    "intent_category": r[2],
+                    "reasoning_type": r[3],
+                    "failure_detected": r[4],
+                    "created_at": r[5],
+                }
+                for r in rows
+            ],
         }
 
     def get_user_thinking_model(self) -> list[dict]:
@@ -1233,8 +1306,10 @@ class EliteStore:
             "SELECT pattern_name, evidence_count, example_prompts, system_adaptation, confidence, last_seen "
             "FROM user_thinking_patterns ORDER BY confidence DESC"
         )
-        results = [{"pattern": r[0], "evidence": r[1], "examples": r[2],
-                     "adaptation": r[3], "confidence": r[4], "last_seen": r[5]}
+        results = [{"pattern": r[0], "pattern_name": r[0], "evidence": r[1], "evidence_count": r[1],
+                     "examples": r[2], "example_prompts": r[2],
+                     "adaptation": r[3], "system_adaptation": r[3],
+                     "confidence": r[4], "last_seen": r[5]}
                     for r in c.fetchall()]
         if not getattr(self._local, 'in_transaction', False):
             self._close(conn)
@@ -1319,6 +1394,308 @@ class EliteStore:
             "most_used": list(usage.keys())[:5] if usage else [],
             "period_days": days
         }
+
+    # ==================== WORKFLOW FLIGHT RECORDER ====================
+
+    def record_workflow_run(self, run: dict, steps: list[dict]) -> str:
+        """Persist a workflow flight-recorder run with ordered planned steps."""
+        run_id = str(run["run_id"])
+        now = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
+        evidence = json.dumps(run.get("evidence_requirements", []))
+        validation = json.dumps(run.get("validation_gates", []))
+        memory_context = json.dumps(run.get("memory_context", []))
+
+        with self.transaction():
+            conn = self._connect()
+            c = conn.cursor()
+            c.execute(
+                """INSERT OR REPLACE INTO workflow_runs
+                   (run_id, user_prompt, intent, complexity, budget_tier, status,
+                    confidence, evidence_requirements, validation_gates,
+                    memory_context, created_at, updated_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    run_id,
+                    str(run.get("user_prompt", ""))[:5000],
+                    str(run.get("intent", "general")),
+                    int(run.get("complexity", 1)),
+                    str(run.get("budget_tier", "direct")),
+                    str(run.get("status", "planned")),
+                    float(run.get("confidence", 0.0)),
+                    evidence,
+                    validation,
+                    memory_context,
+                    str(run.get("created_at") or now),
+                    now,
+                ),
+            )
+            c.execute("DELETE FROM workflow_steps WHERE run_id = ?", (run_id,))
+            for index, step in enumerate(steps, 1):
+                c.execute(
+                    """INSERT INTO workflow_steps
+                       (run_id, step_index, step_name, action, status, evidence, created_at, updated_at)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                    (
+                        run_id,
+                        index,
+                        str(step.get("step_name", f"step_{index}")),
+                        str(step.get("action", ""))[:2000],
+                        str(step.get("status", "pending")),
+                        str(step.get("evidence", ""))[:2000],
+                        now,
+                        now,
+                    ),
+                )
+        return run_id
+
+    def get_workflow_run(self, run_id: str) -> dict | None:
+        """Return a workflow run with decoded JSON fields and ordered steps."""
+        conn = self._connect()
+        c = conn.cursor()
+        c.execute(
+            """SELECT run_id, user_prompt, intent, complexity, budget_tier, status,
+                      confidence, evidence_requirements, validation_gates,
+                      memory_context, created_at, updated_at
+               FROM workflow_runs WHERE run_id = ?""",
+            (run_id,),
+        )
+        row = c.fetchone()
+        if not row:
+            if not getattr(self._local, 'in_transaction', False):
+                self._close(conn)
+            return None
+        c.execute(
+            """SELECT step_index, step_name, action, status, evidence, created_at, updated_at
+               FROM workflow_steps WHERE run_id = ? ORDER BY step_index""",
+            (run_id,),
+        )
+        steps = [
+            {
+                "step_index": r[0],
+                "step_name": r[1],
+                "action": r[2],
+                "status": r[3],
+                "evidence": r[4],
+                "created_at": r[5],
+                "updated_at": r[6],
+            }
+            for r in c.fetchall()
+        ]
+        if not getattr(self._local, 'in_transaction', False):
+            self._close(conn)
+
+        def _loads(value: str) -> list:
+            try:
+                parsed = json.loads(value or "[]")
+                return parsed if isinstance(parsed, list) else []
+            except (TypeError, json.JSONDecodeError):
+                return []
+
+        return {
+            "run_id": row[0],
+            "user_prompt": row[1],
+            "intent": row[2],
+            "complexity": row[3],
+            "budget_tier": row[4],
+            "status": row[5],
+            "confidence": row[6],
+            "evidence_requirements": _loads(row[7]),
+            "validation_gates": _loads(row[8]),
+            "memory_context": _loads(row[9]),
+            "created_at": row[10],
+            "updated_at": row[11],
+            "steps": steps,
+        }
+
+    def list_workflow_runs(self, limit: int = 20, status: str = "") -> list[dict]:
+        """List recent workflow runs for release/eval audit trails."""
+        conn = self._connect()
+        c = conn.cursor()
+        limit = max(1, min(int(limit or 20), 100))
+        if status:
+            c.execute(
+                """SELECT run_id, user_prompt, intent, complexity, budget_tier, status,
+                          confidence, created_at, updated_at
+                   FROM workflow_runs WHERE status = ? ORDER BY created_at DESC LIMIT ?""",
+                (status, limit),
+            )
+        else:
+            c.execute(
+                """SELECT run_id, user_prompt, intent, complexity, budget_tier, status,
+                          confidence, created_at, updated_at
+                   FROM workflow_runs ORDER BY created_at DESC LIMIT ?""",
+                (limit,),
+            )
+        rows = c.fetchall()
+        if not getattr(self._local, 'in_transaction', False):
+            self._close(conn)
+        return [
+            {
+                "run_id": r[0],
+                "user_prompt": r[1],
+                "intent": r[2],
+                "complexity": r[3],
+                "budget_tier": r[4],
+                "status": r[5],
+                "confidence": r[6],
+                "created_at": r[7],
+                "updated_at": r[8],
+            }
+            for r in rows
+        ]
+
+    def update_workflow_step(self, run_id: str, step_index: int, status: str, evidence: str = "") -> bool:
+        """Update one workflow step and refresh the parent run timestamp."""
+        conn = self._connect()
+        c = conn.cursor()
+        now = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
+        c.execute(
+            """UPDATE workflow_steps SET status = ?, evidence = ?, updated_at = ?
+               WHERE run_id = ? AND step_index = ?""",
+            (status, (evidence or "")[:2000], now, run_id, step_index),
+        )
+        changed = c.rowcount > 0
+        if changed:
+            c.execute("UPDATE workflow_runs SET updated_at = ? WHERE run_id = ?", (now, run_id))
+        self._close(conn)
+        return changed
+
+    # ==================== QUALITY-GATED MEMORY ====================
+
+    def record_memory_item(
+        self,
+        memory_type: str,
+        content: str,
+        scope: str = "global",
+        source: str = "manual",
+        confidence: float = 0.7,
+        trust_score: float = 0.7,
+        privacy_class: str = "internal",
+        expires_at: str = "",
+        tags: str = "",
+    ) -> int:
+        """Store a scoped memory item with poisoning/privacy gates.
+
+        Items with low trust, low confidence, or sensitive privacy classes are
+        retained for audit but quarantined from automatic context packs.
+        """
+        content = (content or "").strip()
+        if not content:
+            raise ValueError("memory content is required")
+        memory_type = (memory_type or "fact").strip().lower()
+        scope = (scope or "global").strip().lower()
+        source = (source or "manual").strip().lower()
+        privacy_class = (privacy_class or "internal").strip().lower()
+        confidence = max(0.0, min(1.0, float(confidence)))
+        trust_score = max(0.0, min(1.0, float(trust_score)))
+        sensitive_classes = {"secret", "credential", "credentials", "highly_sensitive", "private_key"}
+        quarantined = 1 if confidence < 0.4 or trust_score < 0.5 or privacy_class in sensitive_classes else 0
+        now = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
+        content_hash = hashlib.sha256(
+            f"{memory_type}\0{scope}\0{source}\0{content}".encode("utf-8")
+        ).hexdigest()
+
+        conn = self._connect()
+        c = conn.cursor()
+        try:
+            c.execute(
+                """INSERT INTO memory_items
+                   (memory_type, scope, source, content, confidence, trust_score,
+                    privacy_class, expires_at, tags, quarantined, content_hash,
+                    created_at, updated_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    memory_type,
+                    scope,
+                    source,
+                    content[:5000],
+                    confidence,
+                    trust_score,
+                    privacy_class,
+                    expires_at or "",
+                    tags or "",
+                    quarantined,
+                    content_hash,
+                    now,
+                    now,
+                ),
+            )
+            row_id = c.lastrowid
+        except sqlite3.IntegrityError:
+            c.execute(
+                """UPDATE memory_items SET confidence = ?, trust_score = ?,
+                          privacy_class = ?, expires_at = ?, tags = ?,
+                          quarantined = ?, updated_at = ?
+                   WHERE content_hash = ?""",
+                (confidence, trust_score, privacy_class, expires_at or "", tags or "", quarantined, now, content_hash),
+            )
+            c.execute("SELECT id FROM memory_items WHERE content_hash = ?", (content_hash,))
+            row_id = c.fetchone()[0]
+        self._close(conn)
+        return row_id
+
+    def search_memory_items(
+        self,
+        query: str = "",
+        scope: str = "",
+        limit: int = 8,
+        min_trust: float = 0.5,
+        include_quarantined: bool = False,
+    ) -> list[dict]:
+        """Retrieve trusted memory items for context assembly."""
+        now = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
+        limit = max(1, min(int(limit or 8), 50))
+        min_trust = max(0.0, min(1.0, float(min_trust)))
+        clauses = ["trust_score >= ?", "(expires_at = '' OR expires_at >= ?)"]
+        params: list[object] = [min_trust, now]
+        if not include_quarantined:
+            clauses.append("quarantined = 0")
+        if scope:
+            clauses.append("(scope = ? OR scope = 'global')")
+            params.append(scope.strip().lower())
+        where = " AND ".join(clauses)
+
+        conn = self._connect()
+        c = conn.cursor()
+        c.execute(
+            f"""SELECT id, memory_type, scope, source, content, confidence, trust_score,
+                      privacy_class, expires_at, tags, quarantined, created_at, updated_at
+               FROM memory_items WHERE {where}
+               ORDER BY trust_score DESC, confidence DESC, updated_at DESC LIMIT 200""",
+            tuple(params),
+        )
+        rows = c.fetchall()
+        if not getattr(self._local, 'in_transaction', False):
+            self._close(conn)
+
+        terms = [term for term in (query or "").lower().split() if len(term) > 2][:8]
+        results: list[dict] = []
+        for r in rows:
+            haystack = f"{r[1]} {r[2]} {r[3]} {r[4]} {r[9]}".lower()
+            score = sum(1 for term in terms if term in haystack)
+            if terms and score == 0:
+                continue
+            results.append(
+                {
+                    "id": r[0],
+                    "memory_type": r[1],
+                    "scope": r[2],
+                    "source": r[3],
+                    "content": r[4],
+                    "confidence": r[5],
+                    "trust_score": r[6],
+                    "privacy_class": r[7],
+                    "expires_at": r[8],
+                    "tags": r[9],
+                    "quarantined": bool(r[10]),
+                    "created_at": r[11],
+                    "updated_at": r[12],
+                    "match_score": score,
+                }
+            )
+
+        results.sort(key=lambda item: (item["match_score"], item["trust_score"], item["confidence"]), reverse=True)
+        return results[:limit]
 
     # ==================== MISSED DETECTIONS ====================
 
@@ -2139,4 +2516,3 @@ class EliteStore:
                     (r[3] + r[5]) / max(r[2], 1), 3)
             } for r in rows]
         }
-

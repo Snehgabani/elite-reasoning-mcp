@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-07-04
+
+### Added
+- `workflow_run`, `workflow_status`, and `workflow_update_step` tools for durable, evidence-gated task flight recording.
+- Quality-gated memory tools: `remember_context` and `memory_context_pack` with trust, confidence, scope, expiry, and privacy quarantine.
+- `elite_doctor` and `elite_doctor_json` release-readiness health checks.
+- `export_eval_harness` for optional Promptfoo, DeepEval, and Inspect AI eval scaffolds without adding hard runtime dependencies.
+- Release smoke tests for MCP tool exposure and workflow/memory/doctor behavior.
+- `scripts/release_check.py` to run repeatable release gates.
+
+### Fixed
+- Health resource now imports the existing `core.memory.embedding.EmbeddingService`.
+- Capability/profile IDE detection now uses the shared capability registry path.
+- Team sync registration no longer hardcodes `antigravity`.
+- Prompt sequence analysis now returns prompt rows for prompt quality trend tooling.
+- Quality trend now exposes recent and older averages for autonomous scans.
+- Thinking-pattern results now include backward-compatible key names.
+- Decision council reviews now link to an actual decision journal entry.
+
+### Removed
+- Tracked `__pycache__`, SQLite sidecar, and diagnostic archive artifacts from source control.
+
 ## [1.1.2] - 2026-06-16
 
 ### Fixed

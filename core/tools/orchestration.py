@@ -13,6 +13,7 @@ import os
 import urllib.request
 from typing import Optional
 
+from core.eval.exporters import eval_harness_markdown
 from core.eval.open_source_integrations import integrations_markdown
 from core.eval.outcome_runner import elite_eval_suite_markdown
 from core.eval.research_benchmarks import (
@@ -610,3 +611,13 @@ def register(mcp, store):
         and local/open-source model providers without adding core dependencies.
         """
         return integrations_markdown(use_case)
+
+    @mcp.tool()
+    def export_eval_harness(harness: str = "all") -> str:
+        """
+        Export optional eval harness scaffolds for Promptfoo, DeepEval, and Inspect AI.
+        Does not add hard dependencies; generated snippets are intended for CI/provider comparison.
+        Args:
+            harness: promptfoo, deepeval, inspect, or all.
+        """
+        return eval_harness_markdown(harness)
