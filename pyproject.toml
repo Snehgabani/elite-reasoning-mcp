@@ -1,7 +1,7 @@
 [project]
 name = "elite-reasoning-mcp"
-version = "1.1.4"
-description = "73-tool MCP server that makes any LLM think harder, reason better, and never repeat mistakes. Persistent memory, anti-pattern detection, confidence calibration, and self-improving prevention rules."
+version = "1.2.0"
+description = "90+ tool MCP server that makes any LLM think harder, reason better, and never repeat mistakes. Workflow flight recording, persistent memory, confidence calibration, release doctor checks, and self-improving prevention rules."
 readme = "README.md"
 requires-python = ">=3.11"
 license = {text = "MIT"}
@@ -87,9 +87,15 @@ packages = ["core"]
 [tool.hatch.build.targets.sdist]
 exclude = [
     "brain/",
+    "brain_central/",
+    "diagnostics/*.zip",
     "_archive/",
     "uv.lock",
     "*.db",
+    "*.db-shm",
+    "*.db-wal",
+    "*.db-*",
+    "*.zip",
     "*.log",
     "mcp_error.log",
     ".venv/",

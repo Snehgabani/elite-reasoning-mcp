@@ -19,7 +19,7 @@
   <a href="#-quick-start">Quick Start</a> •
   <a href="#-features">Features</a> •
   <a href="#%EF%B8%8F-architecture">Architecture</a> •
-  <a href="#-73-tools">All Tools</a> •
+  <a href="#-90-tools">All Tools</a> •
   <a href="#-configuration">Config</a> •
   <a href="#-contributing">Contributing</a>
 </p>
@@ -30,7 +30,7 @@
 
 Every AI coding assistant makes the **same mistakes twice**. Elite Reasoning fixes that.
 
-It's an [MCP server](https://modelcontextprotocol.io/) that wraps around any LLM — GPT-4, Claude, Gemini, open-source — and adds a **persistent reasoning layer** with anti-pattern memory, decision tracking, confidence calibration, and self-improving prevention rules.
+It's an [MCP server](https://modelcontextprotocol.io/) that wraps around any LLM — GPT-4, Claude, Gemini, open-source — and adds a **persistent reasoning layer** with workflow flight recording, anti-pattern memory, decision tracking, confidence calibration, release doctor checks, eval harness exports, and self-improving prevention rules.
 
 > **One install. Zero config. Works with Cursor, Antigravity, VS Code + Continue, Windsurf, and any MCP-compatible IDE.**
 
@@ -43,6 +43,8 @@ It's an [MCP server](https://modelcontextprotocol.io/) that wraps around any LLM
 | Generic responses | ✅ Intent-classified, complexity-scored routing |
 | No decision audit trail | ✅ Every architectural decision logged + searchable |
 | Manual quality checks | ✅ Automated pre-commit audits + FMEA risk gates |
+| Multi-step work gets lost | ✅ `workflow_run` creates durable evidence + validation gates |
+| Memory can poison context | ✅ Trust/confidence/privacy gates quarantine risky memories |
 
 ---
 
@@ -101,11 +103,15 @@ Add this to your IDE's system prompt (e.g., `~/.gemini/GEMINI.md` or Cursor Rule
 ```markdown
 ## ⚡ RULE #0 — ELITE MCP PIPELINE
 
-On EVERY user message, your FIRST tool call MUST be:
+For non-trivial build, debug, research, audit, or release tasks, start with:
 
 orchestrate_request_tool(user_prompt="<the user's exact message>")
 
-No exceptions except "ok", "thanks", "yes", "no".
+For multi-step work that must be auditable, then create a durable run:
+
+workflow_run(user_prompt="<the user's exact message>")
+
+Skip tool calls for trivial acknowledgements like "ok", "thanks", "yes", "no".
 ```
 
 **That's it.** Restart your IDE and every conversation automatically benefits from the reasoning pipeline.
@@ -136,7 +142,16 @@ Every tool call passes through telemetry → anti-pattern injection → preventi
 FMEA (Failure Mode & Effects Analysis), Swiss Cheese audits, smoke test gates, and pre-mortem simulations — all built-in, all callable as MCP tools.
 
 ### 💾 Persistent Memory
-Cross-session knowledge graph with temporal confidence decay, semantic search, and decision audit trails. Your AI remembers what it learned last week.
+Cross-session knowledge graph with temporal confidence decay, semantic search, decision audit trails, and quality-gated memory context. Your AI remembers what it learned last week without blindly injecting low-trust or sensitive content.
+
+### 🧭 Workflow Flight Recorder
+`workflow_run` turns complex work into a persisted execution contract: intent, complexity, budget tier, relevant memory, evidence requirements, validation gates, confidence, and step status.
+
+### 🏥 Release Doctor
+`elite_doctor` checks version, dependencies, DB schema, capability routing, exposed tool count, active IDE mismatch, and release blockers before shipping.
+
+### 🧪 Eval Harness Exports
+`export_eval_harness` generates optional Promptfoo, DeepEval, and Inspect AI scaffolds for MCP-on/MCP-off comparisons without adding hard runtime dependencies.
 
 ---
 
@@ -145,7 +160,7 @@ Cross-session knowledge graph with temporal confidence decay, semantic search, a
 ```
 Your Prompt
     ↓
-orchestrate_request_tool (FIRST tool call — fires on every message)
+orchestrate_request_tool (complex-task routing)
     ↓
 ┌──────────────────────────────────────────────┐
 │  🎯 Intent Classifier    → 13 categories     │
@@ -171,7 +186,7 @@ Results recorded → Learning loop improves next time
 
 ---
 
-## 🔧 73 Tools
+## 🔧 90+ Tools
 
 <details>
 <summary><strong>Core Pipeline (3)</strong></summary>
@@ -181,6 +196,22 @@ Results recorded → Learning loop improves next time
 | `orchestrate_request_tool` | Master routing — fires on every prompt, classifies intent, routes to tools |
 | `reasoning_preflight` | Pre-flight checklist for complex tasks |
 | `assess_confidence` | Score confidence before committing to a plan |
+
+</details>
+
+<details>
+<summary><strong>Workflow, Release & Eval (8)</strong></summary>
+
+| Tool | Description |
+|:-----|:------------|
+| `workflow_run` | Create a durable evidence-gated execution contract |
+| `workflow_status` | Inspect persisted workflow run status |
+| `workflow_update_step` | Attach validation evidence to workflow steps |
+| `elite_doctor` | Human-readable release-readiness health check |
+| `elite_doctor_json` | Structured release-readiness report |
+| `export_eval_harness` | Generate Promptfoo, DeepEval, and Inspect AI eval scaffolds |
+| `remember_context` | Store quality-gated scoped memory |
+| `memory_context_pack` | Retrieve trusted memory context for a task |
 
 </details>
 
@@ -360,11 +391,8 @@ cd elite-reasoning-mcp
 # Install with dev dependencies
 uv sync --extra dev
 
-# Run tests
-uv run pytest tests/ -v
-
-# Run linter
-uv run ruff check core/ tests/
+# Run the release gate used by CI
+uv run python scripts/release_check.py
 
 # Build package
 uv build
@@ -375,8 +403,11 @@ uv build
 ## 🧪 Testing
 
 ```bash
-# Run all tests (159 tests)
+# Run all tests (229 tests)
 ELITE_BRAIN_DIR=/tmp/elite-test uv run pytest tests/ -v --tb=short
+
+# Run the full release gate: tests, ruff, focused pyright, build, MCP smoke
+uv run python scripts/release_check.py
 
 # Run with coverage
 uv run pytest tests/ --cov=core --cov-report=html
@@ -387,6 +418,9 @@ The test suite covers:
 - ✅ Graph store (nodes, edges, temporal queries, hypotheses)
 - ✅ Connection pooling and stale connection recovery
 - ✅ FTS sanitization (injection prevention)
+- ✅ Workflow flight recorder and MCP tool exposure
+- ✅ Quality-gated memory quarantine
+- ✅ Release doctor and eval harness exporters
 
 ---
 

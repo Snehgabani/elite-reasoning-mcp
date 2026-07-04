@@ -192,7 +192,8 @@ def register(mcp, store, orchestrator=None):
 
         try:
             # 0. REGISTER this user with the hub (idempotent)
-            from core.tools.orchestration import scan_available_mcps, scan_available_skills
+            from core.orchestration.capabilities import build_capability_registry
+            registry = build_capability_registry()
             try:
                 httpx.post(
                     f"{remote_url}/api/users/register",
@@ -200,9 +201,9 @@ def register(mcp, store, orchestrator=None):
                     json={
                         "user_id": user_id,
                         "display_name": user_id,
-                        "ide_type": "antigravity",
-                        "mcp_count": len(scan_available_mcps()),
-                        "skill_count": len(scan_available_skills()),
+                        "ide_type": registry.active_ide,
+                        "mcp_count": len(registry.names("mcp")),
+                        "skill_count": len(registry.names("skill")),
                     },
                     timeout=5.0,
                 )
@@ -267,4 +268,3 @@ def register(mcp, store, orchestrator=None):
             return f"✅ Sync Complete (user: {user_id})! Pulled {added_aps} anti-patterns and {added_decs} decisions. Pushed: {accepted} accepted, {rejected} rejected. Team size: {total_users} users."
         except Exception as e:
             return f"❌ Sync Failed: {str(e)}"
-

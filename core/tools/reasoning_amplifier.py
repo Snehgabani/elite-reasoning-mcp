@@ -567,6 +567,12 @@ _Why this matters: {ch['why']}_
         reviews = []
         all_flags = []
         decision_lower = (decision + ' ' + context).lower()
+        decision_id = store.record_decision(
+            decision=decision[:1000],
+            rationale="Decision council review initiated for adversarial multi-perspective audit.",
+            alternatives_rejected="",
+            context=context[:1000],
+        )
 
         for p in active:
             matches = [f for f in p["focus"] if f in decision_lower]
@@ -583,7 +589,7 @@ _Why this matters: {ch['why']}_
             all_flags.extend(flags)
 
             store.add_council_review(
-                decision_id=0, decision_text=decision,
+                decision_id=decision_id, decision_text=decision,
                 perspective=p["name"], critique=critique,
                 risk_flags=flags,
                 recommendation="caution" if matches else "proceed",
@@ -598,6 +604,7 @@ _Why this matters: {ch['why']}_
 
         lines = [
             "## 🏛️ Decision Council Review\n",
+            f"**Decision ID:** {decision_id}",
             f"**Decision:** {decision[:200]}",
             f"**Verdict:** {verdict} (risk: {avg_risk:.2f})",
             f"**Perspectives:** {len(reviews)}\n",
@@ -848,7 +855,7 @@ def _register_hidden_tools(mcp, store):
                 out += f"### {p.get('pattern_name', 'Unknown')}\n"
                 out += f"- **System adaptation:** {p.get('system_adaptation', 'none')}\n"
                 out += f"- **Confidence:** {p.get('confidence', 0):.0%}\n"
-                out += f"- **Occurrences:** {p.get('occurrence_count', 0)}\n\n"
+                out += f"- **Occurrences:** {p.get('occurrence_count', p.get('evidence_count', p.get('evidence', 0)))}\n\n"
             return out
         except Exception as e:
             return f"❌ Failed to search: {e}"

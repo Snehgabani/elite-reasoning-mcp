@@ -119,6 +119,16 @@ class UserProfile:
 
     def _detect_ide(self) -> str:
         """Detect which IDE the user is running."""
+        explicit = os.environ.get("ELITE_ACTIVE_IDE", "").strip().lower()
+        if explicit:
+            return explicit
+        try:
+            from core.orchestration.capabilities import build_capability_registry
+            registry = build_capability_registry()
+            if registry.active_ide:
+                return registry.active_ide
+        except Exception:
+            pass
         home = os.path.expanduser("~")
         if os.path.isdir(os.path.join(home, ".gemini", "antigravity")):
             return "antigravity"
@@ -139,7 +149,10 @@ class UserProfile:
 
     @property
     def ide_type(self) -> str:
-        return self.config.get("ide_type", "unknown")
+        configured = self.config.get("ide_type", "unknown")
+        if configured and configured != "auto":
+            return configured
+        return self._detect_ide()
 
     # ── Sync ───────────────────────────────────────────────
     @property
@@ -178,9 +191,10 @@ class UserProfile:
     # ── Summary ────────────────────────────────────────────
     def get_profile_summary(self) -> str:
         """Return a human-readable profile summary."""
-        from core.tools.orchestration import scan_available_mcps, scan_available_skills
-        mcps = scan_available_mcps()
-        skills = scan_available_skills()
+        from core.orchestration.capabilities import build_capability_registry
+        registry = build_capability_registry()
+        mcps = registry.names("mcp")
+        skills = registry.names("skill")
         return (
             f"# User Profile: {self.display_name}\n\n"
             f"| Field | Value |\n|---|---|\n"

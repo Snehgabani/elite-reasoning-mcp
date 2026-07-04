@@ -3,7 +3,13 @@ __pycache__/
 *.pyo
 brain/
 *.db
+*.db-shm
+*.db-wal
+*.db-*
 *.db-journal
+*.zip
+brain_central/
+diagnostics/*.zip
 mcp_error.log
 .venv/
 *.egg-info/
