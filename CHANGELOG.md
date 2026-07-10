@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.1] - 2026-07-10
+
+### Added
+- Security policy, support policy, code of conduct, governance notes, and citation metadata for public contribution readiness.
+- Dependabot, CodeQL, dependency-review, and OpenSSF Scorecard workflows for supply-chain and repository security visibility.
+- Discussion templates and stronger issue/PR templates with MCP runtime, privacy, and release-gate evidence fields.
+- Elite telemetry, monitoring, and data-leverage roadmap for the next product-quality upgrade layer.
+
+### Changed
+- Improved README and package metadata for Model Context Protocol, AI IDE, coding-agent, workflow-memory, and evaluation-harness discoverability.
+- Hardened GitHub Actions workflow permissions and concurrency defaults.
+- Updated vulnerable dependencies in lockfiles: `starlette` 1.3.1, `pydantic-settings` 2.14.2, `langsmith` 0.9.7, `torch` 2.12.1, and telemetry UI PostCSS transitively via `next` 16.3.0-canary.77.
+
 ## [1.2.0] - 2026-07-04
 
 ### Added

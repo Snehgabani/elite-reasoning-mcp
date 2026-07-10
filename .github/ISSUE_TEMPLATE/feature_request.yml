@@ -6,7 +6,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Have an idea? We'd love to hear it!
+        Share the user leverage, MCP workflow impact, and validation path. For broad ideas, GitHub Discussions may be a better first step.
   - type: textarea
     id: problem
     attributes:
@@ -26,3 +26,15 @@ body:
     attributes:
       label: Alternatives Considered
       description: Any other approaches you've thought about?
+  - type: textarea
+    id: leverage
+    attributes:
+      label: User Leverage
+      description: Who benefits, how often, and what measurable workflow improvement should this create?
+    validations:
+      required: true
+  - type: textarea
+    id: validation
+    attributes:
+      label: Validation Plan
+      description: What tests, evals, release-gate checks, or before/after examples would prove this works?

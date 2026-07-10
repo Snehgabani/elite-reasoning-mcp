@@ -1,0 +1,30 @@
+name: Idea
+description: Propose a high-leverage improvement or integration.
+title: "[Idea]: "
+labels:
+  - idea
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What user workflow or AI-agent limitation does this idea solve?
+    validations:
+      required: true
+  - type: textarea
+    id: leverage
+    attributes:
+      label: Expected Leverage
+      description: Who benefits, how often, and what measurable improvement should happen?
+    validations:
+      required: true
+  - type: textarea
+    id: approach
+    attributes:
+      label: Proposed Approach
+      description: Should this be a new MCP tool, memory behavior, workflow gate, eval, documentation change, or integration?
+  - type: textarea
+    id: validation
+    attributes:
+      label: Validation
+      description: What evidence would prove this idea works?

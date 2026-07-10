@@ -1,9 +1,13 @@
+# Elite Reasoning MCP
+
+**Model Context Protocol workflow memory, evaluation, and reasoning-safety layer for AI coding agents.**
+
 <p align="center">
   <img src="assets/hero-banner.png" alt="Elite Reasoning MCP" width="100%">
 </p>
 
 <p align="center">
-  <strong>Make any LLM think harder, reason better, and never repeat mistakes.</strong>
+  <strong>Make any LLM think harder, reason better, and stop repeating preventable mistakes.</strong>
 </p>
 
 <p align="center">
@@ -12,15 +16,18 @@
   <a href="https://pypi.org/project/elite-reasoning-mcp/"><img src="https://img.shields.io/pypi/dm/elite-reasoning-mcp?style=flat-square&color=green" alt="Downloads"></a>
   <a href="https://pypi.org/project/elite-reasoning-mcp/"><img src="https://img.shields.io/pypi/pyversions/elite-reasoning-mcp?style=flat-square" alt="Python"></a>
   <a href="LICENSE"><img src="https://img.shields.io/github/license/Snehgabani/elite-reasoning-mcp?style=flat-square" alt="License"></a>
+  <a href="SECURITY.md"><img src="https://img.shields.io/badge/security-policy-brightgreen?style=flat-square" alt="Security Policy"></a>
   <a href="https://github.com/Snehgabani/elite-reasoning-mcp/stargazers"><img src="https://img.shields.io/github/stars/Snehgabani/elite-reasoning-mcp?style=flat-square" alt="Stars"></a>
 </p>
 
 <p align="center">
   <a href="#-quick-start">Quick Start</a> •
   <a href="#-features">Features</a> •
+  <a href="#who-this-is-for">Use Cases</a> •
   <a href="#%EF%B8%8F-architecture">Architecture</a> •
   <a href="#-90-tools">All Tools</a> •
   <a href="#-configuration">Config</a> •
+  <a href="#-security--trust">Security</a> •
   <a href="#-contributing">Contributing</a>
 </p>
 
@@ -30,9 +37,16 @@
 
 Every AI coding assistant makes the **same mistakes twice**. Elite Reasoning fixes that.
 
-It's an [MCP server](https://modelcontextprotocol.io/) that wraps around any LLM — GPT-4, Claude, Gemini, open-source — and adds a **persistent reasoning layer** with workflow flight recording, anti-pattern memory, decision tracking, confidence calibration, release doctor checks, eval harness exports, and self-improving prevention rules.
+It's a [Model Context Protocol](https://modelcontextprotocol.io/) server for AI IDEs and coding agents. It wraps around any LLM — GPT, Claude, Gemini, open-source — and adds a **persistent reasoning layer** with workflow flight recording, anti-pattern memory, decision tracking, confidence calibration, release doctor checks, eval harness exports, and self-improving prevention rules.
 
 > **One install. Zero config. Works with Cursor, Antigravity, VS Code + Continue, Windsurf, and any MCP-compatible IDE.**
+
+### Who This Is For
+
+- Developers who use Cursor, Claude Desktop, Gemini CLI, VS Code + Continue, Windsurf, or another MCP-compatible AI IDE.
+- AI coding-agent users who want persistent memory without blindly injecting stale, low-trust, or sensitive context.
+- Maintainers who need auditable multi-step execution, release gates, risk checks, and repeatable eval scaffolds.
+- Teams building agentic development workflows that need reasoning safety, confidence calibration, and workflow evidence.
 
 ### The Problem
 
@@ -424,14 +438,32 @@ The test suite covers:
 
 ---
 
+## 🔐 Security & Trust
+
+Elite Reasoning MCP is local-first by default: memory is stored under `ELITE_BRAIN_DIR`, and external API access is opt-in through environment configuration.
+
+Public repository hardening includes:
+- `SECURITY.md` with supported versions, private vulnerability reporting, and memory/privacy boundaries
+- Dependabot for Python, GitHub Actions, and telemetry UI dependencies
+- CodeQL scanning for Python security issues
+- Dependency Review on pull requests
+- OpenSSF Scorecard visibility for supply-chain posture
+- Release-gate evidence via `scripts/release_check.py`
+
+Security reports should use [GitHub private vulnerability reporting](https://github.com/Snehgabani/elite-reasoning-mcp/security/advisories/new), not public issues.
+
+For the next tracking and monitoring layer, see the [Elite Telemetry Roadmap](docs/elite_telemetry_roadmap.md).
+
+---
+
 ## 🤝 Contributing
 
-Contributions are welcome! Here's how to get started:
+Contributions are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md), [GOVERNANCE.md](GOVERNANCE.md), and the security boundaries in [SECURITY.md](SECURITY.md).
 
 1. **Fork** the repository
 2. **Create** a feature branch (`git checkout -b feature/amazing-feature`)
-3. **Run** the test suite (`uv run pytest tests/ -v`)
-4. **Run** the linter (`uv run ruff check core/ tests/`)
+3. **Run** the release gate (`uv run python scripts/release_check.py`)
+4. **Document** MCP behavior, privacy impact, and validation evidence in your PR
 5. **Commit** your changes (`git commit -m 'feat: add amazing feature'`)
 6. **Push** to the branch (`git push origin feature/amazing-feature`)
 7. **Open** a Pull Request
@@ -453,10 +485,10 @@ MIT © [Sneh Gabani](https://github.com/Snehgabani)
 ---
 
 <p align="center">
-  <sub>Built with ❤️ for the AI-native developer workflow</sub>
+  <sub>Built for the AI-native developer workflow</sub>
 </p>
 <p align="center">
-  <a href="https://github.com/Snehgabani/elite-reasoning-mcp/stargazers">⭐ Star us on GitHub</a> •
-  <a href="https://pypi.org/project/elite-reasoning-mcp/">📦 View on PyPI</a> •
-  <a href="https://github.com/Snehgabani/elite-reasoning-mcp/issues">🐛 Report a Bug</a>
+  <a href="https://github.com/Snehgabani/elite-reasoning-mcp/stargazers">Star us on GitHub</a> •
+  <a href="https://pypi.org/project/elite-reasoning-mcp/">View on PyPI</a> •
+  <a href="https://github.com/Snehgabani/elite-reasoning-mcp/issues">Report a Bug</a>
 </p>

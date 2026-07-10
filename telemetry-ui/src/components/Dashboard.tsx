@@ -3,19 +3,34 @@
 import React, { useEffect, useState } from 'react';
 import ReactFlow, { Background, Controls, MiniMap } from 'reactflow';
 import 'reactflow/dist/style.css';
-import { getGraphData, getDashboardMetrics } from '../app/actions/db';
+import { getGraphData, getDashboardMetrics, type DashboardMetrics, type GraphData } from '../app/actions/db';
+
+function progressValues(progress: string | null): number[] {
+  try {
+    const parsed: unknown = JSON.parse(progress || '{}');
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      return [];
+    }
+    return Object.values(parsed).filter((value): value is number => typeof value === 'number');
+  } catch {
+    return [];
+  }
+}
+
+const emptyGraph: GraphData = { nodes: [], edges: [] };
+const emptyMetrics: DashboardMetrics = { mistakes: [], goals: [], decisions: [] };
 
 export default function Dashboard() {
-  const [graph, setGraph] = useState({ nodes: [], edges: [] });
-  const [metrics, setMetrics] = useState({ mistakes: [], goals: [], decisions: [] });
+  const [graph, setGraph] = useState<GraphData>(emptyGraph);
+  const [metrics, setMetrics] = useState<DashboardMetrics>(emptyMetrics);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         const gData = await getGraphData();
         const mData = await getDashboardMetrics();
-        setGraph(gData as any);
-        setMetrics(mData as any);
+        setGraph(gData);
+        setMetrics(mData);
       } catch (err) {
         console.error(err);
       }
@@ -69,10 +84,10 @@ export default function Dashboard() {
               Recent Anti-Patterns
             </h3>
             <div className="flex flex-col gap-3">
-              {metrics.mistakes.map((m: any) => (
+              {metrics.mistakes.map((m) => (
                 <div key={m.id} className="p-3 bg-slate-950 rounded-xl border border-rose-900/30">
                   <p className="text-sm font-medium text-slate-200">{m.mistake}</p>
-                  <p className="text-xs text-slate-500 mt-2">Severity: <span className="text-rose-400">{m.severity.toUpperCase()}</span></p>
+                  <p className="text-xs text-slate-500 mt-2">Severity: <span className="text-rose-400">{(m.severity || 'unknown').toUpperCase()}</span></p>
                 </div>
               ))}
             </div>
@@ -85,9 +100,8 @@ export default function Dashboard() {
               Active Goals
             </h3>
             <div className="flex flex-col gap-3">
-              {metrics.goals.map((g: any) => {
-                const progObj = JSON.parse(g.progress || '{}');
-                const krs = Object.values(progObj) as number[];
+              {metrics.goals.map((g) => {
+                const krs = progressValues(g.progress);
                 const avg = krs.length ? krs.reduce((a,b) => a+b, 0) / krs.length : 0;
                 return (
                   <div key={g.id} className="p-3 bg-slate-950 rounded-xl border border-blue-900/30">
@@ -108,7 +122,7 @@ export default function Dashboard() {
               Architectural Decisions
             </h3>
             <div className="flex flex-col gap-3">
-              {metrics.decisions.map((d: any) => (
+              {metrics.decisions.map((d) => (
                 <div key={d.id} className="p-3 bg-slate-950 rounded-xl border border-purple-900/30">
                   <p className="text-sm font-medium text-slate-200">{d.decision}</p>
                   <p className="text-xs text-slate-400 mt-1 truncate">{d.rationale}</p>

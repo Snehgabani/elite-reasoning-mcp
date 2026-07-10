@@ -6,7 +6,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thanks for reporting a bug! Please fill out the details below.
+        Thanks for reporting a bug. Do not include secrets, tokens, private code, or sensitive memory contents. Security issues should be reported privately using the security policy.
   - type: textarea
     id: description
     attributes:
@@ -30,7 +30,7 @@ body:
     attributes:
       label: Version
       description: What version of elite-reasoning-mcp are you using?
-      placeholder: "1.1.2"
+      placeholder: "1.2.1"
     validations:
       required: true
   - type: dropdown
@@ -43,6 +43,7 @@ body:
         - VS Code + Continue
         - Windsurf
         - Claude Desktop
+        - Gemini CLI
         - Other
     validations:
       required: true
@@ -51,3 +52,14 @@ body:
     attributes:
       label: Python Version
       placeholder: "3.11"
+  - type: textarea
+    id: release-gate
+    attributes:
+      label: Release Gate Output
+      description: Paste the relevant output from `uv run python scripts/release_check.py` if this reproduces from a checkout.
+      render: shell
+  - type: textarea
+    id: privacy-impact
+    attributes:
+      label: Memory or Privacy Impact
+      description: Did this expose, corrupt, over-inject, or mis-scope persisted memory? If yes, describe without sharing sensitive data.
