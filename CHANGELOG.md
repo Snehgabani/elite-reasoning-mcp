@@ -17,6 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Improved README and package metadata for Model Context Protocol, AI IDE, coding-agent, workflow-memory, and evaluation-harness discoverability.
 - Hardened GitHub Actions workflow permissions and concurrency defaults.
 - Updated vulnerable dependencies in lockfiles: `starlette` 1.3.1, `pydantic-settings` 2.14.2, `langsmith` 0.9.7, `torch` 2.12.1, and telemetry UI PostCSS transitively via `next` 16.3.0-canary.77.
+- Isolated package building, GitHub provenance attestation, and PyPI Trusted Publishing into separate least-privilege jobs.
+- Pinned GitHub Actions and Docker build inputs to immutable digests and enabled Dependabot coverage for Docker.
+- Replaced the legacy remote-bootstrap installer with an explicit `uv tool` installer that only changes IDE configuration when requested.
 
 ## [1.2.0] - 2026-07-04
 

@@ -70,6 +70,12 @@ It's a [Model Context Protocol](https://modelcontextprotocol.io/) server for AI 
 pip install elite-reasoning-mcp
 ```
 
+For an isolated CLI installation:
+
+```bash
+uv tool install elite-reasoning-mcp
+```
+
 ### Add to your IDE
 
 **Antigravity / Gemini CLI** (`~/.gemini/config/mcp_config.json`):
@@ -448,6 +454,8 @@ Public repository hardening includes:
 - CodeQL scanning for Python security issues
 - Dependency Review on pull requests
 - OpenSSF Scorecard visibility for supply-chain posture
+- Immutable GitHub Action and Docker image pins, with Dependabot update coverage
+- GitHub build provenance and PyPI digital attestations for release distributions
 - Release-gate evidence via `scripts/release_check.py`
 
 Security reports should use [GitHub private vulnerability reporting](https://github.com/Snehgabani/elite-reasoning-mcp/security/advisories/new), not public issues.
