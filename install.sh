@@ -1,85 +1,101 @@
-#!/bin/bash
-# ╔══════════════════════════════════════════════════════════════╗
-# ║  Elite Reasoning MCP — One-Command Installer                ║
-# ║  Makes any LLM think harder, reason better, never repeat    ║
-# ║  mistakes. 66 tools. Works with any IDE + any model.        ║
-# ╚══════════════════════════════════════════════════════════════╝
-#
-# USAGE:
-#   curl -fsSL https://raw.githubusercontent.com/YOUR_REPO/main/install.sh | bash
-#   — OR —
-#   bash install.sh
-#
+#!/usr/bin/env bash
+# Install the published package without executing a remote bootstrap script.
 set -euo pipefail
 
-ELITE_DIR="$HOME/.elite-reasoning"
-BRAIN_DIR="$ELITE_DIR/brain"
+readonly PACKAGE_NAME="elite-reasoning-mcp"
+configure_gemini=false
+version="${ELITE_REASONING_MCP_VERSION:-}"
 
-echo ""
-echo "╔══════════════════════════════════════════════╗"
-echo "║  🧠 Elite Reasoning MCP — Installer          ║"
-echo "║  66 tools · Works with any model             ║"
-echo "╚══════════════════════════════════════════════╝"
-echo ""
+usage() {
+    cat <<'EOF'
+Usage: ./install.sh [--version VERSION] [--configure-gemini]
 
-# ── Step 1: Check prerequisites ────────────────────────
-echo "→ Checking prerequisites..."
-if ! command -v uv &>/dev/null; then
-    echo "  Installing uv..."
-    curl -LsSf https://astral.sh/uv/install.sh | sh
-    export PATH="$HOME/.local/bin:$PATH"
-fi
-echo "  ✅ uv ready"
+Installs Elite Reasoning MCP into uv's isolated tool environment.
 
-# ── Step 2: Clone elite-system ─────────────────────────
-echo "→ Setting up Elite Reasoning MCP..."
-mkdir -p "$BRAIN_DIR"
+Options:
+  --version VERSION       Install an exact package version.
+  --configure-gemini      Add or update the Gemini CLI MCP server entry.
+  -h, --help              Show this help text.
 
-if [ -n "${ELITE_REPO_URL:-}" ]; then
-    git clone "$ELITE_REPO_URL" "$ELITE_DIR" 2>/dev/null || (cd "$ELITE_DIR" && git pull --ff-only)
-fi
-chmod +x "$ELITE_DIR/run_elite_mcp.sh" 2>/dev/null || true
-
-# ── Step 3: Configure IDE ─────────────────────────────
-echo "→ Configuring IDE..."
-GEMINI_CONFIG="$HOME/.gemini/config"
-MCP_CONFIG="$GEMINI_CONFIG/mcp_config.json"
-mkdir -p "$GEMINI_CONFIG"
-
-if [ -f "$MCP_CONFIG" ]; then
-    if ! grep -q "elite-reasoning" "$MCP_CONFIG"; then
-        python3 -c "
-import json
-with open('$MCP_CONFIG') as f: c = json.load(f)
-c['mcpServers']['elite-reasoning'] = {'command': '$ELITE_DIR/run_elite_mcp.sh'}
-with open('$MCP_CONFIG', 'w') as f: json.dump(c, f, indent=2)
-"
-    fi
-fi
-
-# Add enforcement to GEMINI.md
-GEMINI_MD="$HOME/.gemini/GEMINI.md"
-if ! grep -q "orchestrate_request_tool" "$GEMINI_MD" 2>/dev/null; then
-    cat >> "$GEMINI_MD" << 'EOF'
-
-# Global Instructions
-
-## ⚡ RULE #0 — ELITE MCP PIPELINE
-
-On EVERY user message, your FIRST tool call MUST be:
-
-```
-call_mcp_tool(
-  ServerName="elite-reasoning",
-  ToolName="orchestrate_request_tool",
-  Arguments={"user_prompt": "<the user's exact message>"}
-)
-```
-
-No exceptions except "ok", "thanks", "yes", "no". This fires the 66-tool reasoning pipeline.
+Set ELITE_GEMINI_CONFIG to override the default Gemini MCP config path.
 EOF
+}
+
+while (( $# > 0 )); do
+    case "$1" in
+        --version)
+            if (( $# < 2 )); then
+                echo "--version requires a value" >&2
+                exit 2
+            fi
+            version="$2"
+            shift 2
+            ;;
+        --configure-gemini)
+            configure_gemini=true
+            shift
+            ;;
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        *)
+            echo "Unknown option: $1" >&2
+            usage >&2
+            exit 2
+            ;;
+    esac
+done
+
+if ! command -v uv >/dev/null 2>&1; then
+    echo "uv is required. Install it from https://docs.astral.sh/uv/getting-started/installation/" >&2
+    exit 1
 fi
 
-echo ""
-echo "✅ Done! Restart your IDE and start a new conversation."
-echo "   Every prompt will now go through the elite reasoning pipeline."
+package_spec="$PACKAGE_NAME"
+if [[ -n "$version" ]]; then
+    package_spec+="==$version"
+fi
+
+uv tool install --reinstall "$package_spec"
+mkdir -p "$HOME/.elite-reasoning/brain"
+
+if [[ "$configure_gemini" == true ]]; then
+    config_path="${ELITE_GEMINI_CONFIG:-$HOME/.gemini/config/mcp_config.json}"
+    python3 - "$config_path" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+config_path = Path(sys.argv[1]).expanduser()
+config_path.parent.mkdir(parents=True, exist_ok=True)
+
+if config_path.exists():
+    try:
+        config = json.loads(config_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as error:
+        raise SystemExit(f"Refusing to overwrite invalid JSON at {config_path}: {error}")
+else:
+    config = {}
+
+if not isinstance(config, dict):
+    raise SystemExit(f"Refusing to overwrite non-object JSON at {config_path}")
+
+servers = config.setdefault("mcpServers", {})
+if not isinstance(servers, dict):
+    raise SystemExit(f"Refusing to overwrite non-object mcpServers at {config_path}")
+
+servers["elite-reasoning"] = {
+    "command": "elite-reasoning-mcp",
+    "args": [],
+    "env": {"ELITE_BRAIN_DIR": str(Path.home() / ".elite-reasoning" / "brain")},
+}
+
+temporary_path = config_path.with_suffix(f"{config_path.suffix}.tmp")
+temporary_path.write_text(json.dumps(config, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+temporary_path.replace(config_path)
+print(f"Configured Gemini CLI MCP server in {config_path}")
+PY
+fi
+
+echo "Elite Reasoning MCP is installed. Add the 'elite-reasoning-mcp' command to your MCP client."

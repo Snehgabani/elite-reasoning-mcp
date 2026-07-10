@@ -61,7 +61,9 @@ The repository uses:
 - CodeQL for static security scanning
 - Dependency Review for pull requests
 - OpenSSF Scorecard for public supply-chain posture
-- Trusted Publishing to PyPI through GitHub Actions OIDC
+- Immutable SHA and digest pins for GitHub Actions and Docker build inputs
+- GitHub artifact provenance attestations for release distributions
+- Trusted Publishing and PyPI digital attestations through GitHub Actions OIDC
 
 New runtime dependencies should be justified in the PR with:
 - Why the dependency is needed
