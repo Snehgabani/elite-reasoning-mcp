@@ -12,6 +12,7 @@ paths = [
 ]
 regexes = [
   '''(?:secret|secret_run_id)\s*=\s*["']sk-[1]2345678901234567890["']''',
+  '''token\s*=\s*["']eyJhbGciOiJIUzI1NiJ9\.eyJzdWIiOiJlbGl0ZSJ9\.signature["']''',
 ]
 
 [[allowlists]]

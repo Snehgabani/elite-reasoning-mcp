@@ -54,7 +54,7 @@ def test_explicit_raw_prompt_storage_still_redacts_secrets(monkeypatch):
 
 
 def test_bearer_credentials_are_redacted_before_any_key_value_processing(tmp_path):
-    token = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJlbGl0ZSJ9.signature"
+    token = "example-token"
     rendered = redact_text(f"Authorization: Bearer {token}", limit=5000)
 
     assert token not in rendered
