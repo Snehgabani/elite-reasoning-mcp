@@ -1,8 +1,8 @@
 cff-version: 1.2.0
 message: "If Elite Reasoning MCP helps your research or engineering workflow, please cite it."
 title: "Elite Reasoning MCP"
-version: "1.2.1"
-date-released: "2026-07-10"
+version: "2.0.0"
+date-released: "2026-07-16"
 authors:
   - family-names: "Gabani"
     given-names: "Sneh"

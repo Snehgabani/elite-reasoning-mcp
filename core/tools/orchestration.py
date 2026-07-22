@@ -7,13 +7,15 @@ and Skills, then maps the user's intent to the optimal tool combination.
 PORTABLE: Uses $HOME-relative paths so every user gets their own
 personalized orchestration based on THEIR installed tools.
 """
+
 import json as _json
 import logging
 import os
 import urllib.request
-from typing import Optional
+from typing import TYPE_CHECKING, Optional, cast
+from urllib.parse import urlparse
 
-from core.eval.exporters import eval_harness_markdown
+from core.eval.exporters import EvalHarness, eval_harness_markdown
 from core.eval.open_source_integrations import integrations_markdown
 from core.eval.outcome_runner import elite_eval_suite_markdown
 from core.eval.research_benchmarks import (
@@ -23,13 +25,43 @@ from core.eval.research_benchmarks import (
     scorecard_markdown,
 )
 from core.orchestration.capabilities import build_capability_registry, format_capability_report
+from core.privacy import safe_error_detail
 from core.reasoning.experiment_tree import experiment_tree_markdown
 from core.reasoning.nuclear_prompt import nuclear_prompt_markdown, protocol_recommendation_markdown
 
 logger = logging.getLogger(__name__)
 
+if TYPE_CHECKING:
+    from core.tools.goal_prompt_polisher import GoalPromptPolisher
+
 # Module-level polisher instance (set by register())
-_polisher = None
+_polisher: "GoalPromptPolisher | None" = None
+_DEFAULT_GEMINI_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
+_GEMINI_HOST = "generativelanguage.googleapis.com"
+_EVAL_HARNESSES = frozenset({"promptfoo", "deepeval", "inspect", "all"})
+
+
+def _gemini_endpoint() -> str:
+    """Validate the optional provider endpoint before sending user content."""
+    endpoint = os.environ.get("ELITE_GEMINI_BASE_URL", _DEFAULT_GEMINI_ENDPOINT).strip()
+    parsed = urlparse(endpoint)
+    hostname = (parsed.hostname or "").lower()
+    if parsed.scheme != "https" or not hostname:
+        raise ValueError("Gemini endpoint must be an absolute https URL.")
+    if parsed.username or parsed.password or parsed.query or parsed.fragment:
+        raise ValueError("Gemini endpoint must not include credentials, a query string, or a fragment.")
+    if hostname != _GEMINI_HOST and os.environ.get("ELITE_ALLOW_CUSTOM_GEMINI_ENDPOINT") != "1":
+        raise ValueError(
+            "Custom Gemini endpoints require ELITE_ALLOW_CUSTOM_GEMINI_ENDPOINT=1 after outbound-network review."
+        )
+    return endpoint.rstrip("/")
+
+
+def _validated_eval_harness(harness: str) -> str:
+    """Keep the public string input aligned with the finite exporter contract."""
+    if harness not in _EVAL_HARNESSES:
+        return "Unsupported eval harness. Choose one of: promptfoo, deepeval, inspect, all."
+    return eval_harness_markdown(cast(EvalHarness, harness))
 
 
 def _resolve_user_paths() -> tuple[str, str]:
@@ -46,10 +78,10 @@ def _resolve_user_paths() -> tuple[str, str]:
     if not mcp_dir:
         # Auto-detect: try common IDE layouts
         candidates = [
-            os.path.join(home, ".gemini", "antigravity", "mcp"),      # Antigravity IDE
-            os.path.join(home, ".gemini", "mcp"),                      # Gemini CLI
-            os.path.join(home, ".vscode", "mcp"),                      # VS Code
-            os.path.join(home, ".cursor", "mcp"),                      # Cursor
+            os.path.join(home, ".gemini", "antigravity", "mcp"),  # Antigravity IDE
+            os.path.join(home, ".gemini", "mcp"),  # Gemini CLI
+            os.path.join(home, ".vscode", "mcp"),  # VS Code
+            os.path.join(home, ".cursor", "mcp"),  # Cursor
         ]
         for c in candidates:
             if os.path.isdir(c):
@@ -60,8 +92,8 @@ def _resolve_user_paths() -> tuple[str, str]:
 
     if not skills_dir:
         candidates = [
-            os.path.join(home, ".gemini", "config", "plugins"),        # Antigravity IDE
-            os.path.join(home, ".gemini", "plugins"),                   # Gemini CLI
+            os.path.join(home, ".gemini", "config", "plugins"),  # Antigravity IDE
+            os.path.join(home, ".gemini", "plugins"),  # Gemini CLI
         ]
         for c in candidates:
             if os.path.isdir(c):
@@ -80,6 +112,7 @@ def _get_user_identity() -> str:
     if user_id:
         return user_id
     import getpass
+
     return getpass.getuser()
 
 
@@ -157,22 +190,24 @@ def orchestrate_request(user_prompt: str) -> str:
             )
             # Record the prompt intent and scores for the optimization loop
             import uuid
+
             session_id = str(uuid.uuid4())
-            _polisher._store.record_prompt_intent(
+            _polisher.store.record_prompt_intent(
                 session_id=session_id,
                 prompt_text=user_prompt,
                 intent=polish_result.intent,
                 original_score=polish_result.original_score,
                 polished_score=polish_result.polished_score,
                 complexity_score=polish_result.complexity,
-                enhancements_applied=polish_result.enhancements_applied
+                enhancements_applied=polish_result.enhancements_applied,
             )
-        except Exception as e:
-            logger.debug(f"Prompt polishing failed (non-fatal): {e}")
+        except Exception as error:
+            logger.debug("Prompt polishing failed safely: %s", safe_error_detail(error))
 
     # Load user profile for personalization
     try:
         from core.identity.user_profile import UserProfile
+
         profile = UserProfile()
 
         # Filter out disabled MCPs/Skills
@@ -181,11 +216,9 @@ def orchestrate_request(user_prompt: str) -> str:
         mcps = [m for m in mcps if m not in disabled_mcps]
         skills = [s for s in skills if s not in disabled_skills]
 
-        # Get user's preferred API key
-        api_key = (
-            os.environ.get("GEMINI_API_KEY")
-            or profile.config.get("orchestration", {}).get("gemini_api_key", "")
-        )
+        # Provider credentials stay in the process environment or a keychain,
+        # never in the durable Elite profile file.
+        api_key = os.environ.get("GEMINI_API_KEY", "")
         orch_mode = profile.orchestration_mode
     except Exception:
         api_key = os.environ.get("GEMINI_API_KEY", "")
@@ -196,30 +229,34 @@ def orchestrate_request(user_prompt: str) -> str:
             try:
                 plan = _llm_orchestration(user_prompt, mcps, skills, user_id, api_key)
                 return _append_elite_metadata(plan, user_prompt, registry.active_ide, registry.warnings, polish_result)
-            except Exception as e:
+            except Exception as error:
+                logger.warning("LLM orchestration failed safely: %s", safe_error_detail(error))
                 return _heuristic_orchestration(
-                    user_prompt, mcps, skills, user_id,
-                    f"LLM fallback: {e}",
+                    user_prompt,
+                    mcps,
+                    skills,
+                    user_id,
+                    "LLM fallback: provider request failed safely.",
                     active_ide=registry.active_ide,
                     capability_warnings=registry.warnings,
-                    polish_result=polish_result
+                    polish_result=polish_result,
                 )
 
     return _heuristic_orchestration(
-        user_prompt, mcps, skills, user_id, "Heuristic mode",
+        user_prompt,
+        mcps,
+        skills,
+        user_id,
+        "Heuristic mode",
         active_ide=registry.active_ide,
         capability_warnings=registry.warnings,
-        polish_result=polish_result
+        polish_result=polish_result,
     )
 
 
 def _llm_orchestration(user_prompt: str, mcps: list[str], skills: list[str], user_id: str, api_key: str) -> str:
     """Use Gemini to generate a smart, personalized orchestration plan."""
-    base_url = os.environ.get(
-        'ELITE_GEMINI_BASE_URL',
-        'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent'
-    )
-    url = f"{base_url}?key={api_key}"
+    url = _gemini_endpoint()
 
     system_instruction = (
         "You are the Elite Orchestrator for an AI coding assistant. "
@@ -237,13 +274,13 @@ def _llm_orchestration(user_prompt: str, mcps: list[str], skills: list[str], use
 
     payload = {
         "systemInstruction": {"parts": [{"text": system_instruction}]},
-        "contents": [{"parts": [{"text": prompt}]}]
+        "contents": [{"parts": [{"text": prompt}]}],
     }
 
     req = urllib.request.Request(
         url,
         data=_json.dumps(payload).encode(),
-        headers={"Content-Type": "application/json"},
+        headers={"Content-Type": "application/json", "x-goog-api-key": api_key},
         method="POST",
     )
     with urllib.request.urlopen(req, timeout=15) as resp:
@@ -251,7 +288,9 @@ def _llm_orchestration(user_prompt: str, mcps: list[str], skills: list[str], use
     return data["candidates"][0]["content"]["parts"][0]["text"]
 
 
-def _append_elite_metadata(plan: str, user_prompt: str, active_ide: str, capability_warnings: tuple[str, ...], polish_result=None) -> str:
+def _append_elite_metadata(
+    plan: str, user_prompt: str, active_ide: str, capability_warnings: tuple[str, ...], polish_result=None
+) -> str:
     """Append deterministic guardrails to LLM-generated plans."""
     policy = recommend_budget_tier(user_prompt)
     extra = [
@@ -263,9 +302,9 @@ def _append_elite_metadata(plan: str, user_prompt: str, active_ide: str, capabil
     for warning in capability_warnings:
         extra.append(f"- ⚠️ {warning}")
     extra.append("- Do not use recommended tools unless the current client exposes them as callable MCP tools.")
-    
+
     plan = plan.rstrip() + "\n" + "\n".join(extra) + "\n"
-    
+
     # ── Quality Directives (from polisher) ──
     if polish_result is not None and polish_result.enhancements_applied:
         plan += "\n## Quality Directives\n"
@@ -293,7 +332,7 @@ def _heuristic_orchestration(
     reason: str = "",
     active_ide: str = "",
     capability_warnings: tuple[str, ...] = (),
-    polish_result=None
+    polish_result=None,
 ) -> str:
     """Keyword-based routing when no LLM is available."""
     prompt_lower = user_prompt.lower()
@@ -303,117 +342,193 @@ def _heuristic_orchestration(
 
     # ── Database & Data Layer ──────────────────────────────────
     if any(kw in prompt_lower for kw in ["postgres", "sql", "database", "query", "schema", "migration"]):
-        for m in ["alloydb-postgres-admin", "cloud-sql-postgresql-admin", "cloud-sql-managed-mcp", "cloud-sql-mysql-admin", "cloud-sql-sqlserver-admin", "mcp-server-neon"]:
-            if m in mcps: selected_mcps.add(m)
-        if "prisma-mcp-server" in mcps: selected_mcps.add("prisma-mcp-server")
+        for m in [
+            "alloydb-postgres-admin",
+            "cloud-sql-postgresql-admin",
+            "cloud-sql-managed-mcp",
+            "cloud-sql-mysql-admin",
+            "cloud-sql-sqlserver-admin",
+            "mcp-server-neon",
+        ]:
+            if m in mcps:
+                selected_mcps.add(m)
+        if "prisma-mcp-server" in mcps:
+            selected_mcps.add("prisma-mcp-server")
 
     if any(kw in prompt_lower for kw in ["firebase", "firestore", "realtime database"]):
         for m in ["firebase-mcp-server", "google-cloud-firestore"]:
-            if m in mcps: selected_mcps.add(m)
+            if m in mcps:
+                selected_mcps.add(m)
         for s in ["firebase-firestore", "firebase-basics", "firebase-auth-basics", "firebase-security-rules-auditor"]:
-            if s in skills: selected_skills.add(s)
+            if s in skills:
+                selected_skills.add(s)
 
     if "supabase" in prompt_lower:
-        if "supabase" in mcps: selected_mcps.add("supabase")
+        if "supabase" in mcps:
+            selected_mcps.add("supabase")
 
     if any(kw in prompt_lower for kw in ["clickhouse", "analytics", "olap"]):
-        if "clickhouse" in mcps: selected_mcps.add("clickhouse")
+        if "clickhouse" in mcps:
+            selected_mcps.add("clickhouse")
 
     if any(kw in prompt_lower for kw in ["kafka", "streaming", "event stream", "pubsub", "pub/sub"]):
         for m in ["google-managed-service-for-apache-kafka", "google-cloud-pubsub"]:
-            if m in mcps: selected_mcps.add(m)
+            if m in mcps:
+                selected_mcps.add(m)
 
     # ── Source Control & CI/CD ─────────────────────────────────
     if any(kw in prompt_lower for kw in ["github", "pull request", "pr ", "commit", "branch", "merge", "issue"]):
-        if "mcp-server-github" in mcps: selected_mcps.add("mcp-server-github")
+        if "mcp-server-github" in mcps:
+            selected_mcps.add("mcp-server-github")
         for s in ["github-pr-workflow", "github-code-review", "github-issues", "github-repo-management", "github-auth"]:
-            if s in skills: selected_skills.add(s)
+            if s in skills:
+                selected_skills.add(s)
 
     if any(kw in prompt_lower for kw in ["linear", "ticket", "sprint", "backlog"]):
-        if "linear-mcp-server" in mcps: selected_mcps.add("linear-mcp-server")
+        if "linear-mcp-server" in mcps:
+            selected_mcps.add("linear-mcp-server")
 
     if any(kw in prompt_lower for kw in ["jira", "confluence", "atlassian"]):
-        if "atlassian-mcp-server" in mcps: selected_mcps.add("atlassian-mcp-server")
+        if "atlassian-mcp-server" in mcps:
+            selected_mcps.add("atlassian-mcp-server")
 
     # ── Frontend & Design ──────────────────────────────────────
-    if any(kw in prompt_lower for kw in ["react", "frontend", "ui", "dashboard", "landing page", "website", "component", "css", "html", "design"]):
+    if any(
+        kw in prompt_lower
+        for kw in [
+            "react",
+            "frontend",
+            "ui",
+            "dashboard",
+            "landing page",
+            "website",
+            "component",
+            "css",
+            "html",
+            "design",
+        ]
+    ):
         for s in ["frontend-design", "popular-web-designs", "sketch", "p5js"]:
-            if s in skills: selected_skills.add(s)
+            if s in skills:
+                selected_skills.add(s)
 
     # ── Cloud Infrastructure ───────────────────────────────────
     if any(kw in prompt_lower for kw in ["cloud run", "deploy", "container", "docker", "serverless"]):
-        if "cloudrun" in mcps: selected_mcps.add("cloudrun")
-        if "deploy-fullstack-vercel" in skills: selected_skills.add("deploy-fullstack-vercel")
+        if "cloudrun" in mcps:
+            selected_mcps.add("cloudrun")
+        if "deploy-fullstack-vercel" in skills:
+            selected_skills.add("deploy-fullstack-vercel")
 
     if any(kw in prompt_lower for kw in ["compute", "vm", "instance", "gce", "virtual machine"]):
-        if "google-compute-engine" in mcps: selected_mcps.add("google-compute-engine")
+        if "google-compute-engine" in mcps:
+            selected_mcps.add("google-compute-engine")
 
     if any(kw in prompt_lower for kw in ["logging", "logs", "error log"]):
-        if "google-cloud-logging" in mcps: selected_mcps.add("google-cloud-logging")
+        if "google-cloud-logging" in mcps:
+            selected_mcps.add("google-cloud-logging")
 
     if any(kw in prompt_lower for kw in ["monitoring", "alert", "metric"]):
-        if "google-cloud-monitoring" in mcps: selected_mcps.add("google-cloud-monitoring")
+        if "google-cloud-monitoring" in mcps:
+            selected_mcps.add("google-cloud-monitoring")
 
     if any(kw in prompt_lower for kw in ["bigtable", "wide column"]):
-        if "google-cloud-bigtable-admin" in mcps: selected_mcps.add("google-cloud-bigtable-admin")
+        if "google-cloud-bigtable-admin" in mcps:
+            selected_mcps.add("google-cloud-bigtable-admin")
 
     # ── Communication & Messaging ──────────────────────────────
     if any(kw in prompt_lower for kw in ["slack", "channel", "workspace message"]):
         for s in ["slack", "slack-app-setup"]:
-            if s in skills: selected_skills.add(s)
+            if s in skills:
+                selected_skills.add(s)
 
     if any(kw in prompt_lower for kw in ["email", "gmail", "inbox", "send email"]):
         for s in ["gmail", "outlook", "inbox-management"]:
-            if s in skills: selected_skills.add(s)
+            if s in skills:
+                selected_skills.add(s)
 
     if any(kw in prompt_lower for kw in ["discord", "bot"]):
-        if "discord-app-setup" in skills: selected_skills.add("discord-app-setup")
+        if "discord-app-setup" in skills:
+            selected_skills.add("discord-app-setup")
 
     # ── Debugging & Quality ────────────────────────────────────
     if any(kw in prompt_lower for kw in ["debug", "error", "crash", "fix", "bug", "broken"]):
         for s in ["systematic-debugging", "chrome-devtools", "memory-leak-debugging", "python-debugpy"]:
-            if s in skills: selected_skills.add(s)
+            if s in skills:
+                selected_skills.add(s)
 
     if any(kw in prompt_lower for kw in ["test", "tdd", "unit test", "coverage"]):
         for s in ["test-driven-development", "code-quality-auditor"]:
-            if s in skills: selected_skills.add(s)
+            if s in skills:
+                selected_skills.add(s)
 
     if any(kw in prompt_lower for kw in ["review", "audit", "security"]):
         for s in ["requesting-code-review", "adversarial-reviewer", "code-quality-auditor"]:
-            if s in skills: selected_skills.add(s)
+            if s in skills:
+                selected_skills.add(s)
 
     # ── Research & Knowledge ───────────────────────────────────
     if any(kw in prompt_lower for kw in ["research", "paper", "arxiv", "literature"]):
         for s in ["research-router", "arxiv", "literature-search-arxiv"]:
-            if s in skills: selected_skills.add(s)
+            if s in skills:
+                selected_skills.add(s)
 
     if any(kw in prompt_lower for kw in ["notion", "note", "documentation"]):
         for s in ["notion", "obsidian", "document-writer"]:
-            if s in skills: selected_skills.add(s)
+            if s in skills:
+                selected_skills.add(s)
 
     # ── Android & Mobile ───────────────────────────────────────
     if any(kw in prompt_lower for kw in ["android", "mobile", "apk", "kotlin"]):
-        if "android-cli" in skills: selected_skills.add("android-cli")
-        if "android-management-api" in mcps: selected_mcps.add("android-management-api")
+        if "android-cli" in skills:
+            selected_skills.add("android-cli")
+        if "android-management-api" in mcps:
+            selected_mcps.add("android-management-api")
 
     # ── AI/ML & LLMs ──────────────────────────────────────────
-    if any(kw in prompt_lower for kw in ["model", "llm", "fine-tune", "training", "inference", "huggingface", "weights"]):
+    if any(
+        kw in prompt_lower for kw in ["model", "llm", "fine-tune", "training", "inference", "huggingface", "weights"]
+    ):
         for s in ["huggingface-hub", "weights-and-biases", "serving-llms-vllm", "llama-cpp"]:
-            if s in skills: selected_skills.add(s)
+            if s in skills:
+                selected_skills.add(s)
 
     # ── Documentation & Knowledge Grounding ─────────────────
-    if any(kw in prompt_lower for kw in ["firebase", "flutter", "android", "gcloud", "vertex", "google cloud", "google ai", "dart", "google maps", "cloud run"]):
-        if "google-developer-knowledge" in mcps: selected_mcps.add("google-developer-knowledge")
+    if any(
+        kw in prompt_lower
+        for kw in [
+            "firebase",
+            "flutter",
+            "android",
+            "gcloud",
+            "vertex",
+            "google cloud",
+            "google ai",
+            "dart",
+            "google maps",
+            "cloud run",
+        ]
+    ):
+        if "google-developer-knowledge" in mcps:
+            selected_mcps.add("google-developer-knowledge")
 
-    if any(kw in prompt_lower for kw in ["library", "package", "npm", "pip", "docs", "documentation", "api reference", "sdk"]):
-        if "context7" in mcps: selected_mcps.add("context7")
+    if any(
+        kw in prompt_lower
+        for kw in ["library", "package", "npm", "pip", "docs", "documentation", "api reference", "sdk"]
+    ):
+        if "context7" in mcps:
+            selected_mcps.add("context7")
 
-    if any(kw in prompt_lower for kw in ["remember", "memory", "knowledge", "history", "past decision", "what did i", "last time"]):
-        if "mcp-server-memory" in mcps: selected_mcps.add("mcp-server-memory")
+    if any(
+        kw in prompt_lower
+        for kw in ["remember", "memory", "knowledge", "history", "past decision", "what did i", "last time"]
+    ):
+        if "mcp-server-memory" in mcps:
+            selected_mcps.add("mcp-server-memory")
 
     # ── Reasoning & Thinking ───────────────────────────────
     if any(kw in prompt_lower for kw in ["think through", "step by step", "reason", "analyze deeply", "break down"]):
-        if "sequential-thinking" in mcps: selected_mcps.add("sequential-thinking")
+        if "sequential-thinking" in mcps:
+            selected_mcps.add("sequential-thinking")
 
     # ── Always include Elite Reasoning ─────────────────────────
     if "elite-reasoning" in mcps:
@@ -516,6 +631,7 @@ def register(mcp, store):
     # Initialize the prompt polisher with store access
     try:
         from core.tools.goal_prompt_polisher import GoalPromptPolisher
+
         _polisher = GoalPromptPolisher(store)
         logger.info("GoalPromptPolisher initialized for orchestration")
     except Exception as e:
@@ -620,4 +736,4 @@ def register(mcp, store):
         Args:
             harness: promptfoo, deepeval, inspect, or all.
         """
-        return eval_harness_markdown(harness)
+        return _validated_eval_harness(harness)

@@ -23,7 +23,7 @@ More reasoning process is only valuable when it improves correctness, evidence q
 
 ## Elite outcome scorecard
 
-The MCP exposes `elite_outcome_scorecard()` with this weighted model:
+The legacy compatibility profile exposes `elite_outcome_scorecard()` with this weighted model. The default core profile applies the same discipline through `elite_prepare` validation gates and `elite_verify`.
 
 1. `task_success` — did the answer or code actually solve the task?
 2. `regression_prevention` — did it avoid breaking existing behavior and reduce repeated mistakes?
@@ -35,7 +35,7 @@ The MCP exposes `elite_outcome_scorecard()` with this weighted model:
 
 ## Tool budget tiers
 
-The MCP exposes `roi_tool_budget(prompt, complexity)` to prevent tool theater.
+The legacy compatibility profile exposes `roi_tool_budget(prompt, complexity)` to prevent tool theater. The default core profile assigns the same budget tier when `elite_prepare` creates a workflow run.
 
 | Tier | Intended use |
 |---|---|
@@ -46,7 +46,7 @@ The MCP exposes `roi_tool_budget(prompt, complexity)` to prevent tool theater.
 
 ## Capability verification
 
-The MCP exposes `verify_capabilities_tool()` because configured tools are not always callable tools.
+The default core profile exposes `elite_verify(check="capabilities")`; the legacy compatibility profile exposes `verify_capabilities_tool()`. Both exist because configured tools are not always callable tools.
 
 For Zed, the orchestrator now prefers `context_servers` from `~/.config/zed/settings.json` and suppresses cross-IDE Gemini/Antigravity skills unless explicitly allowed by:
 

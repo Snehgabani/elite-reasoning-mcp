@@ -1,0 +1,22 @@
+title = "Elite Reasoning MCP secret scanning"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Synthetic redaction fixture used by privacy tests."
+condition = "AND"
+regexTarget = "line"
+paths = [
+  '''^tests/(test_privacy_and_sync|test_v2_runtime|test_maintenance_scripts)\.py$''',
+]
+regexes = [
+  '''(?:secret|secret_run_id)\s*=\s*["']sk-[1]2345678901234567890["']''',
+]
+
+[[allowlists]]
+description = "Ignored generated telemetry UI output is not release source."
+paths = [
+  '''^telemetry-ui/\.next/''',
+  '''^telemetry-ui/node_modules/''',
+]

@@ -15,17 +15,22 @@ v3.1 HARDENING:
 
 Environment Variables:
     ELITE_CENTRAL_DIR       — Directory for the central store (default: brain_central)
-    SYNC_API_KEY            — API key for authentication (mandatory by default)
+    SYNC_API_KEY            — Single-user API key (mandatory unless user keys are configured)
+    SYNC_USER_KEYS_JSON     — JSON object mapping authenticated user IDs to API keys
     ELITE_SYNC_SERVER_KEY   — Legacy alias for API key (fallback)
     ELITE_ALLOW_OPEN_SYNC   — Set to 1 to explicitly allow unauthenticated local/dev sync
-    GEMINI_API_KEY          — For LLM-as-a-judge quality gate (optional)
-    CORS_ALLOWED_ORIGINS    — Comma-separated allowed origins (default: *)
+    GEMINI_API_KEY          — Provider credential; inactive unless LLM judging is enabled
+    ELITE_SYNC_ENABLE_LLM_JUDGE — Set to 1 to explicitly permit LLM quality judging
+    CORS_ALLOWED_ORIGINS    — Comma-separated allowed browser origins (default: local only)
+    SYNC_HOST               — Bind host (default: 127.0.0.1)
+    ELITE_SYNC_BIND_ALL_INTERFACES — Set to 1 with SYNC_API_KEY to bind externally
 """
 
 import collections
 import hashlib
 import logging
 import os
+import secrets
 import sqlite3
 import sys
 import time
@@ -34,7 +39,7 @@ from typing import Any, Dict, List, Optional
 from fastapi import Depends, FastAPI, HTTPException, Request, Security
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security.api_key import APIKeyHeader
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 
@@ -43,6 +48,7 @@ logger = logging.getLogger("elite_sync_hub")
 # Ensure elite-system path is accessible
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 from core.memory.persistent_store import EliteStore  # noqa: E402
+from core.privacy import redact_text, safe_error_detail  # noqa: E402
 
 app = FastAPI(
     title="Elite Reasoning Sync Hub",
@@ -54,8 +60,11 @@ app = FastAPI(
 # CORS MIDDLEWARE — Configurable allowed origins
 # ────────────────────────────────────────────────────────────
 
-_cors_origins_raw = os.environ.get("CORS_ALLOWED_ORIGINS", "*")
+_cors_origins_raw = os.environ.get("CORS_ALLOWED_ORIGINS", "http://localhost,http://127.0.0.1")
 _cors_origins = [o.strip() for o in _cors_origins_raw.split(",") if o.strip()]
+if "*" in _cors_origins:
+    logger.warning("Wildcard CORS is disabled. Configure explicit browser origins instead.")
+    _cors_origins = [origin for origin in _cors_origins if origin != "*"]
 
 app.add_middleware(
     CORSMiddleware,
@@ -111,11 +120,16 @@ class RequestSizeLimitMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         # Check Content-Length header first (fast path)
         content_length = request.headers.get("content-length")
-        if content_length and int(content_length) > MAX_BODY_SIZE:
-            return JSONResponse(
-                status_code=413,
-                content={"detail": f"Request body too large. Maximum is {MAX_BODY_SIZE} bytes."},
-            )
+        if content_length:
+            try:
+                declared_size = int(content_length)
+            except ValueError:
+                return JSONResponse(status_code=400, content={"detail": "Invalid Content-Length header."})
+            if declared_size > MAX_BODY_SIZE:
+                return JSONResponse(
+                    status_code=413,
+                    content={"detail": f"Request body too large. Maximum is {MAX_BODY_SIZE} bytes."},
+                )
 
         # For chunked / missing Content-Length, read and check actual body
         if request.method in ("POST", "PUT", "PATCH"):
@@ -260,7 +274,33 @@ def _skill_count() -> int:
 # Elite upgrade: open access is now an explicit dev-only opt-in, never an implicit default.
 _configured_api_key = os.environ.get("SYNC_API_KEY") or os.environ.get("ELITE_SYNC_SERVER_KEY")
 _open_sync_allowed = os.environ.get("ELITE_ALLOW_OPEN_SYNC") == "1"
-if not _configured_api_key:
+
+
+def _configured_user_keys() -> dict[str, str]:
+    """Load per-user sync credentials without persisting them in the hub."""
+    raw = os.environ.get("SYNC_USER_KEYS_JSON", "").strip()
+    if not raw:
+        return {}
+    try:
+        import json
+
+        candidate = json.loads(raw)
+    except ValueError as error:
+        raise RuntimeError("SYNC_USER_KEYS_JSON must be a JSON object of user IDs to API keys.") from error
+    if not isinstance(candidate, dict):
+        raise RuntimeError("SYNC_USER_KEYS_JSON must be a JSON object of user IDs to API keys.")
+    keys = {
+        str(user_id).strip(): api_key
+        for user_id, api_key in candidate.items()
+        if str(user_id).strip() and isinstance(api_key, str) and api_key
+    }
+    if len(keys) != len(candidate):
+        raise RuntimeError("SYNC_USER_KEYS_JSON contains an empty user ID or API key.")
+    return keys
+
+
+_user_keys = _configured_user_keys()
+if not (_configured_api_key or _user_keys):
     if _open_sync_allowed:
         logger.warning(
             "SYNC_API_KEY is not set, but ELITE_ALLOW_OPEN_SYNC=1 is enabled. "
@@ -273,7 +313,24 @@ if not _configured_api_key:
         )
 
 
+def sync_bind_host() -> str:
+    """Return a safe local bind host unless external exposure is explicitly approved."""
+    host = os.environ.get("SYNC_HOST", "127.0.0.1").strip() or "127.0.0.1"
+    if host in {"127.0.0.1", "::1", "localhost"}:
+        return host
+    if os.environ.get("ELITE_SYNC_BIND_ALL_INTERFACES") != "1":
+        raise RuntimeError("Refusing external sync bind. Set ELITE_SYNC_BIND_ALL_INTERFACES=1 after network review.")
+    if not (_configured_api_key or _user_keys):
+        raise RuntimeError("External sync bind requires SYNC_API_KEY or SYNC_USER_KEYS_JSON.")
+    return host
+
+
 async def get_api_key(api_key_header: str = Security(api_key_header)):
+    """Validate a configured API key for compatibility and health checks."""
+    if _user_keys:
+        if any(secrets.compare_digest(api_key_header or "", key) for key in _user_keys.values()):
+            return api_key_header
+        raise HTTPException(status_code=403, detail="Could not validate credentials")
     if not _configured_api_key:
         if _open_sync_allowed:
             return None
@@ -281,9 +338,22 @@ async def get_api_key(api_key_header: str = Security(api_key_header)):
             status_code=503,
             detail="Sync server authentication is not configured. Set SYNC_API_KEY or ELITE_ALLOW_OPEN_SYNC=1 for dev.",
         )
-    if api_key_header == _configured_api_key:
+    if api_key_header and secrets.compare_digest(api_key_header, _configured_api_key):
         return api_key_header
     raise HTTPException(status_code=403, detail="Could not validate credentials")
+
+
+async def get_sync_actor(api_key: str = Depends(get_api_key)) -> str:
+    """Bind writes to the credential owner, never caller-supplied metadata."""
+    if _user_keys:
+        for user_id, configured_key in _user_keys.items():
+            if api_key and secrets.compare_digest(api_key, configured_key):
+                return user_id
+        raise HTTPException(status_code=403, detail="Could not validate credentials")
+    if _open_sync_allowed:
+        return "local-development"
+    # A shared key is permitted only as an explicitly single-user deployment.
+    return os.environ.get("SYNC_SINGLE_USER_ID", "single-user").strip() or "single-user"
 
 
 # ────────────────────────────────────────────────────────────
@@ -312,8 +382,14 @@ async def evaluate_quality(ap: Dict[str, Any]) -> tuple[bool, str]:
                 return False, "Description is too generic."
 
         gemini_key = os.environ.get("GEMINI_API_KEY")
-        if not gemini_key:
+        if not gemini_key or os.environ.get("ELITE_SYNC_ENABLE_LLM_JUDGE") != "1":
             return True, "Passed (Heuristic Only)"
+
+        safe_mistake = redact_text(mistake, limit=MAX_STRING_LENGTH)
+        safe_root_cause = redact_text(root_cause, limit=MAX_STRING_LENGTH)
+        safe_fix = redact_text(fix, limit=MAX_STRING_LENGTH)
+        if (safe_mistake, safe_root_cause, safe_fix) != (mistake, root_cause, fix):
+            return False, "Submission contains secret-like content and cannot be sent to an external judge."
 
         import httpx
 
@@ -329,9 +405,10 @@ Is this a high-quality, actionable, and specific anti-pattern that provides valu
 Or is it trivial, vague, or obvious?
 Reply EXACTLY with either 'PASS' or 'FAIL: <reason>'. Do not include any other text.
 """
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(follow_redirects=False) as client:
             resp = await client.post(
-                f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={gemini_key}",
+                "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+                headers={"x-goog-api-key": gemini_key},
                 json={
                     "contents": [{"parts": [{"text": prompt}]}],
                     "generationConfig": {"temperature": 0.1, "maxOutputTokens": 50},
@@ -342,12 +419,14 @@ Reply EXACTLY with either 'PASS' or 'FAIL: <reason>'. Do not include any other t
             data = resp.json()
             text = data["candidates"][0]["content"]["parts"][0]["text"].strip()
 
+            if text == "PASS":
+                return True, "Passed (LLM Evaluated)"
             if text.startswith("FAIL"):
                 return False, text.replace("FAIL:", "").strip()
-            return True, "Passed (LLM Evaluated)"
-    except Exception as e:
-        print(f"LLM quality evaluation failed: {e}")
-        return True, "Passed (Fallback due to LLM error)"
+            return False, "LLM judge returned an invalid verdict."
+    except Exception as error:
+        logger.warning("LLM quality evaluation failed: %s", safe_error_detail(error))
+        return False, "LLM quality evaluation was unavailable."
 
 
 # ────────────────────────────────────────────────────────────
@@ -357,7 +436,15 @@ Reply EXACTLY with either 'PASS' or 'FAIL: <reason>'. Do not include any other t
 
 def _content_hash(mistake: str, root_cause: str, fix: str) -> str:
     """SHA-256 of normalized content for dedup."""
-    content = f"{mistake.strip().lower()}|{root_cause.strip().lower()}|{fix.strip().lower()}"
+    content = f"anti_pattern|{mistake.strip().lower()}|{root_cause.strip().lower()}|{fix.strip().lower()}"
+    return hashlib.sha256(content.encode()).hexdigest()
+
+
+def _decision_hash(decision: str, rationale: str, alternatives_rejected: str, context: str) -> str:
+    """Deduplicate overlapping cursor retries without merging distinct records."""
+    content = "decision|" + "|".join(
+        value.strip().lower() for value in (decision, rationale, alternatives_rejected, context)
+    )
     return hashlib.sha256(content.encode()).hexdigest()
 
 
@@ -402,10 +489,25 @@ def _validate_str_length(v: str, field_name: str) -> str:
     return v
 
 
+class AntiPatternPayload(BaseModel):
+    mistake: str = Field(min_length=1, max_length=MAX_STRING_LENGTH)
+    root_cause: str = Field(min_length=1, max_length=MAX_STRING_LENGTH)
+    fix: str = Field(min_length=1, max_length=MAX_STRING_LENGTH)
+    severity: str = Field(default="medium", max_length=64)
+    tags: str = Field(default="", max_length=500)
+
+
+class DecisionPayload(BaseModel):
+    decision: str = Field(min_length=1, max_length=MAX_STRING_LENGTH)
+    rationale: str = Field(min_length=1, max_length=MAX_STRING_LENGTH)
+    alternatives_rejected: str = Field(default="", max_length=MAX_STRING_LENGTH)
+    context: str = Field(default="", max_length=MAX_STRING_LENGTH)
+
+
 class SyncPayload(BaseModel):
     user_id: str = "anonymous"
-    anti_patterns: List[Dict[str, Any]] = []
-    decisions: List[Dict[str, Any]] = []
+    anti_patterns: List[AntiPatternPayload] = Field(default_factory=list, max_length=50)
+    decisions: List[DecisionPayload] = Field(default_factory=list, max_length=50)
 
     @field_validator("user_id")
     @classmethod
@@ -472,7 +574,7 @@ class SkillShare(BaseModel):
 
 
 @app.post("/api/users/register")
-def register_user(reg: UserRegistration, api_key: str = Depends(get_api_key)):
+def register_user(reg: UserRegistration, actor: str = Depends(get_sync_actor)):
     """Register a user with the sync hub. Persisted to SQLite."""
     try:
         now = time.strftime("%Y-%m-%d %H:%M:%S")
@@ -489,7 +591,7 @@ def register_user(reg: UserRegistration, api_key: str = Depends(get_api_key)):
                     skill_count = excluded.skill_count,
                     last_seen_at = excluded.last_seen_at
             """,
-                (reg.user_id, reg.display_name or reg.user_id, reg.ide_type, reg.mcp_count, reg.skill_count, now, now),
+                (actor, reg.display_name or actor, reg.ide_type, reg.mcp_count, reg.skill_count, now, now),
             )
             conn.commit()
         finally:
@@ -497,11 +599,11 @@ def register_user(reg: UserRegistration, api_key: str = Depends(get_api_key)):
 
         return {
             "status": "registered",
-            "user_id": reg.user_id,
+            "user_id": actor,
             "total_users": _user_count(),
         }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Registration failed: {e}")
+    except Exception as error:
+        raise HTTPException(status_code=500, detail="Registration failed safely.") from error
 
 
 @app.get("/api/users")
@@ -513,8 +615,8 @@ def list_users(api_key: str = Depends(get_api_key)):
             "total_users": len(users),
             "users": users,
         }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to list users: {e}")
+    except Exception as error:
+        raise HTTPException(status_code=500, detail="Unable to list users safely.") from error
 
 
 # ────────────────────────────────────────────────────────────
@@ -526,24 +628,25 @@ def list_users(api_key: str = Depends(get_api_key)):
 def pull_sync(
     since: Optional[str] = None,
     user_id: Optional[str] = None,
-    api_key: str = Depends(get_api_key),
+    actor: str = Depends(get_sync_actor),
 ):
     """Pull collective intelligence from the central hub."""
     try:
-        anti_patterns = store.get_all_anti_patterns(since=since)
-        decisions = store.get_all_decisions(since=since)
+        cursor = since or ""
+        anti_patterns = store.get_all_anti_patterns(since=cursor)
+        decisions = store.get_all_decisions(since=cursor)
 
         return {
             "anti_patterns": anti_patterns,
             "decisions": decisions,
             "total_users": _user_count(),
         }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as error:
+        raise HTTPException(status_code=500, detail="Sync pull failed safely.") from error
 
 
 @app.post("/api/sync/push")
-async def push_sync(payload: SyncPayload, api_key: str = Depends(get_api_key)):
+async def push_sync(payload: SyncPayload, actor: str = Depends(get_sync_actor)):
     """
     Push user's local intelligence to the central hub.
     Content-hash dedup prevents duplicate anti-patterns (Gap #3 fix).
@@ -552,9 +655,11 @@ async def push_sync(payload: SyncPayload, api_key: str = Depends(get_api_key)):
     rejected_aps = 0
     deduped_aps = 0
     added_decs = 0
+    deduped_decs = 0
 
     try:
-        for ap in payload.anti_patterns:
+        for ap_payload in payload.anti_patterns:
+            ap = ap_payload.model_dump()
             # Gap #3: Content-hash dedup BEFORE quality gate
             ch = _content_hash(ap.get("mistake", ""), ap.get("root_cause", ""), ap.get("fix", ""))
             if _is_duplicate_push(ch):
@@ -566,10 +671,8 @@ async def push_sync(payload: SyncPayload, api_key: str = Depends(get_api_key)):
                 rejected_aps += 1
                 continue
 
-            # Tag with contributor's user_id
             tags = ap.get("tags", "")
-            if payload.user_id and payload.user_id != "anonymous":
-                tags = f"{tags},contributor:{payload.user_id}".strip(",")
+            tags = f"{tags},contributor:{actor}".strip(",")
 
             store.record_mistake(
                 mistake=ap.get("mistake", ""),
@@ -578,32 +681,41 @@ async def push_sync(payload: SyncPayload, api_key: str = Depends(get_api_key)):
                 severity=ap.get("severity", "medium"),
                 tags=tags,
             )
-            _record_push_hash(ch, payload.user_id)
+            _record_push_hash(ch, actor)
             added_aps += 1
 
-        for dec in payload.decisions:
-            context = dec.get("context", "")
-            if payload.user_id and payload.user_id != "anonymous":
-                context = f"{context} [contributor:{payload.user_id}]".strip()
+        for decision_payload in payload.decisions:
+            dec = decision_payload.model_dump()
+            ch = _decision_hash(
+                dec["decision"], dec["rationale"], dec["alternatives_rejected"], dec["context"]
+            )
+            if _is_duplicate_push(ch):
+                deduped_decs += 1
+                continue
+            context = f"{dec.get('context', '')} [contributor:{actor}]".strip()
 
             store.record_decision(
                 context=context,
                 decision=dec.get("decision", ""),
                 rationale=dec.get("rationale", ""),
             )
+            _record_push_hash(ch, actor)
             added_decs += 1
 
         return {
             "status": "success",
-            "user_id": payload.user_id,
-            "message": f"Synced {added_aps} anti-patterns ({rejected_aps} rejected, {deduped_aps} deduped) and {added_decs} decisions.",
-            "accepted": added_aps,
+            "user_id": actor,
+            "message": (
+                f"Synced {added_aps} anti-patterns ({rejected_aps} rejected, {deduped_aps} deduped) "
+                f"and {added_decs} decisions ({deduped_decs} deduped)."
+            ),
+            "accepted": added_aps + added_decs,
             "rejected": rejected_aps,
-            "deduped": deduped_aps,
+            "deduped": deduped_aps + deduped_decs,
             "total_users": _user_count(),
         }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as error:
+        raise HTTPException(status_code=500, detail="Sync push failed safely.") from error
 
 
 # ────────────────────────────────────────────────────────────
@@ -612,7 +724,7 @@ async def push_sync(payload: SyncPayload, api_key: str = Depends(get_api_key)):
 
 
 @app.post("/api/skills/share")
-def share_skill(payload: SkillShare, api_key: str = Depends(get_api_key)):
+def share_skill(payload: SkillShare, actor: str = Depends(get_sync_actor)):
     """Publish a skill so other team members can discover it. Persisted to SQLite."""
     try:
         now = time.strftime("%Y-%m-%d %H:%M:%S")
@@ -627,7 +739,7 @@ def share_skill(payload: SkillShare, api_key: str = Depends(get_api_key)):
                     description = excluded.description,
                     shared_at = excluded.shared_at
             """,
-                (payload.skill_name, payload.user_id, payload.description, now),
+                (payload.skill_name, actor, payload.description, now),
             )
             conn.commit()
         finally:
@@ -638,8 +750,8 @@ def share_skill(payload: SkillShare, api_key: str = Depends(get_api_key)):
             "skill_name": payload.skill_name,
             "total_shared_skills": _skill_count(),
         }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to share skill: {e}")
+    except Exception as error:
+        raise HTTPException(status_code=500, detail="Skill sharing failed safely.") from error
 
 
 @app.get("/api/skills/discover")
@@ -651,8 +763,8 @@ def discover_skills(api_key: str = Depends(get_api_key)):
             "total_shared_skills": len(skills),
             "skills": skills,
         }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to list skills: {e}")
+    except Exception as error:
+        raise HTTPException(status_code=500, detail="Unable to list skills safely.") from error
 
 
 # ────────────────────────────────────────────────────────────
@@ -690,8 +802,8 @@ def team_dashboard(api_key: str = Depends(get_api_key)):
                 "skills": list(skills.keys()),
             },
         }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Dashboard error: {e}")
+    except Exception as error:
+        raise HTTPException(status_code=500, detail="Dashboard failed safely.") from error
 
 
 # ────────────────────────────────────────────────────────────
@@ -700,7 +812,7 @@ def team_dashboard(api_key: str = Depends(get_api_key)):
 
 
 @app.get("/api/health")
-def health():
+def health(api_key: str = Depends(get_api_key)):
     """Health check with system stats."""
     try:
         return {
@@ -710,7 +822,7 @@ def health():
             "total_anti_patterns": store.count_anti_patterns(),
             "total_shared_skills": _skill_count(),
             "persistence": "sqlite",  # Confirms we're not in-memory
-            "hub_db": _hub_db_path,
+            "hub_db": "configured",
             "hardening": {
                 "rate_limit": f"{RATE_LIMIT_MAX_REQUESTS} req/{RATE_LIMIT_WINDOW_SECONDS}s per IP",
                 "max_body_size": f"{MAX_BODY_SIZE} bytes",
@@ -719,15 +831,20 @@ def health():
                 "cors_origins": _cors_origins,
             },
         }
-    except Exception as e:
+    except Exception as error:
         return {
             "status": "degraded",
-            "error": str(e),
+            "error": safe_error_detail(error),
         }
 
 
 if __name__ == "__main__":
     import uvicorn
 
-    port = int(os.environ.get("SYNC_PORT", 8000))
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    try:
+        port = int(os.environ.get("SYNC_PORT", 8000))
+    except ValueError as error:
+        raise SystemExit("SYNC_PORT must be an integer between 1 and 65535.") from error
+    if not 1 <= port <= 65535:
+        raise SystemExit("SYNC_PORT must be between 1 and 65535.")
+    uvicorn.run(app, host=sync_bind_host(), port=port)

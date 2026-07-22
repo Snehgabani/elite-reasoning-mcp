@@ -1,7 +1,7 @@
 [project]
 name = "elite-reasoning-mcp"
-version = "1.2.1"
-description = "90+ tool Model Context Protocol server for AI coding agents: workflow flight recorder, quality-gated memory, confidence calibration, release doctor, eval harness exports, and reasoning safety."
+version = "2.0.0"
+description = "Privacy-first, evidence-gated Model Context Protocol workflow gateway for AI coding agents: trusted memory, durable execution, local monitoring, and release verification."
 readme = "README.md"
 requires-python = ">=3.11"
 license = {text = "MIT"}
@@ -53,14 +53,14 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
-    "mcp>=1.27.2",
-    "fastmcp>=0.1.0",
-    "pydantic>=2.0",
-    "rich>=13.0",
-    "python-dotenv>=1.0",
-    "fastapi>=0.136.3",
-    "uvicorn>=0.49.0",
-    "httpx>=0.28.1",
+    "mcp>=1.27.2,<2",
+    "fastmcp>=3.4.2,<4",
+    "pydantic>=2.0,<3",
+    "rich>=13.0,<16",
+    "python-dotenv>=1.0,<2",
+    "fastapi>=0.136.3,<1",
+    "uvicorn>=0.49.0,<1",
+    "httpx>=0.28.1,<1",
 ]
 
 [project.urls]
@@ -81,6 +81,7 @@ graph = [
     "networkx>=3.0",
 ]
 dev = [
+    "bandit>=1.9.4,<2",
     "pytest",
     "pytest-asyncio",
     "ruff",
@@ -101,9 +102,29 @@ build-backend = "hatchling.build"
 packages = ["core"]
 
 [tool.hatch.build.targets.sdist]
+include = [
+    "/core",
+    "/assets/hero-banner.png",
+    "/docs",
+    "/scripts",
+    "/tests",
+    "/CHANGELOG.md",
+    "/CITATION.cff",
+    "/CODE_OF_CONDUCT.md",
+    "/CONTRIBUTING.md",
+    "/GOVERNANCE.md",
+    "/LICENSE",
+    "/README.md",
+    "/SECURITY.md",
+    "/SUPPORT.md",
+    "/pyproject.toml",
+]
 exclude = [
     "brain/",
     "brain_central/",
+    "config.json",
+    "team-memory.json",
+    "telemetry-ui/",
     "diagnostics/*.zip",
     "_archive/",
     "uv.lock",
@@ -115,6 +136,8 @@ exclude = [
     "*.log",
     "mcp_error.log",
     ".venv/",
+    "node_modules/",
+    ".next/",
     "__pycache__/",
     "*.pyc",
 ]

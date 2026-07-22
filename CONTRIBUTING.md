@@ -68,15 +68,16 @@ elite-reasoning-mcp/
 ## Adding a New Tool
 
 1. Add your tool function in the appropriate file under `core/tools/`
-2. Register it with `@mcp.tool()` in `core/integration/mcp_server.py`
-3. Add tests in `tests/`
-4. Update README/tool docs and release-doctor expectations if the exposed surface changes
-5. Confirm `elite_doctor_json` and `scripts/release_check.py` still pass
+2. Prefer extending a typed `elite_*` action in `core/tools/gateway.py`; the default public surface is intentionally limited to five tools.
+3. Add a legacy-only tool only when compatibility requires it, and document why it cannot be represented by the gateway contract.
+4. Add protocol, privacy, and regression tests in `tests/`.
+5. Update README/tool docs and release-doctor expectations if the exposed surface changes.
+6. Confirm `elite_verify(check="doctor")` and `scripts/release_check.py` still pass.
 
 ## Code Style
 
 - We use **ruff** for linting
-- Type hints are encouraged but not strictly enforced (pyright runs with `continue-on-error`)
+- The v2 runtime/privacy/tool-contract slice must remain clean under the focused pyright release gate.
 - All new code should include docstrings
 - Security-sensitive parsing, SQL, filesystem, subprocess, and network changes need explicit tests
 

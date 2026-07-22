@@ -1,0 +1,13 @@
+# Enforce maintainer review when the repository ruleset requires code-owner approval.
+* @Snehgabani
+
+# Security-sensitive repository controls.
+/.github/ @Snehgabani
+/.gitleaks.toml @Snehgabani
+/.gitignore @Snehgabani
+/pyproject.toml @Snehgabani
+/uv.lock @Snehgabani
+/SECURITY.md @Snehgabani
+/scripts/release_check.py @Snehgabani
+/core/integration/ @Snehgabani
+/core/memory/ @Snehgabani

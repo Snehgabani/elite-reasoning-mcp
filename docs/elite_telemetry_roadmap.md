@@ -1,6 +1,6 @@
 # Elite Telemetry, Monitoring, and Data-Leverage Roadmap
 
-Elite Reasoning MCP already records tool usage, latency budgets, cost logs, workflow runs, quality scores, prevention rules, calibration predictions, and memory events. The next upgrade is to turn those raw signals into a privacy-first observability and improvement system.
+Elite Reasoning MCP already records tool usage, latency budgets, cost logs, workflow runs, quality scores, prevention rules, calibration predictions, and memory events. V2 adds metadata-only telemetry by default, raw-retention opt-ins, redaction, local aggregate monitoring through `elite_admin(action="monitoring")`, and quarantined remote sync. The next upgrade is to turn those bounded local signals into a privacy-first observability and improvement system.
 
 ## Non-Negotiable Principles
 
@@ -10,6 +10,15 @@ Elite Reasoning MCP already records tool usage, latency budgets, cost logs, work
 - Outcome-driven: measure task success, regression prevention, evidence quality, calibration, latency, and cost ROI, not vanity tool-call volume.
 - User agency: every tracking mode must have clear configuration, retention, deletion, and export controls.
 
+## V2 Baseline (Implemented)
+
+- `ELITE_TELEMETRY_MODE=metadata` stores fingerprints and lengths rather than tool arguments/results.
+- `ELITE_TELEMETRY_MODE=off` stops usage-record writes.
+- Raw telemetry and raw prompt retention each require a separate local opt-in.
+- `elite_admin(action="monitoring")` exposes local aggregate latency, workflow, and memory counts only.
+- Remote sync is explicit, host-allowlisted, and imports low-trust quarantined records rather than promoting them into memory automatically.
+- The default core profile does not expose network sync or broad telemetry export tools.
+
 ## Phase 1: Canonical Event Envelope
 
 Add one normalized schema for all MCP activity:
@@ -17,7 +26,7 @@ Add one normalized schema for all MCP activity:
 | Field | Purpose |
 |---|---|
 | `event_id` | Stable UUID for dedupe and trace joins |
-| `run_id` | Links tool calls to `workflow_run` |
+| `run_id` | Links tool calls to `elite_prepare` workflow runs |
 | `session_id_hash` | Groups sessions without exposing identity |
 | `project_hash` | Tracks project-level drift without leaking paths |
 | `event_type` | `tool_call`, `memory_retrieval`, `decision`, `risk_gate`, `eval_result`, `error`, `feedback` |
@@ -73,9 +82,9 @@ Add local alert rules:
 
 Implementation path:
 - Add `monitoring_rules` table.
-- Add `monitoring_status` MCP resource.
-- Add `monitoring_check` tool that returns pass/warn/fail with evidence.
-- Feed failures into `workflow_run` gates and `elite_doctor_json`.
+- Add `monitoring_status` MCP resource only after a clear client need is proven.
+- Extend `elite_admin(action="monitoring")` with pass/warn/fail health evidence.
+- Feed failures into `elite_progress` gates and `elite_verify(check="doctor")`.
 
 ## Phase 4: Feedback and Outcome Labeling
 
@@ -104,8 +113,8 @@ Build a continuous quality loop:
 5. Publish aggregate benchmark reports without private data.
 
 Implementation path:
-- Extend `export_eval_harness` with dataset snapshots.
-- Add `eval_run` and `eval_compare` tools.
+- Extend legacy `export_eval_harness` with dataset snapshots.
+- Add typed `eval_run` and `eval_compare` actions only when a real execution backend is available.
 - Store baseline results in SQLite.
 - Add release gate: block release when key eval suites regress.
 
@@ -143,15 +152,14 @@ Privacy requirement:
 ## Highest-Leverage Next Builds
 
 1. `telemetry_events` canonical schema and writer.
-2. `monitoring_check` MCP tool plus `elite://monitoring` resource.
-3. Local Prometheus metrics endpoint.
-4. OTLP trace export behind `ELITE_TELEMETRY_OTLP_ENDPOINT`.
-5. Redaction test suite for telemetry payloads.
-6. Outcome-labeling tools tied to `workflow_run`.
+2. Extend `elite_admin(action="monitoring")` with evidence-backed pass/warn/fail health checks.
+3. Redaction test suite for every telemetry sink and diagnostic export.
+4. Local Prometheus metrics endpoint, disabled unless explicitly enabled.
+5. OTLP trace export behind `ELITE_TELEMETRY_OTLP_ENDPOINT` and an explicit outbound-network grant.
+6. Outcome-labeling actions tied to core workflow run IDs.
 7. Eval comparison snapshots from real workflows.
-8. Telemetry UI pages for latency, tool usefulness, memory quality, and release readiness.
-9. Security event taxonomy and alert rules.
-10. Public sample dashboard using synthetic data for growth and trust.
+8. Security event taxonomy and local alert rules.
+9. Optional synthetic-data dashboard for public documentation and growth.
 
 ## What Not To Build
 

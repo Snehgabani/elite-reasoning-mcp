@@ -10,9 +10,11 @@ Each user gets:
 Config lives at: ~/.elite-reasoning/config.json
 Brain lives at:  ~/.elite-reasoning/brain/
 """
+import copy
 import getpass
 import json
 import os
+import tempfile
 import time
 from typing import Optional
 
@@ -23,13 +25,11 @@ DEFAULT_CONFIG = {
     "sync": {
         "enabled": False,
         "hub_url": "http://localhost:8000",
-        "api_key": "",
-        "auto_sync_on_boot": True,
+        "auto_sync_on_boot": False,
         "sync_interval_minutes": 60,
     },
     "orchestration": {
         "mode": "auto",             # "auto" | "heuristic" | "llm"
-        "gemini_api_key": "",       # If blank, falls back from env
         "disabled_mcps": [],        # MCPs to exclude from orchestration
         "disabled_skills": [],      # Skills to exclude from orchestration
         "priority_mcps": [],        # MCPs to always include
@@ -63,8 +63,13 @@ class UserProfile:
 
     def ensure_dirs(self):
         """Create all required directories."""
-        os.makedirs(self.elite_dir, exist_ok=True)
-        os.makedirs(self.brain_dir, exist_ok=True)
+        os.makedirs(self.elite_dir, mode=0o700, exist_ok=True)
+        os.makedirs(self.brain_dir, mode=0o700, exist_ok=True)
+        for path in (self.elite_dir, self.brain_dir):
+            try:
+                os.chmod(path, 0o700)
+            except OSError:
+                pass
 
     @property
     def config(self) -> dict:
@@ -79,38 +84,61 @@ class UserProfile:
             try:
                 with open(self.config_path, 'r') as f:
                     stored = json.load(f)
-                # Merge with defaults (in case schema evolved)
-                merged = _deep_merge(DEFAULT_CONFIG.copy(), stored)
+                # Migrate pre-v2 persisted credentials out of the profile.
+                # Keys must be supplied by the process environment or keychain,
+                # never copied into a project-independent JSON file.
+                migrated = _strip_persisted_secrets(stored)
+                # Boot-time synchronization can disclose installed-tool and
+                # workstation metadata before the user has confirmed a run.
+                if isinstance(migrated.get("sync"), dict):
+                    migrated["sync"]["auto_sync_on_boot"] = False
+                if "ide_type_source" not in stored:
+                    # Earlier releases persisted auto-detection, causing a
+                    # permanent Antigravity/Zed mismatch after an IDE switch.
+                    migrated["ide_type"] = "auto"
+                    migrated["ide_type_source"] = "auto"
+                # Merge with defaults (in case schema evolved).
+                merged = _deep_merge(copy.deepcopy(DEFAULT_CONFIG), migrated)
+                if migrated != stored:
+                    self._save_config(merged)
                 return merged
             except (json.JSONDecodeError, IOError):
                 pass
 
         # First-time setup: auto-detect
-        config = DEFAULT_CONFIG.copy()
+        config = copy.deepcopy(DEFAULT_CONFIG)
         config["user_id"] = os.environ.get("ELITE_USER_ID", getpass.getuser())
         config["display_name"] = config["user_id"]
-        config["ide_type"] = self._detect_ide()
+        config["ide_type_source"] = "auto"
         config["created_at"] = time.strftime("%Y-%m-%d %H:%M:%S")
         config["updated_at"] = config["created_at"]
 
-        # Pull from env if set
-        if os.environ.get("GEMINI_API_KEY"):
-            config["orchestration"]["gemini_api_key"] = os.environ["GEMINI_API_KEY"]
+        # Pull non-secret connection configuration from the environment. API
+        # keys deliberately stay in environment/keychain-backed process state.
         if os.environ.get("ELITE_SYNC_URL"):
             config["sync"]["hub_url"] = os.environ["ELITE_SYNC_URL"]
             config["sync"]["enabled"] = True
-        if os.environ.get("ELITE_SYNC_API_KEY"):
-            config["sync"]["api_key"] = os.environ["ELITE_SYNC_API_KEY"]
-
         self._save_config(config)
         return config
 
     def _save_config(self, config: dict):
-        """Persist config to disk."""
+        """Persist config atomically with owner-only permissions."""
         config["updated_at"] = time.strftime("%Y-%m-%d %H:%M:%S")
         self.ensure_dirs()
-        with open(self.config_path, 'w') as f:
-            json.dump(config, f, indent=2)
+        fd, temporary_path = tempfile.mkstemp(prefix=".config.", suffix=".tmp", dir=self.elite_dir)
+        try:
+            os.fchmod(fd, 0o600)
+            with os.fdopen(fd, "w", encoding="utf-8") as handle:
+                json.dump(config, handle, indent=2)
+                handle.write("\n")
+            os.replace(temporary_path, self.config_path)
+            os.chmod(self.config_path, 0o600)
+        except Exception:
+            try:
+                os.unlink(temporary_path)
+            except OSError:
+                pass
+            raise
         self._config = config
 
     def save(self):
@@ -150,7 +178,7 @@ class UserProfile:
     @property
     def ide_type(self) -> str:
         configured = self.config.get("ide_type", "unknown")
-        if configured and configured != "auto":
+        if self.config.get("ide_type_source") == "manual" and configured and configured != "auto":
             return configured
         return self._detect_ide()
 
@@ -165,7 +193,7 @@ class UserProfile:
 
     @property
     def sync_api_key(self) -> str:
-        return self.config.get("sync", {}).get("api_key", "")
+        return os.environ.get("ELITE_SYNC_API_KEY", "")
 
     # ── Orchestration ──────────────────────────────────────
     @property
@@ -219,3 +247,15 @@ def _deep_merge(base: dict, override: dict) -> dict:
         else:
             merged[key] = value
     return merged
+
+
+def _strip_persisted_secrets(config: dict) -> dict:
+    """Remove legacy secret fields during profile migration."""
+    cleaned = copy.deepcopy(config) if isinstance(config, dict) else {}
+    sync = cleaned.get("sync")
+    if isinstance(sync, dict):
+        sync.pop("api_key", None)
+    orchestration = cleaned.get("orchestration")
+    if isinstance(orchestration, dict):
+        orchestration.pop("gemini_api_key", None)
+    return cleaned

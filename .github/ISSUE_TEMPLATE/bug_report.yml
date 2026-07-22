@@ -30,7 +30,7 @@ body:
     attributes:
       label: Version
       description: What version of elite-reasoning-mcp are you using?
-      placeholder: "1.2.1"
+      placeholder: "2.0.0"
     validations:
       required: true
   - type: dropdown

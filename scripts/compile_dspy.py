@@ -1,8 +1,9 @@
 import os
+
 import dspy
-from dspy.teleprompt import BootstrapFewShotWithRandomSearch
 from core.prompts.dspy_modules import PreflightClassifier
-from core.reasoning.elite_framework import EliteReasoningFramework
+from dspy.teleprompt import BootstrapFewShotWithRandomSearch
+
 
 def fetch_langfuse_traces():
     """
@@ -65,11 +66,14 @@ def compile_preflight_classifier():
         num_candidate_programs=5,
         num_threads=2
     )
-    
-    print("Ready to compile PreflightClassifier. (Requires LM configuration)")
-    # If LM was configured, we would run:
-    # compiled_classifier = teleprompter.compile(PreflightClassifier(), trainset=trainset)
-    # compiled_classifier.save("core/prompts/compiled_preflight.json")
+
+    if os.environ.get("ELITE_DSPY_COMPILE") != "1":
+        print("Dry run complete. Set ELITE_DSPY_COMPILE=1 only after configuring an approved DSPy language model.")
+        return
+
+    compiled_classifier = teleprompter.compile(PreflightClassifier(), trainset=trainset)
+    compiled_classifier.save("core/prompts/compiled_preflight.json")
+    print("Compiled preflight classifier saved to core/prompts/compiled_preflight.json")
 
 def main():
     print("--- DSPy Compilation Script ---")

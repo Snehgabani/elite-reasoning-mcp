@@ -1,6 +1,18 @@
 __pycache__/
+.DS_Store
 *.pyc
 *.pyo
+# Local secrets and machine credentials
+.env
+.env.*
+!.env.example
+/config.json
+/team-memory.json
+*.pem
+*.key
+*.p12
+*.pfx
+secrets/
 brain/
 *.db
 *.db-shm
@@ -17,3 +29,7 @@ dist/
 build/
 test_brain/
 data/
+telemetry-ui/node_modules/
+telemetry-ui/.next/
+telemetry-ui/.env
+telemetry-ui/.env.*
