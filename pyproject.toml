@@ -78,7 +78,7 @@ vectors = [
 graph = [
     "langgraph>=0.2.0",
     "langchain-core>=0.2.0",
-    "networkx>=3.0",
+    "networkx>=3.6.1",
 ]
 dev = [
     "bandit>=1.9.4,<2",
