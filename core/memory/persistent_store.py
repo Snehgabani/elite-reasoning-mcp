@@ -4,6 +4,7 @@ Handles ONLY our unique moat: anti-patterns, decisions, quality scores,
 benchmarks, goals, smoke tests, and after-action reviews.
 Memory/context is delegated to AgentMemory or Mem0.
 """
+
 import contextlib
 import hashlib
 import json
@@ -24,6 +25,17 @@ import logging
 logger = logging.getLogger(__name__)
 
 from core.memory.graph_store import TemporalGraphStore  # noqa: E402
+from core.privacy import (  # noqa: E402
+    metadata_fingerprint,
+    prompt_storage_value,
+    redact_text,
+    telemetry_summary,
+    withheld_prompt_value,
+)
+
+SENSITIVE_MEMORY_CLASSES = frozenset(
+    {"secret", "credential", "credentials", "highly_sensitive", "private_key", "secret_detected"}
+)
 
 
 class EliteStore:
@@ -39,6 +51,7 @@ class EliteStore:
         # Falls back to direct connection if pool module unavailable
         try:
             from core.memory.connection_pool import ThreadLocalPool
+
             self._pool = ThreadLocalPool(self.db_path)
             self._use_pool = True
         except ImportError:
@@ -53,7 +66,7 @@ class EliteStore:
         if self._use_pool:
             conn = self._pool._get_connection()
             # Load sqlite_vec if available and not yet loaded for this connection
-            if sqlite_vec is not None and not getattr(conn, '_vec_loaded', False):
+            if sqlite_vec is not None and not getattr(conn, "_vec_loaded", False):
                 try:
                     conn.enable_load_extension(True)
                     sqlite_vec.load(conn)
@@ -63,7 +76,7 @@ class EliteStore:
             return conn
 
         # Fallback: original thread-local caching
-        cached = getattr(self._local, 'conn', None)
+        cached = getattr(self._local, "conn", None)
         if cached is not None:
             try:
                 cached.execute("SELECT 1")
@@ -86,7 +99,7 @@ class EliteStore:
 
     def _close(self, conn):
         """Commit pending changes. Pool-backed: connection stays alive."""
-        if getattr(self._local, 'in_transaction', False):
+        if getattr(self._local, "in_transaction", False):
             return
         if self._use_pool:
             # Pool connections stay alive — just commit any pending autocommit
@@ -103,7 +116,7 @@ class EliteStore:
     @contextlib.contextmanager
     def transaction(self):
         """Write transaction. Pool-backed: uses BEGIN IMMEDIATE for fail-fast locking."""
-        if getattr(self._local, 'in_transaction', False):
+        if getattr(self._local, "in_transaction", False):
             yield
             return
 
@@ -111,7 +124,7 @@ class EliteStore:
             # Use pool's transaction context manager
             self._local.in_transaction = True
             # Share connection with graph if same DB
-            same_db = (os.path.abspath(self.db_path) == os.path.abspath(self.graph.db_path))
+            same_db = os.path.abspath(self.db_path) == os.path.abspath(self.graph.db_path)
             try:
                 with self._pool.transaction() as conn:
                     if same_db:
@@ -142,7 +155,7 @@ class EliteStore:
         self._local.in_transaction = True
         self._local.conn = conn
 
-        same_db = (os.path.abspath(self.db_path) == os.path.abspath(self.graph.db_path))
+        same_db = os.path.abspath(self.db_path) == os.path.abspath(self.graph.db_path)
         if same_db:
             graph_conn = conn
         else:
@@ -650,6 +663,9 @@ class EliteStore:
         # --- Learning subsystem migration (v5) ---
         self._run_learning_migration(c)
 
+        # --- Privacy retention migration (v6) ---
+        self._run_privacy_migration(c)
+
         self._close(conn)
 
     def _run_trigger_migration(self, cursor):
@@ -677,8 +693,7 @@ class EliteStore:
         for old, new in TRIGGER_MAP.items():
             try:
                 result = cursor.execute(
-                    "UPDATE prevention_rules SET trigger_event = ? WHERE trigger_event = ?",
-                    (new, old)
+                    "UPDATE prevention_rules SET trigger_event = ? WHERE trigger_event = ?", (new, old)
                 )
                 migrated += result.rowcount
             except Exception:
@@ -687,6 +702,7 @@ class EliteStore:
             cursor.execute("INSERT INTO schema_migrations (version) VALUES (4)")
         except Exception:
             pass
+
     # ==================== SCHEMA MIGRATION v5: Learning Subsystem ====================
 
     def _run_learning_migration(self, cursor):
@@ -723,15 +739,161 @@ class EliteStore:
         """)
 
         # Add index for optimization events
-        cursor.execute(
-            "CREATE INDEX IF NOT EXISTS idx_optimization_metric "
-            "ON optimization_events(metric, created_at)"
-        )
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_optimization_metric ON optimization_events(metric, created_at)")
 
         try:
             cursor.execute("INSERT INTO schema_migrations (version) VALUES (5)")
         except Exception:
             pass
+
+    # ==================== SCHEMA MIGRATION v6: Privacy Retention ====================
+
+    def _run_privacy_migration(self, cursor):
+        """Remove legacy raw prompts, telemetry, and secret-like stored values once."""
+        try:
+            cursor.execute("SELECT version FROM schema_migrations WHERE version = 6")
+            if cursor.fetchone():
+                return
+        except Exception:
+            return
+
+        changed = 0
+
+        def sanitize(value: object, limit: int) -> tuple[str, str, bool]:
+            original = str(value or "")
+            bounded = original[:limit]
+            safe_value = redact_text(bounded, limit=max(len(bounded), 1))
+            return safe_value, original, safe_value != bounded
+
+        # Memory content and metadata may have been created by pre-v2 tools.
+        memory_rows = cursor.execute(
+            """SELECT id, memory_type, scope, source, content, privacy_class,
+                      expires_at, tags, quarantined
+               FROM memory_items"""
+        ).fetchall()
+        for row in memory_rows:
+            memory_id = int(row[0])
+            memory_type, raw_memory_type, memory_type_redacted = sanitize(row[1], 80)
+            scope, raw_scope, scope_redacted = sanitize(row[2], 128)
+            source, raw_source, source_redacted = sanitize(row[3], 80)
+            content, raw_content, content_redacted = sanitize(row[4], 5000)
+            privacy_class, raw_privacy_class, privacy_class_redacted = sanitize(row[5], 64)
+            expires_at, raw_expires_at, expires_at_redacted = sanitize(row[6], 64)
+            tags, raw_tags, tags_redacted = sanitize(row[7], 500)
+            changed_fields = any(
+                safe != raw
+                for safe, raw in (
+                    (memory_type, raw_memory_type),
+                    (scope, raw_scope),
+                    (source, raw_source),
+                    (content, raw_content),
+                    (privacy_class, raw_privacy_class),
+                    (expires_at, raw_expires_at),
+                    (tags, raw_tags),
+                )
+            )
+            secret_detected = any(
+                (
+                    memory_type_redacted,
+                    scope_redacted,
+                    source_redacted,
+                    content_redacted,
+                    privacy_class_redacted,
+                    expires_at_redacted,
+                    tags_redacted,
+                )
+            )
+            if secret_detected and privacy_class not in SENSITIVE_MEMORY_CLASSES:
+                privacy_class = "secret_detected"
+            quarantined = int(bool(row[8]))
+            if privacy_class in SENSITIVE_MEMORY_CLASSES:
+                quarantined = 1
+            if not changed_fields and quarantined == int(bool(row[8])):
+                continue
+            # Include the immutable row id to avoid unique-hash collisions after redaction.
+            content_hash = hashlib.sha256(
+                f"v6\0{memory_id}\0{memory_type}\0{scope}\0{source}\0{content}".encode("utf-8")
+            ).hexdigest()
+            cursor.execute(
+                """UPDATE memory_items
+                   SET memory_type = ?, scope = ?, source = ?, content = ?,
+                       privacy_class = ?, expires_at = ?, tags = ?, quarantined = ?,
+                       content_hash = ?
+                   WHERE id = ?""",
+                (
+                    memory_type,
+                    scope,
+                    source,
+                    content,
+                    privacy_class,
+                    expires_at,
+                    tags,
+                    quarantined,
+                    content_hash,
+                    memory_id,
+                ),
+            )
+            changed += 1
+
+        # Prompt and usage history are governed by the v2 metadata-only default.
+        for table, identifier, column in (
+            ("prompt_sessions", "id", "prompt_text"),
+            ("workflow_runs", "run_id", "user_prompt"),
+        ):
+            rows = cursor.execute(f"SELECT {identifier}, {column} FROM {table}").fetchall()
+            for identifier_value, value in rows:
+                raw_value = str(value or "")
+                if not raw_value or raw_value.startswith("[prompt withheld;"):
+                    continue
+                cursor.execute(
+                    f"UPDATE {table} SET {column} = ? WHERE {identifier} = ?",
+                    (withheld_prompt_value(raw_value), identifier_value),
+                )
+                changed += 1
+
+        for column in ("args_summary", "result_summary"):
+            rows = cursor.execute(f"SELECT id, {column} FROM tool_usage_log").fetchall()
+            for usage_id, value in rows:
+                raw_value = str(value or "")
+                if not raw_value or raw_value.startswith("sha256:"):
+                    continue
+                cursor.execute(
+                    f"UPDATE tool_usage_log SET {column} = ? WHERE id = ?",
+                    (metadata_fingerprint(raw_value), usage_id),
+                )
+                changed += 1
+
+        # These fields are surfaced by core workflow preparation, so redact
+        # legacy text before it can re-enter an agent context.
+        for table, columns in (
+            ("workflow_steps", ("action", "evidence")),
+            ("anti_patterns", ("mistake", "root_cause", "fix", "tags")),
+            ("decisions", ("decision", "rationale", "alternatives_rejected", "context")),
+        ):
+            selected_columns = ", ".join(columns)
+            rows = cursor.execute(f"SELECT id, {selected_columns} FROM {table}").fetchall()
+            for row in rows:
+                safe_values = []
+                has_change = False
+                for value in row[1:]:
+                    safe_value, raw_value, _ = sanitize(value, 2000)
+                    safe_values.append(safe_value)
+                    has_change = has_change or safe_value != raw_value
+                if not has_change:
+                    continue
+                assignments = ", ".join(f"{column} = ?" for column in columns)
+                cursor.execute(
+                    f"UPDATE {table} SET {assignments} WHERE id = ?",
+                    (*safe_values, row[0]),
+                )
+                changed += 1
+
+        if changed:
+            # Content-table FTS indexes need an explicit rebuild after updates.
+            cursor.execute("INSERT INTO anti_patterns_fts(anti_patterns_fts) VALUES ('rebuild')")
+            cursor.execute("INSERT INTO decisions_fts(decisions_fts) VALUES ('rebuild')")
+        cursor.execute("INSERT INTO schema_migrations (version) VALUES (6)")
+        logger.info("Privacy retention migration applied", extra={"records_changed": changed})
 
     # ==================== FTS5 SAFETY ====================
 
@@ -740,18 +902,19 @@ class EliteStore:
         """Gap #14 fix: Sanitize FTS5 query input to prevent parse errors.
         Strips special FTS5 operators and wraps remaining tokens in quotes."""
         import re
+
         # Remove FTS5 special characters and operators
-        cleaned = re.sub(r'[*()[\]{}^~]', ' ', query)
+        cleaned = re.sub(r"[*()[\]{}^~]", " ", query)
         # Remove FTS5 boolean operators when used as operators (not inside words)
-        cleaned = re.sub(r'\b(AND|OR|NOT|NEAR)\b', ' ', cleaned, flags=re.IGNORECASE)
+        cleaned = re.sub(r"\b(AND|OR|NOT|NEAR)\b", " ", cleaned, flags=re.IGNORECASE)
         # Remove unbalanced quotes
-        cleaned = cleaned.replace('"', ' ')
+        cleaned = cleaned.replace('"', " ")
         # Collapse whitespace and strip
         tokens = cleaned.split()
         if not tokens:
             return '""'  # Empty query that matches nothing
         # Wrap each token in quotes to treat as literal
-        return ' '.join(f'"{t}"' for t in tokens if t)
+        return " ".join(f'"{t}"' for t in tokens if t)
 
     # ==================== ANTI-PATTERNS ====================
 
@@ -760,6 +923,7 @@ class EliteStore:
             import os
 
             from core.memory.embedding import get_embedding
+
             os.environ["HF_HUB_DISABLE_SYMLINKS_WARNING"] = "1"
             return get_embedding(text)
         except Exception:
@@ -779,13 +943,16 @@ class EliteStore:
             # Dedup: check embedding similarity before inserting
             if emb is not None:
                 try:
-                    c.execute("""
+                    c.execute(
+                        """
                         SELECT a.id, v.distance
                         FROM anti_patterns_vec v 
                         JOIN anti_patterns a ON v.id = a.id
                         WHERE v.embedding MATCH ? AND k = 1
                         ORDER BY v.distance
-                    """, (sqlite_vec.serialize_float32(emb),))
+                    """,
+                        (sqlite_vec.serialize_float32(emb),),
+                    )
                     row = c.fetchone()
                     if row and row[1] < 0.15:  # cosine distance < 0.15 means >85% similar
                         return row[0]  # Return existing ID — dedup
@@ -794,7 +961,7 @@ class EliteStore:
 
             c.execute(
                 "INSERT INTO anti_patterns (mistake, root_cause, fix, severity, tags, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-                (mistake, root_cause, fix, severity, tags, time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()))
+                (mistake, root_cause, fix, severity, tags, time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())),
             )
             row_id = c.lastrowid
 
@@ -803,7 +970,7 @@ class EliteStore:
                 try:
                     c.execute(
                         "INSERT INTO anti_patterns_vec(id, embedding) VALUES (?, ?)",
-                        (row_id, sqlite_vec.serialize_float32(emb))
+                        (row_id, sqlite_vec.serialize_float32(emb)),
                     )
                 except Exception:
                     pass
@@ -811,13 +978,8 @@ class EliteStore:
             # Extract graph node (inside same transaction boundary)
             self.graph.add_node(
                 label="AntiPattern",
-                properties={
-                    "mistake": mistake,
-                    "root_cause": root_cause,
-                    "severity": severity,
-                    "row_id": row_id
-                },
-                node_id=f"ap_{row_id}"
+                properties={"mistake": mistake, "root_cause": root_cause, "severity": severity, "row_id": row_id},
+                node_id=f"ap_{row_id}",
             )
 
         return row_id
@@ -826,6 +988,7 @@ class EliteStore:
         """Search anti-patterns using HybridSearch (RRF fusion of FTS5 + vec)."""
         try:
             from core.memory.hybrid_search import HybridSearch
+
             hs = HybridSearch(self, "anti_patterns")
             results = hs.search(query, limit=limit)
             if results:
@@ -837,29 +1000,58 @@ class EliteStore:
         conn = self._connect()
         try:
             c = conn.cursor()
-            c.execute("""
+            c.execute(
+                """
                 SELECT a.id, a.mistake, a.root_cause, a.fix, a.severity, a.tags, a.created_at
                 FROM anti_patterns_fts f JOIN anti_patterns a ON f.rowid = a.id
                 WHERE anti_patterns_fts MATCH ? ORDER BY rank LIMIT ?
-            """, (self._sanitize_fts_query(query), limit))
-            return [{"id": r[0], "mistake": r[1], "root_cause": r[2], "fix": r[3],
-                     "severity": r[4], "tags": r[5], "created_at": r[6]} for r in c.fetchall()]
+            """,
+                (self._sanitize_fts_query(query), limit),
+            )
+            return [
+                {
+                    "id": r[0],
+                    "mistake": r[1],
+                    "root_cause": r[2],
+                    "fix": r[3],
+                    "severity": r[4],
+                    "tags": r[5],
+                    "created_at": r[6],
+                }
+                for r in c.fetchall()
+            ]
         except Exception:
             return []
         finally:
-            if not getattr(self._local, 'in_transaction', False):
+            if not getattr(self._local, "in_transaction", False):
                 self._close(conn)
 
     def get_all_anti_patterns(self, since: str = None, limit: int = 200) -> list[dict]:
         conn = self._connect()
         c = conn.cursor()
         if since:
-            c.execute("SELECT id, mistake, root_cause, fix, severity, tags, created_at FROM anti_patterns WHERE created_at > ? ORDER BY created_at DESC LIMIT ?", (since, limit))
+            c.execute(
+                "SELECT id, mistake, root_cause, fix, severity, tags, created_at FROM anti_patterns WHERE created_at > ? ORDER BY created_at DESC LIMIT ?",
+                (since, limit),
+            )
         else:
-            c.execute("SELECT id, mistake, root_cause, fix, severity, tags, created_at FROM anti_patterns ORDER BY created_at DESC LIMIT ?", (limit,))
-        results = [{"id": r[0], "mistake": r[1], "root_cause": r[2], "fix": r[3],
-                     "severity": r[4], "tags": r[5], "created_at": r[6]} for r in c.fetchall()]
-        if not getattr(self._local, 'in_transaction', False):
+            c.execute(
+                "SELECT id, mistake, root_cause, fix, severity, tags, created_at FROM anti_patterns ORDER BY created_at DESC LIMIT ?",
+                (limit,),
+            )
+        results = [
+            {
+                "id": r[0],
+                "mistake": r[1],
+                "root_cause": r[2],
+                "fix": r[3],
+                "severity": r[4],
+                "tags": r[5],
+                "created_at": r[6],
+            }
+            for r in c.fetchall()
+        ]
+        if not getattr(self._local, "in_transaction", False):
             self._close(conn)
         return results
 
@@ -868,7 +1060,7 @@ class EliteStore:
         c = conn.cursor()
         c.execute("SELECT COUNT(*) FROM anti_patterns")
         count = c.fetchone()[0]
-        if not getattr(self._local, 'in_transaction', False):
+        if not getattr(self._local, "in_transaction", False):
             self._close(conn)
         return count
 
@@ -879,7 +1071,7 @@ class EliteStore:
         c = conn.cursor()
         c.execute(
             "INSERT INTO decisions (decision, rationale, alternatives_rejected, context, created_at) VALUES (?, ?, ?, ?, ?)",
-            (decision, rationale, alternatives_rejected, context, time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()))
+            (decision, rationale, alternatives_rejected, context, time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())),
         )
         row_id = c.lastrowid
 
@@ -890,7 +1082,7 @@ class EliteStore:
                 try:
                     c.execute(
                         "INSERT INTO decisions_vec(id, embedding) VALUES (?, ?)",
-                        (row_id, sqlite_vec.serialize_float32(emb))
+                        (row_id, sqlite_vec.serialize_float32(emb)),
                     )
                 except Exception:
                     pass
@@ -900,13 +1092,8 @@ class EliteStore:
         # Extract graph node
         self.graph.add_node(
             label="Decision",
-            properties={
-                "decision": decision,
-                "rationale": rationale,
-                "context": context,
-                "row_id": row_id
-            },
-            node_id=f"dec_{row_id}"
+            properties={"decision": decision, "rationale": rationale, "context": context, "row_id": row_id},
+            node_id=f"dec_{row_id}",
         )
 
         return row_id
@@ -915,6 +1102,7 @@ class EliteStore:
         """Search decisions using HybridSearch (RRF fusion of FTS5 + vec)."""
         try:
             from core.memory.hybrid_search import HybridSearch
+
             hs = HybridSearch(self, "decisions")
             results = hs.search(query, limit=limit)
             if results:
@@ -926,29 +1114,56 @@ class EliteStore:
         conn = self._connect()
         try:
             c = conn.cursor()
-            c.execute("""
+            c.execute(
+                """
                 SELECT d.id, d.decision, d.rationale, d.alternatives_rejected, d.context, d.created_at
                 FROM decisions_fts f JOIN decisions d ON f.rowid = d.id
                 WHERE decisions_fts MATCH ? ORDER BY rank LIMIT ?
-            """, (self._sanitize_fts_query(query), limit))
-            return [{"id": r[0], "decision": r[1], "rationale": r[2],
-                     "alternatives_rejected": r[3], "context": r[4], "created_at": r[5]} for r in c.fetchall()]
+            """,
+                (self._sanitize_fts_query(query), limit),
+            )
+            return [
+                {
+                    "id": r[0],
+                    "decision": r[1],
+                    "rationale": r[2],
+                    "alternatives_rejected": r[3],
+                    "context": r[4],
+                    "created_at": r[5],
+                }
+                for r in c.fetchall()
+            ]
         except Exception:
             return []
         finally:
-            if not getattr(self._local, 'in_transaction', False):
+            if not getattr(self._local, "in_transaction", False):
                 self._close(conn)
 
     def get_all_decisions(self, since: str = None, limit: int = 200) -> list[dict]:
         conn = self._connect()
         c = conn.cursor()
         if since:
-            c.execute("SELECT id, decision, rationale, alternatives_rejected, context, created_at FROM decisions WHERE created_at > ? ORDER BY created_at DESC LIMIT ?", (since, limit))
+            c.execute(
+                "SELECT id, decision, rationale, alternatives_rejected, context, created_at FROM decisions WHERE created_at > ? ORDER BY created_at DESC LIMIT ?",
+                (since, limit),
+            )
         else:
-            c.execute("SELECT id, decision, rationale, alternatives_rejected, context, created_at FROM decisions ORDER BY created_at DESC LIMIT ?", (limit,))
-        results = [{"id": r[0], "decision": r[1], "rationale": r[2],
-                     "alternatives_rejected": r[3], "context": r[4], "created_at": r[5]} for r in c.fetchall()]
-        if not getattr(self._local, 'in_transaction', False):
+            c.execute(
+                "SELECT id, decision, rationale, alternatives_rejected, context, created_at FROM decisions ORDER BY created_at DESC LIMIT ?",
+                (limit,),
+            )
+        results = [
+            {
+                "id": r[0],
+                "decision": r[1],
+                "rationale": r[2],
+                "alternatives_rejected": r[3],
+                "context": r[4],
+                "created_at": r[5],
+            }
+            for r in c.fetchall()
+        ]
+        if not getattr(self._local, "in_transaction", False):
             self._close(conn)
         return results
 
@@ -959,7 +1174,7 @@ class EliteStore:
         c = conn.cursor()
         c.execute(
             "INSERT INTO quality_scores (score, dimension, notes, created_at) VALUES (?, ?, ?, ?)",
-            (score, dimension, notes, time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()))
+            (score, dimension, notes, time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())),
         )
         row_id = c.lastrowid
         self._close(conn)
@@ -968,9 +1183,11 @@ class EliteStore:
     def get_quality_trend(self, limit: int = 20) -> dict:
         conn = self._connect()
         c = conn.cursor()
-        c.execute("SELECT score, dimension, notes, created_at FROM quality_scores ORDER BY created_at DESC LIMIT ?", (limit,))
+        c.execute(
+            "SELECT score, dimension, notes, created_at FROM quality_scores ORDER BY created_at DESC LIMIT ?", (limit,)
+        )
         rows = c.fetchall()
-        if not getattr(self._local, 'in_transaction', False):
+        if not getattr(self._local, "in_transaction", False):
             self._close(conn)
         if not rows:
             return {"average": 0, "trend": "no_data", "scores": []}
@@ -986,10 +1203,13 @@ class EliteStore:
             older = avg
             trend = "insufficient_data"
         return {
-            "average": round(avg, 1), "trend": trend, "latest": scores[0] if scores else 0,
-            "recent_avg": round(recent, 1), "older_avg": round(older, 1),
+            "average": round(avg, 1),
+            "trend": trend,
+            "latest": scores[0] if scores else 0,
+            "recent_avg": round(recent, 1),
+            "older_avg": round(older, 1),
             "count": len(scores),
-            "scores": [{"score": r[0], "dimension": r[1], "notes": r[2], "date": r[3]} for r in rows]
+            "scores": [{"score": r[0], "dimension": r[1], "notes": r[2], "date": r[3]} for r in rows],
         }
 
     # ==================== BENCHMARKS (SPC) ====================
@@ -999,7 +1219,7 @@ class EliteStore:
         c = conn.cursor()
         c.execute(
             "INSERT INTO benchmarks (metric, value, unit, context, created_at) VALUES (?, ?, ?, ?, ?)",
-            (metric, value, unit, context, time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()))
+            (metric, value, unit, context, time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())),
         )
         row_id = c.lastrowid
         self._close(conn)
@@ -1010,16 +1230,17 @@ class EliteStore:
         c = conn.cursor()
         c.execute(
             "SELECT value, unit, context, created_at FROM benchmarks WHERE metric = ? ORDER BY created_at DESC LIMIT ?",
-            (metric, limit)
+            (metric, limit),
         )
         rows = c.fetchall()
-        if not getattr(self._local, 'in_transaction', False):
+        if not getattr(self._local, "in_transaction", False):
             self._close(conn)
         if not rows:
             return {"metric": metric, "status": "no_data", "values": []}
         values = [r[0] for r in rows]
         avg = sum(values) / len(values)
         import statistics
+
         stdev = statistics.stdev(values) if len(values) >= 2 else 0
         ucl = avg + 2 * stdev  # Upper control limit (2-sigma)
         lcl = avg - 2 * stdev  # Lower control limit (2-sigma)
@@ -1033,12 +1254,18 @@ class EliteStore:
         baseline = values[-1] if values else 0
         delta_pct = ((latest - baseline) / baseline * 100) if baseline != 0 else 0
         return {
-            "metric": metric, "latest": latest, "baseline": baseline,
-            "average": round(avg, 2), "stdev": round(stdev, 2),
-            "ucl": round(ucl, 2), "lcl": round(lcl, 2),
-            "delta_pct": round(delta_pct, 1), "status": status, "count": len(values),
+            "metric": metric,
+            "latest": latest,
+            "baseline": baseline,
+            "average": round(avg, 2),
+            "stdev": round(stdev, 2),
+            "ucl": round(ucl, 2),
+            "lcl": round(lcl, 2),
+            "delta_pct": round(delta_pct, 1),
+            "status": status,
+            "count": len(values),
             "unit": rows[0][1],
-            "values": [{"value": r[0], "context": r[2], "date": r[3]} for r in rows]
+            "values": [{"value": r[0], "context": r[2], "date": r[3]} for r in rows],
         }
 
     def list_benchmark_metrics(self) -> list[str]:
@@ -1046,7 +1273,7 @@ class EliteStore:
         c = conn.cursor()
         c.execute("SELECT DISTINCT metric FROM benchmarks ORDER BY metric")
         metrics = [r[0] for r in c.fetchall()]
-        if not getattr(self._local, 'in_transaction', False):
+        if not getattr(self._local, "in_transaction", False):
             self._close(conn)
         return metrics
 
@@ -1061,12 +1288,12 @@ class EliteStore:
         c.execute("SELECT id FROM goals WHERE status = 'active' AND objective = ?", (objective,))
         existing = c.fetchone()
         if existing:
-            if not getattr(self._local, 'in_transaction', False):
+            if not getattr(self._local, "in_transaction", False):
                 self._close(conn)
             return existing[0]  # Return existing goal ID instead of creating duplicate
         c.execute(
             "INSERT INTO goals (objective, key_results, status, progress, created_at, updated_at) VALUES (?, ?, 'active', ?, ?, ?)",
-            (objective, json.dumps(key_results), json.dumps(progress), now, now)
+            (objective, json.dumps(key_results), json.dumps(progress), now, now),
         )
         row_id = c.lastrowid
         self._close(conn)
@@ -1075,8 +1302,10 @@ class EliteStore:
     def archive_goal(self, goal_id: int) -> bool:
         conn = self._connect()
         c = conn.cursor()
-        c.execute("UPDATE goals SET status = 'archived', updated_at = ? WHERE id = ?",
-                  (time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()), goal_id))
+        c.execute(
+            "UPDATE goals SET status = 'archived', updated_at = ? WHERE id = ?",
+            (time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()), goal_id),
+        )
         changed = c.rowcount > 0
         self._close(conn)
         return changed
@@ -1095,7 +1324,7 @@ class EliteStore:
         c.execute("SELECT progress, key_results FROM goals WHERE id = ?", (goal_id,))
         row = c.fetchone()
         if not row:
-            if not getattr(self._local, 'in_transaction', False):
+            if not getattr(self._local, "in_transaction", False):
                 self._close(conn)
             return False
         prog = json.loads(row[0])
@@ -1108,26 +1337,37 @@ class EliteStore:
     def get_active_goals(self) -> list[dict]:
         conn = self._connect()
         c = conn.cursor()
-        c.execute("SELECT id, objective, key_results, status, progress, created_at, updated_at FROM goals WHERE status = 'active' ORDER BY created_at DESC")
+        c.execute(
+            "SELECT id, objective, key_results, status, progress, created_at, updated_at FROM goals WHERE status = 'active' ORDER BY created_at DESC"
+        )
         results = []
         for r in c.fetchall():
             kr = json.loads(r[2])
             prog = json.loads(r[4])
             overall = sum(prog.values()) / len(prog) if prog else 0
-            results.append({
-                "id": r[0], "objective": r[1], "key_results": kr, "status": r[3],
-                "progress": prog, "overall_pct": round(overall, 1),
-                "created_at": r[5], "updated_at": r[6]
-            })
-        if not getattr(self._local, 'in_transaction', False):
+            results.append(
+                {
+                    "id": r[0],
+                    "objective": r[1],
+                    "key_results": kr,
+                    "status": r[3],
+                    "progress": prog,
+                    "overall_pct": round(overall, 1),
+                    "created_at": r[5],
+                    "updated_at": r[6],
+                }
+            )
+        if not getattr(self._local, "in_transaction", False):
             self._close(conn)
         return results
 
     def complete_goal(self, goal_id: int) -> bool:
         conn = self._connect()
         c = conn.cursor()
-        c.execute("UPDATE goals SET status = 'completed', updated_at = ? WHERE id = ?",
-                  (time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()), goal_id))
+        c.execute(
+            "UPDATE goals SET status = 'completed', updated_at = ? WHERE id = ?",
+            (time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()), goal_id),
+        )
         changed = c.rowcount > 0
         self._close(conn)
         return changed
@@ -1140,10 +1380,7 @@ class EliteStore:
         for g in active:
             progress = g.get("progress", {})
             kr_list = g.get("key_results", [])
-            g["key_results"] = [
-                {"description": kr, "progress": progress.get(kr, 0)}
-                for kr in kr_list
-            ]
+            g["key_results"] = [{"description": kr, "progress": progress.get(kr, 0)} for kr in kr_list]
         return active
 
     def update_goal(self, goal_id: int, key_result: str, progress: int) -> bool:
@@ -1157,7 +1394,7 @@ class EliteStore:
         c = conn.cursor()
         c.execute(
             "INSERT INTO smoke_tests (description, before_state, created_at) VALUES (?, ?, ?)",
-            (description, before_state, time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()))
+            (description, before_state, time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())),
         )
         row_id = c.lastrowid
         self._close(conn)
@@ -1174,13 +1411,23 @@ class EliteStore:
     def get_smoke_test(self, test_id: int) -> dict | None:
         conn = self._connect()
         c = conn.cursor()
-        c.execute("SELECT id, description, before_state, after_state, verdict, created_at FROM smoke_tests WHERE id = ?", (test_id,))
+        c.execute(
+            "SELECT id, description, before_state, after_state, verdict, created_at FROM smoke_tests WHERE id = ?",
+            (test_id,),
+        )
         r = c.fetchone()
-        if not getattr(self._local, 'in_transaction', False):
+        if not getattr(self._local, "in_transaction", False):
             self._close(conn)
         if not r:
             return None
-        return {"id": r[0], "description": r[1], "before_state": r[2], "after_state": r[3], "verdict": r[4], "created_at": r[5]}
+        return {
+            "id": r[0],
+            "description": r[1],
+            "before_state": r[2],
+            "after_state": r[3],
+            "verdict": r[4],
+            "created_at": r[5],
+        }
 
     # ==================== AFTER ACTION REVIEWS ====================
 
@@ -1189,7 +1436,7 @@ class EliteStore:
         c = conn.cursor()
         c.execute(
             "INSERT INTO action_reviews (intended, actual, went_well, improve, learnings, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-            (intended, actual, went_well, improve, learnings, time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()))
+            (intended, actual, went_well, improve, learnings, time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())),
         )
         row_id = c.lastrowid
         self._close(conn)
@@ -1198,20 +1445,37 @@ class EliteStore:
     def get_recent_aars(self, limit: int = 10) -> list[dict]:
         conn = self._connect()
         c = conn.cursor()
-        c.execute("SELECT id, intended, actual, went_well, improve, learnings, created_at FROM action_reviews ORDER BY created_at DESC LIMIT ?", (limit,))
-        results = [{"id": r[0], "intended": r[1], "actual": r[2], "went_well": r[3],
-                     "improve": r[4], "learnings": r[5], "created_at": r[6]} for r in c.fetchall()]
-        if not getattr(self._local, 'in_transaction', False):
+        c.execute(
+            "SELECT id, intended, actual, went_well, improve, learnings, created_at FROM action_reviews ORDER BY created_at DESC LIMIT ?",
+            (limit,),
+        )
+        results = [
+            {
+                "id": r[0],
+                "intended": r[1],
+                "actual": r[2],
+                "went_well": r[3],
+                "improve": r[4],
+                "learnings": r[5],
+                "created_at": r[6],
+            }
+            for r in c.fetchall()
+        ]
+        if not getattr(self._local, "in_transaction", False):
             self._close(conn)
         return results
 
     # ==================== PROMPT INTELLIGENCE ====================
 
-    def record_prompt_intent(self, session_id: str, prompt_text: str,
-                             intent_category: str = 'unknown',
-                             reasoning_type: str = 'unknown',
-                             implicit_expectation: str = '',
-                             failure_detected: str = '') -> int:
+    def record_prompt_intent(
+        self,
+        session_id: str,
+        prompt_text: str,
+        intent_category: str = "unknown",
+        reasoning_type: str = "unknown",
+        implicit_expectation: str = "",
+        failure_detected: str = "",
+    ) -> int:
         """Record a user prompt with extracted intent and reasoning."""
         conn = self._connect()
         c = conn.cursor()
@@ -1220,14 +1484,21 @@ class EliteStore:
                (session_id, prompt_text, intent_category, reasoning_type,
                 implicit_expectation, failure_detected, created_at)
                VALUES (?, ?, ?, ?, ?, ?, ?)""",
-            (session_id, prompt_text, intent_category, reasoning_type,
-             implicit_expectation, failure_detected, time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()))
+            (
+                session_id,
+                prompt_storage_value(prompt_text),
+                intent_category,
+                reasoning_type,
+                implicit_expectation,
+                failure_detected,
+                time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
+            ),
         )
         row_id = c.lastrowid
         self._close(conn)
         return row_id
 
-    def analyze_prompt_sequence(self, session_id: str = '', limit: int = 20) -> dict:
+    def analyze_prompt_sequence(self, session_id: str = "", limit: int = 20) -> dict:
         """Analyze the last N prompts to detect meta-patterns.
         Returns pattern analysis with escalation, repetition, and gap injection rates."""
         conn = self._connect()
@@ -1236,16 +1507,16 @@ class EliteStore:
             c.execute(
                 "SELECT id, prompt_text, intent_category, reasoning_type, failure_detected, created_at "
                 "FROM prompt_sessions WHERE session_id = ? ORDER BY created_at DESC LIMIT ?",
-                (session_id, limit)
+                (session_id, limit),
             )
         else:
             c.execute(
                 "SELECT id, prompt_text, intent_category, reasoning_type, failure_detected, created_at "
                 "FROM prompt_sessions ORDER BY created_at DESC LIMIT ?",
-                (limit,)
+                (limit,),
             )
         rows = c.fetchall()
-        if not getattr(self._local, 'in_transaction', False):
+        if not getattr(self._local, "in_transaction", False):
             self._close(conn)
 
         if not rows:
@@ -1253,9 +1524,9 @@ class EliteStore:
 
         # Analyze patterns
         total = len(rows)
-        loop_kicks = sum(1 for r in rows if r[3] in ('loop_continuation', 'loop_kick'))
-        gap_injections = sum(1 for r in rows if r[3] in ('gap_injection', 'anticipation_failure'))
-        depth_rejections = sum(1 for r in rows if r[3] in ('depth_rejection', 'depth_escalation'))
+        loop_kicks = sum(1 for r in rows if r[3] in ("loop_continuation", "loop_kick"))
+        gap_injections = sum(1 for r in rows if r[3] in ("gap_injection", "anticipation_failure"))
+        depth_rejections = sum(1 for r in rows if r[3] in ("depth_rejection", "depth_escalation"))
         detection_failures = sum(1 for r in rows if r[4])  # failure_detected is non-empty
 
         # Calculate health score (0-100, lower = worse)
@@ -1265,17 +1536,32 @@ class EliteStore:
 
         patterns = []
         if loop_kicks > 0:
-            patterns.append({"type": "LOOP_FAILURE", "count": loop_kicks,
-                           "pct": round(100 * loop_kicks / total, 1),
-                           "fix": "System stops when it should continue. Set auto_continue=True after 2+ go prompts."})
+            patterns.append(
+                {
+                    "type": "LOOP_FAILURE",
+                    "count": loop_kicks,
+                    "pct": round(100 * loop_kicks / total, 1),
+                    "fix": "System stops when it should continue. Set auto_continue=True after 2+ go prompts.",
+                }
+            )
         if gap_injections > 0:
-            patterns.append({"type": "ANTICIPATION_FAILURE", "count": gap_injections,
-                           "pct": round(100 * gap_injections / total, 1),
-                           "fix": "Run architecture checklist internally before presenting designs."})
+            patterns.append(
+                {
+                    "type": "ANTICIPATION_FAILURE",
+                    "count": gap_injections,
+                    "pct": round(100 * gap_injections / total, 1),
+                    "fix": "Run architecture checklist internally before presenting designs.",
+                }
+            )
         if depth_rejections > 0:
-            patterns.append({"type": "DEPTH_FAILURE", "count": depth_rejections,
-                           "pct": round(100 * depth_rejections / total, 1),
-                           "fix": "Gap-analyze instead of pattern-matching. Check what was NOT mentioned."})
+            patterns.append(
+                {
+                    "type": "DEPTH_FAILURE",
+                    "count": depth_rejections,
+                    "pct": round(100 * depth_rejections / total, 1),
+                    "fix": "Gap-analyze instead of pattern-matching. Check what was NOT mentioned.",
+                }
+            )
 
         return {
             "total_prompts": total,
@@ -1306,24 +1592,36 @@ class EliteStore:
             "SELECT pattern_name, evidence_count, example_prompts, system_adaptation, confidence, last_seen "
             "FROM user_thinking_patterns ORDER BY confidence DESC"
         )
-        results = [{"pattern": r[0], "pattern_name": r[0], "evidence": r[1], "evidence_count": r[1],
-                     "examples": r[2], "example_prompts": r[2],
-                     "adaptation": r[3], "system_adaptation": r[3],
-                     "confidence": r[4], "last_seen": r[5]}
-                    for r in c.fetchall()]
-        if not getattr(self._local, 'in_transaction', False):
+        results = [
+            {
+                "pattern": r[0],
+                "pattern_name": r[0],
+                "evidence": r[1],
+                "evidence_count": r[1],
+                "examples": r[2],
+                "example_prompts": r[2],
+                "adaptation": r[3],
+                "system_adaptation": r[3],
+                "confidence": r[4],
+                "last_seen": r[5],
+            }
+            for r in c.fetchall()
+        ]
+        if not getattr(self._local, "in_transaction", False):
             self._close(conn)
         return results
 
-    def update_thinking_pattern(self, pattern_name: str, system_adaptation: str,
-                                 example_prompt: str = '') -> str:
+    def update_thinking_pattern(self, pattern_name: str, system_adaptation: str, example_prompt: str = "") -> str:
         """Update or create a user thinking pattern."""
         import json
+
         conn = self._connect()
         c = conn.cursor()
         now = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
-        c.execute("SELECT id, evidence_count, example_prompts, confidence FROM user_thinking_patterns WHERE pattern_name = ?",
-                  (pattern_name,))
+        c.execute(
+            "SELECT id, evidence_count, example_prompts, confidence FROM user_thinking_patterns WHERE pattern_name = ?",
+            (pattern_name,),
+        )
         existing = c.fetchone()
         if existing:
             new_count = existing[1] + 1
@@ -1338,7 +1636,7 @@ class EliteStore:
             c.execute(
                 "UPDATE user_thinking_patterns SET evidence_count = ?, example_prompts = ?, "
                 "confidence = ?, system_adaptation = ?, last_seen = ? WHERE id = ?",
-                (new_count, json.dumps(examples), new_confidence, system_adaptation, now, existing[0])
+                (new_count, json.dumps(examples), new_confidence, system_adaptation, now, existing[0]),
             )
             action = f"Updated pattern '{pattern_name}' (evidence: {new_count}, confidence: {new_confidence:.2f})"
         else:
@@ -1346,7 +1644,7 @@ class EliteStore:
             c.execute(
                 "INSERT INTO user_thinking_patterns (pattern_name, evidence_count, example_prompts, "
                 "system_adaptation, confidence, last_seen) VALUES (?, 1, ?, ?, 0.5, ?)",
-                (pattern_name, json.dumps(examples), system_adaptation, now)
+                (pattern_name, json.dumps(examples), system_adaptation, now),
             )
             action = f"Created new pattern '{pattern_name}' (confidence: 0.50)"
         self._close(conn)
@@ -1354,9 +1652,14 @@ class EliteStore:
 
     # ==================== TOOL USAGE TRACKING ====================
 
-    def log_tool_usage(self, tool_name: str, args_summary: str = '',
-                       result_summary: str = '', session_id: str = '',
-                       duration_ms: int = 0) -> int:
+    def log_tool_usage(
+        self,
+        tool_name: str,
+        args_summary: str = "",
+        result_summary: str = "",
+        session_id: str = "",
+        duration_ms: int = 0,
+    ) -> int:
         """Log a tool invocation for usage analytics."""
         conn = self._connect()
         c = conn.cursor()
@@ -1364,8 +1667,14 @@ class EliteStore:
             """INSERT INTO tool_usage_log 
                (tool_name, args_summary, result_summary, session_id, duration_ms, created_at)
                VALUES (?, ?, ?, ?, ?, ?)""",
-            (tool_name, (args_summary or '')[:500], (result_summary or '')[:500], session_id,
-             duration_ms, time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()))
+            (
+                tool_name,
+                telemetry_summary(args_summary)[:500] if args_summary else "",
+                telemetry_summary(result_summary)[:500] if result_summary else "",
+                session_id,
+                duration_ms,
+                time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
+            ),
         )
         row_id = c.lastrowid
         self._close(conn)
@@ -1375,24 +1684,52 @@ class EliteStore:
         """Get tool usage statistics for the last N days."""
         conn = self._connect()
         c = conn.cursor()
-        cutoff = time.strftime("%Y-%m-%d %H:%M:%S",
-                               time.gmtime(time.time() - max(1, days) * 86400))
+        cutoff = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(time.time() - max(1, days) * 86400))
         c.execute(
             "SELECT tool_name, COUNT(*) as cnt FROM tool_usage_log "
             "WHERE created_at >= ? GROUP BY tool_name ORDER BY cnt DESC",
-            (cutoff,)
+            (cutoff,),
         )
         usage = {r[0]: r[1] for r in c.fetchall()}
         c.execute("SELECT COUNT(*) FROM tool_usage_log WHERE created_at >= ?", (cutoff,))
         total = c.fetchone()[0]
-        if not getattr(self._local, 'in_transaction', False):
+        if not getattr(self._local, "in_transaction", False):
             self._close(conn)
         # Find never-used tools (would need tool registry — return what we have)
         return {
             "total_invocations": total,
             "by_tool": usage,
             "most_used": list(usage.keys())[:5] if usage else [],
-            "period_days": days
+            "period_days": days,
+        }
+
+    def get_operational_summary(self, days: int = 7) -> dict:
+        """Return local aggregate health metrics without exposing tool payloads."""
+        period_days = max(1, min(int(days or 7), 90))
+        cutoff = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(time.time() - period_days * 86400))
+        conn = self._connect()
+        c = conn.cursor()
+        c.execute(
+            """SELECT COUNT(*), COALESCE(AVG(duration_ms), 0), COALESCE(MAX(duration_ms), 0)
+               FROM tool_usage_log WHERE created_at >= ?""",
+            (cutoff,),
+        )
+        invocation_count, average_latency_ms, max_latency_ms = c.fetchone()
+        c.execute("SELECT status, COUNT(*) FROM workflow_runs GROUP BY status")
+        workflow_statuses = {row[0]: row[1] for row in c.fetchall()}
+        c.execute("SELECT quarantined, COUNT(*) FROM memory_items GROUP BY quarantined")
+        memory_counts = {"trusted": 0, "quarantined": 0}
+        for quarantined, count in c.fetchall():
+            memory_counts["quarantined" if quarantined else "trusted"] = count
+        if not getattr(self._local, "in_transaction", False):
+            self._close(conn)
+        return {
+            "period_days": period_days,
+            "tool_invocations": int(invocation_count or 0),
+            "average_latency_ms": round(float(average_latency_ms or 0), 2),
+            "max_latency_ms": int(max_latency_ms or 0),
+            "workflow_statuses": workflow_statuses,
+            "memory_items": memory_counts,
         }
 
     # ==================== WORKFLOW FLIGHT RECORDER ====================
@@ -1416,7 +1753,10 @@ class EliteStore:
                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     run_id,
-                    str(run.get("user_prompt", ""))[:5000],
+                    # A workflow can be persisted automatically by a tool
+                    # call, so it follows the same explicit raw-prompt policy
+                    # as adaptive-learning telemetry.
+                    prompt_storage_value(str(run.get("user_prompt", ""))),
                     str(run.get("intent", "general")),
                     int(run.get("complexity", 1)),
                     str(run.get("budget_tier", "direct")),
@@ -1439,9 +1779,9 @@ class EliteStore:
                         run_id,
                         index,
                         str(step.get("step_name", f"step_{index}")),
-                        str(step.get("action", ""))[:2000],
+                        redact_text(str(step.get("action", "")), limit=2000),
                         str(step.get("status", "pending")),
-                        str(step.get("evidence", ""))[:2000],
+                        redact_text(str(step.get("evidence", "")), limit=2000),
                         now,
                         now,
                     ),
@@ -1461,7 +1801,7 @@ class EliteStore:
         )
         row = c.fetchone()
         if not row:
-            if not getattr(self._local, 'in_transaction', False):
+            if not getattr(self._local, "in_transaction", False):
                 self._close(conn)
             return None
         c.execute(
@@ -1473,15 +1813,15 @@ class EliteStore:
             {
                 "step_index": r[0],
                 "step_name": r[1],
-                "action": r[2],
+                "action": redact_text(r[2], limit=2000),
                 "status": r[3],
-                "evidence": r[4],
+                "evidence": redact_text(r[4], limit=2000),
                 "created_at": r[5],
                 "updated_at": r[6],
             }
             for r in c.fetchall()
         ]
-        if not getattr(self._local, 'in_transaction', False):
+        if not getattr(self._local, "in_transaction", False):
             self._close(conn)
 
         def _loads(value: str) -> list:
@@ -1527,7 +1867,7 @@ class EliteStore:
                 (limit,),
             )
         rows = c.fetchall()
-        if not getattr(self._local, 'in_transaction', False):
+        if not getattr(self._local, "in_transaction", False):
             self._close(conn)
         return [
             {
@@ -1549,14 +1889,30 @@ class EliteStore:
         conn = self._connect()
         c = conn.cursor()
         now = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
+        safe_evidence = redact_text((evidence or "")[:2000], limit=2000)
         c.execute(
             """UPDATE workflow_steps SET status = ?, evidence = ?, updated_at = ?
                WHERE run_id = ? AND step_index = ?""",
-            (status, (evidence or "")[:2000], now, run_id, step_index),
+            (status, safe_evidence, now, run_id, step_index),
         )
         changed = c.rowcount > 0
         if changed:
-            c.execute("UPDATE workflow_runs SET updated_at = ? WHERE run_id = ?", (now, run_id))
+            c.execute("SELECT status FROM workflow_steps WHERE run_id = ? ORDER BY step_index", (run_id,))
+            statuses = [row[0] for row in c.fetchall()]
+            if any(item == "failed" for item in statuses):
+                workflow_status = "failed"
+            elif any(item == "blocked" for item in statuses):
+                workflow_status = "blocked"
+            elif statuses and all(item in {"passed", "skipped"} for item in statuses):
+                workflow_status = "completed"
+            elif any(item == "running" for item in statuses):
+                workflow_status = "running"
+            else:
+                workflow_status = "planned"
+            c.execute(
+                "UPDATE workflow_runs SET status = ?, updated_at = ? WHERE run_id = ?",
+                (workflow_status, now, run_id),
+            )
         self._close(conn)
         return changed
 
@@ -1579,21 +1935,42 @@ class EliteStore:
         Items with low trust, low confidence, or sensitive privacy classes are
         retained for audit but quarantined from automatic context packs.
         """
-        content = (content or "").strip()
+        content = (content or "").strip()[:5000]
         if not content:
             raise ValueError("memory content is required")
-        memory_type = (memory_type or "fact").strip().lower()
-        scope = (scope or "global").strip().lower()
-        source = (source or "manual").strip().lower()
-        privacy_class = (privacy_class or "internal").strip().lower()
+        redacted_content = redact_text(content, limit=max(len(content), 1))
+        secret_detected = redacted_content != content
+        content = redacted_content
+        raw_memory_type = (memory_type or "fact").strip().lower()[:80]
+        raw_scope = (scope or "global").strip().lower()[:128]
+        raw_source = (source or "manual").strip().lower()[:80]
+        raw_privacy_class = (privacy_class or "internal").strip().lower()[:64]
+        raw_expires_at = str(expires_at or "")[:64]
+        raw_tags = str(tags or "")[:500]
+        memory_type = redact_text(raw_memory_type, limit=max(len(raw_memory_type), 1))
+        scope = redact_text(raw_scope, limit=max(len(raw_scope), 1))
+        source = redact_text(raw_source, limit=max(len(raw_source), 1))
+        privacy_class = redact_text(raw_privacy_class, limit=max(len(raw_privacy_class), 1))
+        expires_at = redact_text(raw_expires_at, limit=max(len(raw_expires_at), 1))
+        tags = redact_text(raw_tags, limit=max(len(raw_tags), 1))
+        secret_detected = secret_detected or any(
+            sanitized != original
+            for sanitized, original in (
+                (memory_type, raw_memory_type),
+                (scope, raw_scope),
+                (source, raw_source),
+                (privacy_class, raw_privacy_class),
+                (expires_at, raw_expires_at),
+                (tags, raw_tags),
+            )
+        )
+        if secret_detected and privacy_class not in SENSITIVE_MEMORY_CLASSES:
+            privacy_class = "secret_detected"
         confidence = max(0.0, min(1.0, float(confidence)))
         trust_score = max(0.0, min(1.0, float(trust_score)))
-        sensitive_classes = {"secret", "credential", "credentials", "highly_sensitive", "private_key"}
-        quarantined = 1 if confidence < 0.4 or trust_score < 0.5 or privacy_class in sensitive_classes else 0
+        quarantined = 1 if confidence < 0.4 or trust_score < 0.5 or privacy_class in SENSITIVE_MEMORY_CLASSES else 0
         now = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
-        content_hash = hashlib.sha256(
-            f"{memory_type}\0{scope}\0{source}\0{content}".encode("utf-8")
-        ).hexdigest()
+        content_hash = hashlib.sha256(f"{memory_type}\0{scope}\0{source}\0{content}".encode("utf-8")).hexdigest()
 
         conn = self._connect()
         c = conn.cursor()
@@ -1612,8 +1989,8 @@ class EliteStore:
                     confidence,
                     trust_score,
                     privacy_class,
-                    expires_at or "",
-                    tags or "",
+                    expires_at,
+                    tags,
                     quarantined,
                     content_hash,
                     now,
@@ -1627,7 +2004,7 @@ class EliteStore:
                           privacy_class = ?, expires_at = ?, tags = ?,
                           quarantined = ?, updated_at = ?
                    WHERE content_hash = ?""",
-                (confidence, trust_score, privacy_class, expires_at or "", tags or "", quarantined, now, content_hash),
+                (confidence, trust_score, privacy_class, expires_at, tags, quarantined, now, content_hash),
             )
             c.execute("SELECT id FROM memory_items WHERE content_hash = ?", (content_hash,))
             row_id = c.fetchone()[0]
@@ -1665,7 +2042,7 @@ class EliteStore:
             tuple(params),
         )
         rows = c.fetchall()
-        if not getattr(self._local, 'in_transaction', False):
+        if not getattr(self._local, "in_transaction", False):
             self._close(conn)
 
         terms = [term for term in (query or "").lower().split() if len(term) > 2][:8]
@@ -1678,15 +2055,15 @@ class EliteStore:
             results.append(
                 {
                     "id": r[0],
-                    "memory_type": r[1],
-                    "scope": r[2],
-                    "source": r[3],
-                    "content": r[4],
+                    "memory_type": redact_text(r[1], limit=80),
+                    "scope": redact_text(r[2], limit=128),
+                    "source": redact_text(r[3], limit=80),
+                    "content": redact_text(r[4], limit=5000),
                     "confidence": r[5],
                     "trust_score": r[6],
-                    "privacy_class": r[7],
-                    "expires_at": r[8],
-                    "tags": r[9],
+                    "privacy_class": redact_text(r[7], limit=64),
+                    "expires_at": redact_text(r[8], limit=64),
+                    "tags": redact_text(r[9], limit=500),
                     "quarantined": bool(r[10]),
                     "created_at": r[11],
                     "updated_at": r[12],
@@ -1697,11 +2074,86 @@ class EliteStore:
         results.sort(key=lambda item: (item["match_score"], item["trust_score"], item["confidence"]), reverse=True)
         return results[:limit]
 
+    def get_memory_item(self, memory_id: int, include_quarantined: bool = False) -> dict | None:
+        """Retrieve one memory record by id without relying on keyword ranking."""
+        conn = self._connect()
+        c = conn.cursor()
+        query = """
+            SELECT id, memory_type, scope, source, content, confidence, trust_score,
+                   privacy_class, expires_at, tags, quarantined, created_at, updated_at
+            FROM memory_items WHERE id = ?
+        """
+        params: list[object] = [int(memory_id)]
+        if not include_quarantined:
+            query += " AND quarantined = 0"
+        c.execute(query, tuple(params))
+        row = c.fetchone()
+        if not getattr(self._local, "in_transaction", False):
+            self._close(conn)
+        if row is None:
+            return None
+        return {
+            "id": row[0],
+            "memory_type": redact_text(row[1], limit=80),
+            "scope": redact_text(row[2], limit=128),
+            "source": redact_text(row[3], limit=80),
+            "content": redact_text(row[4], limit=5000),
+            "confidence": row[5],
+            "trust_score": row[6],
+            "privacy_class": redact_text(row[7], limit=64),
+            "expires_at": redact_text(row[8], limit=64),
+            "tags": redact_text(row[9], limit=500),
+            "quarantined": bool(row[10]),
+            "created_at": row[11],
+            "updated_at": row[12],
+        }
+
+    def approve_memory_item(self, memory_id: int, trust_score: float = 0.7) -> bool:
+        """Promote one quarantined memory item after an explicit human review."""
+        trust_score = max(0.5, min(1.0, float(trust_score)))
+        conn = self._connect()
+        c = conn.cursor()
+        now = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
+        c.execute(
+            """UPDATE memory_items
+               SET quarantined = 0, trust_score = ?, updated_at = ?
+               WHERE id = ? AND quarantined = 1
+                 AND lower(privacy_class) NOT IN (?, ?, ?, ?, ?, ?)""",
+            (
+                trust_score,
+                now,
+                int(memory_id),
+                "secret",
+                "credential",
+                "credentials",
+                "highly_sensitive",
+                "private_key",
+                "secret_detected",
+            ),
+        )
+        approved = c.rowcount > 0
+        self._close(conn)
+        return approved
+
+    def delete_memory_item(self, memory_id: int) -> bool:
+        """Permanently remove one locally stored memory item on explicit request."""
+        conn = self._connect()
+        c = conn.cursor()
+        c.execute("DELETE FROM memory_items WHERE id = ?", (int(memory_id),))
+        deleted = c.rowcount > 0
+        self._close(conn)
+        return deleted
+
     # ==================== MISSED DETECTIONS ====================
 
-    def record_missed_detection(self, detection_type: str, what_was_missed: str,
-                                 root_cause: str, prevention_rule: str,
-                                 trigger_prompt_id: int = None) -> int:
+    def record_missed_detection(
+        self,
+        detection_type: str,
+        what_was_missed: str,
+        root_cause: str,
+        prevention_rule: str,
+        trigger_prompt_id: int = None,
+    ) -> int:
         """Record something the system should have caught but didn't.
         ChatGPT §4 fix: Auto-generates a prevention rule to close the learn→prevent loop."""
         conn = self._connect()
@@ -1711,8 +2163,14 @@ class EliteStore:
                (trigger_prompt_id, detection_type, what_was_missed, root_cause,
                 prevention_rule, created_at)
                VALUES (?, ?, ?, ?, ?, ?)""",
-            (trigger_prompt_id, detection_type, what_was_missed, root_cause,
-             prevention_rule, time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()))
+            (
+                trigger_prompt_id,
+                detection_type,
+                what_was_missed,
+                root_cause,
+                prevention_rule,
+                time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
+            ),
         )
         row_id = c.lastrowid
         self._close(conn)
@@ -1722,13 +2180,13 @@ class EliteStore:
         if prevention_rule and prevention_rule.strip():
             # Determine trigger event from detection type
             trigger_map = {
-                'anti_pattern': 'prompt.received',
-                'security': 'phase.before:code_change',
-                'quality': 'phase.after:code_change',
-                'design': 'phase.before:design',
-                'test': 'phase.after:code_change',
+                "anti_pattern": "prompt.received",
+                "security": "phase.before:code_change",
+                "quality": "phase.after:code_change",
+                "design": "phase.before:design",
+                "test": "phase.after:code_change",
             }
-            trigger = trigger_map.get(detection_type, 'tool.after:*')
+            trigger = trigger_map.get(detection_type, "tool.after:*")
             rule_name = f"auto_{detection_type}_{row_id}"
             try:
                 self.register_prevention_rule(
@@ -1736,7 +2194,7 @@ class EliteStore:
                     trigger_event=trigger,
                     check_query=what_was_missed[:500],
                     action_on_match=prevention_rule[:500],
-                    severity='P1',
+                    severity="P1",
                     source_detection_id=row_id,
                 )
             except Exception:
@@ -1752,18 +2210,25 @@ class EliteStore:
             "SELECT id, detection_type, what_was_missed, root_cause, prevention_rule, created_at "
             "FROM missed_detections WHERE automated = 0 ORDER BY created_at DESC"
         )
-        results = [{"id": r[0], "type": r[1], "missed": r[2], "root_cause": r[3],
-                     "prevention_rule": r[4], "created_at": r[5]} for r in c.fetchall()]
-        if not getattr(self._local, 'in_transaction', False):
+        results = [
+            {"id": r[0], "type": r[1], "missed": r[2], "root_cause": r[3], "prevention_rule": r[4], "created_at": r[5]}
+            for r in c.fetchall()
+        ]
+        if not getattr(self._local, "in_transaction", False):
             self._close(conn)
         return results
 
     # ==================== PREVENTION RULES ====================
 
-    def register_prevention_rule(self, rule_name: str, trigger_event: str,
-                                  check_query: str, action_on_match: str,
-                                  severity: str = 'P1',
-                                  source_detection_id: int = None) -> str:
+    def register_prevention_rule(
+        self,
+        rule_name: str,
+        trigger_event: str,
+        check_query: str,
+        action_on_match: str,
+        severity: str = "P1",
+        source_detection_id: int = None,
+    ) -> str:
         """Register an automated prevention rule derived from a missed detection."""
         conn = self._connect()
         c = conn.cursor()
@@ -1773,29 +2238,35 @@ class EliteStore:
                    (rule_name, trigger_event, check_query, action_on_match,
                     severity, source_detection_id, created_at)
                    VALUES (?, ?, ?, ?, ?, ?, ?)""",
-                (rule_name, trigger_event, check_query, action_on_match,
-                 severity, source_detection_id, time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()))
+                (
+                    rule_name,
+                    trigger_event,
+                    check_query,
+                    action_on_match,
+                    severity,
+                    source_detection_id,
+                    time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
+                ),
             )
             # Mark the source detection as automated
             if source_detection_id:
-                c.execute("UPDATE missed_detections SET automated = 1 WHERE id = ?",
-                          (source_detection_id,))
+                c.execute("UPDATE missed_detections SET automated = 1 WHERE id = ?", (source_detection_id,))
             self._close(conn)
             return f"Prevention rule '{rule_name}' registered (severity: {severity})"
         except Exception as e:
-            if 'UNIQUE' in str(e):
+            if "UNIQUE" in str(e):
                 # Update existing rule
                 c.execute(
                     "UPDATE prevention_rules SET check_query = ?, action_on_match = ?, "
                     "severity = ? WHERE rule_name = ?",
-                    (check_query, action_on_match, severity, rule_name)
+                    (check_query, action_on_match, severity, rule_name),
                 )
                 self._close(conn)
                 return f"Prevention rule '{rule_name}' updated"
             self._close(conn)
             raise
 
-    def get_active_prevention_rules(self, trigger_event: str = '') -> list[dict]:
+    def get_active_prevention_rules(self, trigger_event: str = "") -> list[dict]:
         """Get all active prevention rules, optionally filtered by trigger event."""
         conn = self._connect()
         c = conn.cursor()
@@ -1803,17 +2274,26 @@ class EliteStore:
             c.execute(
                 "SELECT id, rule_name, trigger_event, check_query, action_on_match, "
                 "severity, times_triggered FROM prevention_rules WHERE enabled = 1 AND trigger_event = ?",
-                (trigger_event,)
+                (trigger_event,),
             )
         else:
             c.execute(
                 "SELECT id, rule_name, trigger_event, check_query, action_on_match, "
                 "severity, times_triggered FROM prevention_rules WHERE enabled = 1"
             )
-        results = [{"id": r[0], "rule_name": r[1], "trigger_event": r[2], "check_query": r[3],
-                     "action": r[4], "severity": r[5], "times_triggered": r[6]}
-                    for r in c.fetchall()]
-        if not getattr(self._local, 'in_transaction', False):
+        results = [
+            {
+                "id": r[0],
+                "rule_name": r[1],
+                "trigger_event": r[2],
+                "check_query": r[3],
+                "action": r[4],
+                "severity": r[5],
+                "times_triggered": r[6],
+            }
+            for r in c.fetchall()
+        ]
+        if not getattr(self._local, "in_transaction", False):
             self._close(conn)
         return results
 
@@ -1821,8 +2301,7 @@ class EliteStore:
         """Increment the trigger count for a prevention rule."""
         conn = self._connect()
         c = conn.cursor()
-        c.execute("UPDATE prevention_rules SET times_triggered = times_triggered + 1 WHERE id = ?",
-                  (rule_id,))
+        c.execute("UPDATE prevention_rules SET times_triggered = times_triggered + 1 WHERE id = ?", (rule_id,))
         self._close(conn)
 
     def log_injection(self, session_id: str, anti_pattern_ids: list[int], prompt_hash: str, prompt_embedding=None):
@@ -1832,7 +2311,7 @@ class EliteStore:
         c.execute(
             "INSERT INTO injection_events (session_id, prompt_hash, prompt_embedding, anti_pattern_ids, injected_at) "
             "VALUES (?, ?, ?, ?, ?)",
-            (session_id, prompt_hash, prompt_embedding, json.dumps(anti_pattern_ids), time.time())
+            (session_id, prompt_hash, prompt_embedding, json.dumps(anti_pattern_ids), time.time()),
         )
         conn.commit()
         return c.lastrowid
@@ -1843,7 +2322,7 @@ class EliteStore:
         c = conn.cursor()
         c.execute(
             "UPDATE injection_events SET outcome = ?, resolved_at = ?, recurrence_anti_pattern_id = ? WHERE id = ?",
-            (outcome, time.time(), recurrence_id, injection_id)
+            (outcome, time.time(), recurrence_id, injection_id),
         )
         conn.commit()
 
@@ -1856,10 +2335,19 @@ class EliteStore:
         c.execute(
             "SELECT id, session_id, prompt_hash, anti_pattern_ids, injected_at, outcome "
             "FROM injection_events WHERE session_id = ? AND injected_at > ? ORDER BY injected_at DESC",
-            (session_id, since)
+            (session_id, since),
         )
-        return [{'id': r[0], 'session_id': r[1], 'prompt_hash': r[2], 'anti_pattern_ids': json.loads(r[3]),
-                 'injected_at': r[4], 'outcome': r[5]} for r in c.fetchall()]
+        return [
+            {
+                "id": r[0],
+                "session_id": r[1],
+                "prompt_hash": r[2],
+                "anti_pattern_ids": json.loads(r[3]),
+                "injected_at": r[4],
+                "outcome": r[5],
+            }
+            for r in c.fetchall()
+        ]
 
     def get_injection_prevention_rate(self) -> dict:
         """Calculate the prevention rate from injection events."""
@@ -1867,19 +2355,27 @@ class EliteStore:
         c = conn.cursor()
         c.execute("SELECT outcome, COUNT(*) FROM injection_events WHERE outcome != 'unknown' GROUP BY outcome")
         counts = dict(c.fetchall())
-        prevented = counts.get('prevented', 0)
-        recurred = counts.get('recurred', 0)
+        prevented = counts.get("prevented", 0)
+        recurred = counts.get("recurred", 0)
         total = prevented + recurred
         return {
-            'prevented': prevented,
-            'recurred': recurred,
-            'total': total,
-            'prevention_rate': round(prevented / total, 3) if total > 0 else None
+            "prevented": prevented,
+            "recurred": recurred,
+            "total": total,
+            "prevention_rate": round(prevented / total, 3) if total > 0 else None,
         }
 
-    def record_thought(self, session_id: str, thought_id: str, branch_id: str, content: str,
-                       thought_type: str = 'hypothesis', parent_thought_id: str = None,
-                       confidence: float = None, related_decision_id: int = None) -> dict:
+    def record_thought(
+        self,
+        session_id: str,
+        thought_id: str,
+        branch_id: str,
+        content: str,
+        thought_type: str = "hypothesis",
+        parent_thought_id: str = None,
+        confidence: float = None,
+        related_decision_id: int = None,
+    ) -> dict:
         """Record a thought in the reasoning trace."""
         conn = self._connect()
         c = conn.cursor()
@@ -1887,37 +2383,58 @@ class EliteStore:
             "INSERT INTO reasoning_traces (session_id, thought_id, branch_id, parent_thought_id, "
             "thought_type, content, confidence, created_at, related_decision_id) "
             "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            (session_id, thought_id, branch_id, parent_thought_id, thought_type,
-             content, confidence, time.time(), related_decision_id)
+            (
+                session_id,
+                thought_id,
+                branch_id,
+                parent_thought_id,
+                thought_type,
+                content,
+                confidence,
+                time.time(),
+                related_decision_id,
+            ),
         )
         conn.commit()
-        return {'thought_id': thought_id, 'branch_id': branch_id, 'id': c.lastrowid}
+        return {"thought_id": thought_id, "branch_id": branch_id, "id": c.lastrowid}
 
-    def revise_thought(self, session_id: str, old_thought_id: str, new_thought_id: str,
-                       new_content: str, reason: str) -> dict:
+    def revise_thought(
+        self, session_id: str, old_thought_id: str, new_thought_id: str, new_content: str, reason: str
+    ) -> dict:
         """Create a revision that supersedes an existing thought."""
         conn = self._connect()
         c = conn.cursor()
         # Get the original thought
-        c.execute("SELECT branch_id, thought_type FROM reasoning_traces WHERE session_id = ? AND thought_id = ?",
-                  (session_id, old_thought_id))
+        c.execute(
+            "SELECT branch_id, thought_type FROM reasoning_traces WHERE session_id = ? AND thought_id = ?",
+            (session_id, old_thought_id),
+        )
         row = c.fetchone()
         if not row:
-            return {'error': f'Thought {old_thought_id} not found'}
+            return {"error": f"Thought {old_thought_id} not found"}
         branch_id, thought_type = row
         # Mark old as superseded
-        c.execute("UPDATE reasoning_traces SET status = 'superseded', superseded_by = ? "
-                  "WHERE session_id = ? AND thought_id = ?",
-                  (new_thought_id, session_id, old_thought_id))
+        c.execute(
+            "UPDATE reasoning_traces SET status = 'superseded', superseded_by = ? "
+            "WHERE session_id = ? AND thought_id = ?",
+            (new_thought_id, session_id, old_thought_id),
+        )
         # Create new thought
         c.execute(
             "INSERT INTO reasoning_traces (session_id, thought_id, branch_id, parent_thought_id, "
             "thought_type, content, status, created_at) VALUES (?, ?, ?, ?, ?, ?, 'open', ?)",
-            (session_id, new_thought_id, branch_id, old_thought_id, 'revision',
-             f"{new_content}\n\n[Revision reason: {reason}]", time.time())
+            (
+                session_id,
+                new_thought_id,
+                branch_id,
+                old_thought_id,
+                "revision",
+                f"{new_content}\n\n[Revision reason: {reason}]",
+                time.time(),
+            ),
         )
         conn.commit()
-        return {'thought_id': new_thought_id, 'supersedes': old_thought_id}
+        return {"thought_id": new_thought_id, "supersedes": old_thought_id}
 
     def create_branch(self, session_id: str, branch_id: str, from_thought_id: str, reason: str) -> dict:
         """Fork a new reasoning branch from a thought."""
@@ -1926,27 +2443,38 @@ class EliteStore:
         c.execute(
             "INSERT INTO reasoning_branches (branch_id, session_id, forked_from_thought_id, "
             "fork_reason, created_at) VALUES (?, ?, ?, ?, ?)",
-            (branch_id, session_id, from_thought_id, reason, time.time())
+            (branch_id, session_id, from_thought_id, reason, time.time()),
         )
         conn.commit()
-        return {'branch_id': branch_id, 'forked_from': from_thought_id}
+        return {"branch_id": branch_id, "forked_from": from_thought_id}
 
-    def get_branch_trace(self, session_id: str, branch_id: str = 'main') -> list[dict]:
+    def get_branch_trace(self, session_id: str, branch_id: str = "main") -> list[dict]:
         """Get ordered thought chain for a branch."""
         conn = self._connect()
         c = conn.cursor()
         c.execute(
             "SELECT thought_id, parent_thought_id, thought_type, content, confidence, status, created_at "
             "FROM reasoning_traces WHERE session_id = ? AND branch_id = ? ORDER BY created_at ASC",
-            (session_id, branch_id)
+            (session_id, branch_id),
         )
-        traces = [{'thought_id': r[0], 'parent': r[1], 'type': r[2], 'content': r[3],
-                 'confidence': r[4], 'status': r[5], 'created_at': r[6]} for r in c.fetchall()]
+        traces = [
+            {
+                "thought_id": r[0],
+                "parent": r[1],
+                "type": r[2],
+                "content": r[3],
+                "confidence": r[4],
+                "status": r[5],
+                "created_at": r[6],
+            }
+            for r in c.fetchall()
+        ]
         # Wire temporal_confidence: compute live confidence for each trace
         try:
             from core.memory.temporal_confidence import current_confidence
+
             for trace in traces:
-                trace['live_confidence'] = current_confidence(trace)
+                trace["live_confidence"] = current_confidence(trace)
         except Exception:
             pass  # Never break trace retrieval if temporal_confidence unavailable
         return traces
@@ -1959,16 +2487,16 @@ class EliteStore:
         c.execute(
             "UPDATE reasoning_branches SET status = 'winning', winning_thought_id = ?, closed_at = ? "
             "WHERE session_id = ? AND branch_id = ?",
-            (winning_thought_id, time.time(), session_id, branch_id)
+            (winning_thought_id, time.time(), session_id, branch_id),
         )
         # Mark other branches abandoned
         c.execute(
             "UPDATE reasoning_branches SET status = 'abandoned', closed_at = ? "
             "WHERE session_id = ? AND branch_id != ? AND status = 'active'",
-            (time.time(), session_id, branch_id)
+            (time.time(), session_id, branch_id),
         )
         conn.commit()
-        return {'winning_branch': branch_id, 'winning_thought': winning_thought_id}
+        return {"winning_branch": branch_id, "winning_thought": winning_thought_id}
 
     def update_rule_evaluation(self, rule_id: int, error: str = None, check_ms: float = None):
         """Update prevention rule observability metrics."""
@@ -1977,7 +2505,7 @@ class EliteStore:
         c.execute(
             "UPDATE prevention_rules SET last_evaluated_at = ?, evaluation_count = evaluation_count + 1, "
             "last_error = ?, last_check_query_ms = ? WHERE id = ?",
-            (time.time(), error, check_ms, rule_id)
+            (time.time(), error, check_ms, rule_id),
         )
         conn.commit()
 
@@ -1990,99 +2518,106 @@ class EliteStore:
         # 1. Check unresolved missed detections
         unresolved = self.get_unautomated_detections()
         if unresolved:
-            gaps.append({
-                "source": "missed_detections",
-                "severity": "P0",
-                "count": len(unresolved),
-                "detail": f"{len(unresolved)} missed detections not yet converted to prevention rules",
-                "action": "Call register_prevention_rule for each",
-                "auto_executable": False
-            })
+            gaps.append(
+                {
+                    "source": "missed_detections",
+                    "severity": "P0",
+                    "count": len(unresolved),
+                    "detail": f"{len(unresolved)} missed detections not yet converted to prevention rules",
+                    "action": "Call register_prevention_rule for each",
+                    "auto_executable": False,
+                }
+            )
 
         # 2. Check stale goals (active goals with no progress update in 7 days)
         conn = self._connect()
         c = conn.cursor()
-        cutoff = time.strftime("%Y-%m-%d %H:%M:%S",
-                               time.gmtime(time.time() - 7 * 86400))
-        c.execute(
-            "SELECT COUNT(*) FROM goals WHERE status = 'active' AND updated_at < ?",
-            (cutoff,)
-        )
+        cutoff = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(time.time() - 7 * 86400))
+        c.execute("SELECT COUNT(*) FROM goals WHERE status = 'active' AND updated_at < ?", (cutoff,))
         stale_goals = c.fetchone()[0]
         if stale_goals > 0:
-            gaps.append({
-                "source": "goals",
-                "severity": "P1",
-                "count": stale_goals,
-                "detail": f"{stale_goals} active goals with no update in 7+ days",
-                "action": "Review and update or archive stale goals",
-                "auto_executable": False
-            })
+            gaps.append(
+                {
+                    "source": "goals",
+                    "severity": "P1",
+                    "count": stale_goals,
+                    "detail": f"{stale_goals} active goals with no update in 7+ days",
+                    "action": "Review and update or archive stale goals",
+                    "auto_executable": False,
+                }
+            )
 
         # 3. Check quality regression
         trend = self.get_quality_trend()
         if trend.get("trend") == "declining":
-            gaps.append({
-                "source": "quality_scores",
-                "severity": "P0",
-                "count": 1,
-                "detail": f"Quality trend is DECLINING (avg: {trend.get('recent_avg', 0):.1f} → {trend.get('older_avg', 0):.1f})",
-                "action": "Investigate root cause of quality regression",
-                "auto_executable": False
-            })
+            gaps.append(
+                {
+                    "source": "quality_scores",
+                    "severity": "P0",
+                    "count": 1,
+                    "detail": f"Quality trend is DECLINING (avg: {trend.get('recent_avg', 0):.1f} → {trend.get('older_avg', 0):.1f})",
+                    "action": "Investigate root cause of quality regression",
+                    "auto_executable": False,
+                }
+            )
 
         # 4. Check unresolved predictions
         try:
             unresolved_preds = self.graph.get_unresolved_predictions()
-            expired = [p for p in unresolved_preds
-                       if p.get('created_at', '') < cutoff]
+            expired = [p for p in unresolved_preds if p.get("created_at", "") < cutoff]
             if expired:
-                gaps.append({
-                    "source": "predictions",
-                    "severity": "P2",
-                    "count": len(expired),
-                    "detail": f"{len(expired)} predictions pending for 7+ days",
-                    "action": "Resolve or update expired predictions",
-                    "auto_executable": False
-                })
+                gaps.append(
+                    {
+                        "source": "predictions",
+                        "severity": "P2",
+                        "count": len(expired),
+                        "detail": f"{len(expired)} predictions pending for 7+ days",
+                        "action": "Resolve or update expired predictions",
+                        "auto_executable": False,
+                    }
+                )
         except Exception:
             pass
 
         # 5. Check prompt health
         prompt_analysis = self.analyze_prompt_sequence(limit=50)
         if prompt_analysis.get("health") == "critical":
-            gaps.append({
-                "source": "prompt_intelligence",
-                "severity": "P0",
-                "count": prompt_analysis.get("waste_prompts", 0),
-                "detail": f"User satisfaction critically low — {prompt_analysis.get('waste_prompts', 0)} wasted prompts out of {prompt_analysis.get('total_prompts', 0)}",
-                "action": "Review and address the dominant failure patterns",
-                "auto_executable": False
-            })
+            gaps.append(
+                {
+                    "source": "prompt_intelligence",
+                    "severity": "P0",
+                    "count": prompt_analysis.get("waste_prompts", 0),
+                    "detail": f"User satisfaction critically low — {prompt_analysis.get('waste_prompts', 0)} wasted prompts out of {prompt_analysis.get('total_prompts', 0)}",
+                    "action": "Review and address the dominant failure patterns",
+                    "auto_executable": False,
+                }
+            )
 
         # 6. Check prevention rule effectiveness
         rules = self.get_active_prevention_rules()
-        never_triggered = [r for r in rules if r.get('times_triggered', 0) == 0]
+        never_triggered = [r for r in rules if r.get("times_triggered", 0) == 0]
         if len(never_triggered) > len(rules) * 0.5 and len(rules) > 5:
-            gaps.append({
-                "source": "prevention_rules",
-                "severity": "P2",
-                "count": len(never_triggered),
-                "detail": f"{len(never_triggered)} of {len(rules)} prevention rules never triggered — may be misconfigured",
-                "action": "Review and update or disable ineffective rules",
-                "auto_executable": True
-            })
+            gaps.append(
+                {
+                    "source": "prevention_rules",
+                    "severity": "P2",
+                    "count": len(never_triggered),
+                    "detail": f"{len(never_triggered)} of {len(rules)} prevention rules never triggered — may be misconfigured",
+                    "action": "Review and update or disable ineffective rules",
+                    "auto_executable": True,
+                }
+            )
 
-        if not getattr(self._local, 'in_transaction', False):
+        if not getattr(self._local, "in_transaction", False):
             self._close(conn)
 
         return {
             "total_gaps": len(gaps),
-            "p0_count": sum(1 for g in gaps if g['severity'] == 'P0'),
-            "p1_count": sum(1 for g in gaps if g['severity'] == 'P1'),
-            "p2_count": sum(1 for g in gaps if g['severity'] == 'P2'),
-            "gaps": sorted(gaps, key=lambda g: {'P0': 0, 'P1': 1, 'P2': 2}.get(g['severity'], 3)),
-            "scan_time": time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
+            "p0_count": sum(1 for g in gaps if g["severity"] == "P0"),
+            "p1_count": sum(1 for g in gaps if g["severity"] == "P1"),
+            "p2_count": sum(1 for g in gaps if g["severity"] == "P2"),
+            "gaps": sorted(gaps, key=lambda g: {"P0": 0, "P1": 1, "P2": 2}.get(g["severity"], 3)),
+            "scan_time": time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
         }
 
     def self_diagnose(self) -> dict:
@@ -2116,7 +2651,7 @@ class EliteStore:
         c.execute("SELECT COUNT(*) FROM user_thinking_patterns")
         pattern_count = c.fetchone()[0]
 
-        if not getattr(self._local, 'in_transaction', False):
+        if not getattr(self._local, "in_transaction", False):
             self._close(conn)
 
         # Calculate autonomy rate
@@ -2125,12 +2660,15 @@ class EliteStore:
         return {
             "prevention_rules": {"active": active_rules, "total_triggers": total_triggers},
             "prompt_intelligence": {"total_prompts": total_prompts, "patterns_learned": pattern_count},
-            "missed_detections": {"total": total_missed, "automated": automated_missed,
-                                   "pending": total_missed - automated_missed},
+            "missed_detections": {
+                "total": total_missed,
+                "automated": automated_missed,
+                "pending": total_missed - automated_missed,
+            },
             "tool_usage": {"unique_tools": unique_tools, "total_calls": total_tool_calls},
             "autonomy_rate": round(autonomy_rate, 1),
             "health": "elite" if autonomy_rate >= 80 else "growing" if autonomy_rate >= 40 else "nascent",
-            "diagnosed_at": time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
+            "diagnosed_at": time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
         }
 
     # ==================== AUTONOMOUS GOAL ENGINE ====================
@@ -2143,57 +2681,64 @@ class EliteStore:
         conn = self._connect()
         c = conn.cursor()
         c.execute(
-            "SELECT detection_type, COUNT(*) as cnt FROM missed_detections "
-            "GROUP BY detection_type ORDER BY cnt DESC"
+            "SELECT detection_type, COUNT(*) as cnt FROM missed_detections GROUP BY detection_type ORDER BY cnt DESC"
         )
         for row in c.fetchall():
             if row[1] >= 2:  # Pattern seen 2+ times
-                goals.append({
-                    "source": "missed_detections",
-                    "objective": f"Eliminate {row[0]} failures (seen {row[1]} times)",
-                    "priority": "P0" if row[1] >= 5 else "P1",
-                    "auto_executable": False,
-                    "confidence": min(0.9, 0.5 + row[1] * 0.1)
-                })
+                goals.append(
+                    {
+                        "source": "missed_detections",
+                        "objective": f"Eliminate {row[0]} failures (seen {row[1]} times)",
+                        "priority": "P0" if row[1] >= 5 else "P1",
+                        "auto_executable": False,
+                        "confidence": min(0.9, 0.5 + row[1] * 0.1),
+                    }
+                )
 
         # 2. From quality trend: if declining, create improvement goal
         trend = self.get_quality_trend()
         if trend.get("trend") == "declining":
-            goals.append({
-                "source": "quality_scores",
-                "objective": "Reverse quality decline — investigate and fix root causes",
-                "priority": "P0",
-                "auto_executable": False,
-                "confidence": 0.8
-            })
+            goals.append(
+                {
+                    "source": "quality_scores",
+                    "objective": "Reverse quality decline — investigate and fix root causes",
+                    "priority": "P0",
+                    "auto_executable": False,
+                    "confidence": 0.8,
+                }
+            )
 
         # 3. From unautomated detections: convert to prevention rules
         pending = self.get_unautomated_detections()
         if pending:
-            goals.append({
-                "source": "prevention_rules",
-                "objective": f"Convert {len(pending)} missed detections into prevention rules",
-                "priority": "P1",
-                "auto_executable": True,
-                "confidence": 0.9
-            })
+            goals.append(
+                {
+                    "source": "prevention_rules",
+                    "objective": f"Convert {len(pending)} missed detections into prevention rules",
+                    "priority": "P1",
+                    "auto_executable": True,
+                    "confidence": 0.9,
+                }
+            )
 
         # 4. From prompt analysis: address dominant failure type
         analysis = self.analyze_prompt_sequence(limit=50)
         for pattern in analysis.get("patterns", []):
             if pattern.get("pct", 0) > 20:  # Over 20% of prompts
-                goals.append({
-                    "source": "prompt_intelligence",
-                    "objective": f"Fix {pattern['type']}: {pattern.get('fix', 'unknown')}",
-                    "priority": "P0" if pattern['pct'] > 30 else "P1",
-                    "auto_executable": False,
-                    "confidence": 0.7
-                })
+                goals.append(
+                    {
+                        "source": "prompt_intelligence",
+                        "objective": f"Fix {pattern['type']}: {pattern.get('fix', 'unknown')}",
+                        "priority": "P0" if pattern["pct"] > 30 else "P1",
+                        "auto_executable": False,
+                        "confidence": 0.7,
+                    }
+                )
 
-        if not getattr(self._local, 'in_transaction', False):
+        if not getattr(self._local, "in_transaction", False):
             self._close(conn)
 
-        return sorted(goals, key=lambda g: {'P0': 0, 'P1': 1, 'P2': 2}.get(g['priority'], 3))
+        return sorted(goals, key=lambda g: {"P0": 0, "P1": 1, "P2": 2}.get(g["priority"], 3))
 
     def get_autonomous_status(self) -> dict:
         """Return what the system has been doing autonomously."""
@@ -2210,36 +2755,37 @@ class EliteStore:
                 f"Autonomy rate: {diagnosis['autonomy_rate']}%. "
                 f"{scan['total_gaps']} gaps found ({scan['p0_count']} P0). "
                 f"{len(goals)} autonomous goals generated."
-            )
+            ),
         }
 
     # ==================== CALIBRATION LOG (P3) ====================
 
-    def log_calibration(self, prediction_id: str, claim: str, confidence: float,
-                        domain: str = "general") -> int:
+    def log_calibration(self, prediction_id: str, claim: str, confidence: float, domain: str = "general") -> int:
         """Log a confidence prediction for later calibration."""
         conn = self._connect()
         c = conn.cursor()
         now = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
-        c.execute("""INSERT INTO calibration_log
+        c.execute(
+            """INSERT INTO calibration_log
                      (prediction_id, claim, confidence, domain, created_at)
                      VALUES (?, ?, ?, ?, ?)""",
-                  (prediction_id, claim[:1000], max(0.0, min(1.0, confidence)),
-                   domain, now))
+            (prediction_id, claim[:1000], max(0.0, min(1.0, confidence)), domain, now),
+        )
         conn.commit()
         row_id = c.lastrowid
         self._close(conn)
         return row_id
 
-    def resolve_calibration(self, prediction_id: str, outcome: str,
-                            correct: bool) -> bool:
+    def resolve_calibration(self, prediction_id: str, outcome: str, correct: bool) -> bool:
         """Resolve a calibration prediction with actual outcome."""
         conn = self._connect()
         c = conn.cursor()
         now = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
-        c.execute("""UPDATE calibration_log SET outcome = ?, outcome_correct = ?,
+        c.execute(
+            """UPDATE calibration_log SET outcome = ?, outcome_correct = ?,
                      resolved_at = ? WHERE prediction_id = ? AND outcome_correct IS NULL""",
-                  (outcome[:500], 1 if correct else 0, now, prediction_id))
+            (outcome[:500], 1 if correct else 0, now, prediction_id),
+        )
         conn.commit()
         updated = c.rowcount > 0
         self._close(conn)
@@ -2249,23 +2795,26 @@ class EliteStore:
         """Compute Brier score and calibration metrics."""
         conn = self._connect()
         c = conn.cursor()
-        cutoff = time.strftime("%Y-%m-%d %H:%M:%S",
-                               time.gmtime(time.time() - max(1, days) * 86400))
+        cutoff = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(time.time() - max(1, days) * 86400))
         if domain:
-            c.execute("""SELECT confidence, outcome_correct FROM calibration_log
+            c.execute(
+                """SELECT confidence, outcome_correct FROM calibration_log
                         WHERE outcome_correct IS NOT NULL AND domain = ?
                         AND created_at > ? ORDER BY created_at DESC LIMIT 500""",
-                      (domain, cutoff))
+                (domain, cutoff),
+            )
         else:
-            c.execute("""SELECT confidence, outcome_correct FROM calibration_log
+            c.execute(
+                """SELECT confidence, outcome_correct FROM calibration_log
                         WHERE outcome_correct IS NOT NULL AND created_at > ?
-                        ORDER BY created_at DESC LIMIT 500""", (cutoff,))
+                        ORDER BY created_at DESC LIMIT 500""",
+                (cutoff,),
+            )
         rows = c.fetchall()
         self._close(conn)
 
         if not rows:
-            return {"brier_score": None, "total_predictions": 0,
-                    "calibration": "no data"}
+            return {"brier_score": None, "total_predictions": 0, "calibration": "no data"}
 
         # Brier score: mean squared error of confidence vs binary outcome
         brier = sum((conf - actual) ** 2 for conf, actual in rows) / len(rows)
@@ -2289,41 +2838,61 @@ class EliteStore:
             d = buckets[b]
             actual_rate = d["correct"] / d["total"] if d["total"] > 0 else 0
             expected_rate = d["sum_conf"] / d["total"] if d["total"] > 0 else 0
-            calibration_table.append({
-                "bucket": f"{b*10}-{(b+1)*10}%",
-                "count": d["total"],
-                "expected": round(expected_rate, 3),
-                "actual": round(actual_rate, 3),
-                "gap": round(abs(expected_rate - actual_rate), 3)
-            })
+            calibration_table.append(
+                {
+                    "bucket": f"{b * 10}-{(b + 1) * 10}%",
+                    "count": d["total"],
+                    "expected": round(expected_rate, 3),
+                    "actual": round(actual_rate, 3),
+                    "gap": round(abs(expected_rate - actual_rate), 3),
+                }
+            )
 
         return {
             "brier_score": round(brier, 4),
             "total_predictions": len(rows),
             "accuracy": round(accuracy, 3),
             "avg_confidence": round(avg_confidence, 3),
-            "calibration_status": "overconfident" if overconfident else
-                                  "underconfident" if underconfident else "calibrated",
-            "calibration_table": calibration_table
+            "calibration_status": "overconfident"
+            if overconfident
+            else "underconfident"
+            if underconfident
+            else "calibrated",
+            "calibration_table": calibration_table,
         }
 
     # ==================== DECISION COUNCIL (P3) ====================
 
-    def add_council_review(self, decision_id: int, decision_text: str,
-                           perspective: str, critique: str,
-                           risk_flags: list, recommendation: str,
-                           confidence: float = 0.5) -> int:
+    def add_council_review(
+        self,
+        decision_id: int,
+        decision_text: str,
+        perspective: str,
+        critique: str,
+        risk_flags: list,
+        recommendation: str,
+        confidence: float = 0.5,
+    ) -> int:
         """Store a decision council perspective review."""
         conn = self._connect()
         c = conn.cursor()
         now = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
-        c.execute("""INSERT INTO decision_council
+        c.execute(
+            """INSERT INTO decision_council
                      (decision_id, decision_text, perspective, critique,
                       risk_flags, recommendation, confidence, created_at)
                      VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-                  (decision_id, decision_text[:500], perspective,
-                   critique[:1000], json.dumps(risk_flags[:10]),
-                   recommendation, max(0.0, min(1.0, confidence)), now))
+            (
+                decision_id,
+                decision_text[:500],
+                perspective,
+                critique[:1000],
+                json.dumps(risk_flags[:10]),
+                recommendation,
+                max(0.0, min(1.0, confidence)),
+                now,
+            ),
+        )
         conn.commit()
         row_id = c.lastrowid
         self._close(conn)
@@ -2333,29 +2902,46 @@ class EliteStore:
         """Get all council reviews for a decision."""
         conn = self._connect()
         c = conn.cursor()
-        c.execute("""SELECT perspective, critique, risk_flags, recommendation,
+        c.execute(
+            """SELECT perspective, critique, risk_flags, recommendation,
                      confidence, created_at FROM decision_council
                      WHERE decision_id = ? ORDER BY created_at""",
-                  (decision_id,))
+            (decision_id,),
+        )
         rows = c.fetchall()
         self._close(conn)
-        return [{"perspective": r[0], "critique": r[1],
-                 "risk_flags": json.loads(r[2] or "[]"),
-                 "recommendation": r[3], "confidence": r[4],
-                 "created_at": r[5]} for r in rows]
+        return [
+            {
+                "perspective": r[0],
+                "critique": r[1],
+                "risk_flags": json.loads(r[2] or "[]"),
+                "recommendation": r[3],
+                "confidence": r[4],
+                "created_at": r[5],
+            }
+            for r in rows
+        ]
 
     # ==================== COST TRACKING (Opus R2 Q13b) ====================
 
-    def log_cost(self, cost_type: str, units: float = 0, estimated_usd: float = 0,
-                 provider: str = 'local', tool_name: str = None,
-                 session_id: str = 'default') -> int:
+    def log_cost(
+        self,
+        cost_type: str,
+        units: float = 0,
+        estimated_usd: float = 0,
+        provider: str = "local",
+        tool_name: str = None,
+        session_id: str = "default",
+    ) -> int:
         """Log an API/embedding/compute cost event."""
         conn = self._connect()
         c = conn.cursor()
-        c.execute("""INSERT INTO cost_log
+        c.execute(
+            """INSERT INTO cost_log
                      (session_id, tool_name, cost_type, provider, units, estimated_usd, created_at)
                      VALUES (?, ?, ?, ?, ?, ?, ?)""",
-                  (session_id, tool_name, cost_type, provider, units, estimated_usd, time.time()))
+            (session_id, tool_name, cost_type, provider, units, estimated_usd, time.time()),
+        )
         row_id = c.lastrowid
         self._close(conn)
         return row_id
@@ -2365,31 +2951,36 @@ class EliteStore:
         conn = self._connect()
         c = conn.cursor()
         cutoff = time.time() - (days * 86400)
-        c.execute("""SELECT cost_type, provider, COUNT(*) as count,
+        c.execute(
+            """SELECT cost_type, provider, COUNT(*) as count,
                      SUM(units) as total_units, SUM(estimated_usd) as total_usd
                      FROM cost_log WHERE created_at > ?
                      GROUP BY cost_type, provider ORDER BY total_usd DESC""",
-                  (cutoff,))
+            (cutoff,),
+        )
         rows = c.fetchall()
         self._close(conn)
         return {
             "period_days": days,
-            "breakdown": [{"cost_type": r[0], "provider": r[1], "count": r[2],
-                           "total_units": r[3], "total_usd": round(r[4], 6)}
-                          for r in rows],
+            "breakdown": [
+                {"cost_type": r[0], "provider": r[1], "count": r[2], "total_units": r[3], "total_usd": round(r[4], 6)}
+                for r in rows
+            ],
             "total_usd": round(sum(r[4] for r in rows), 6),
         }
 
     # ==================== ADVERSARIAL INPUT HANDLING (Opus R2 Q13c) ====================
 
-    def quarantine_anti_pattern(self, pattern_id: int, reason: str = 'adversarial') -> bool:
+    def quarantine_anti_pattern(self, pattern_id: int, reason: str = "adversarial") -> bool:
         """Quarantine an anti-pattern: mark untrusted, exclude from injection."""
         conn = self._connect()
         c = conn.cursor()
-        c.execute("""UPDATE anti_patterns SET quarantined = 1,
+        c.execute(
+            """UPDATE anti_patterns SET quarantined = 1,
                      injection_eligible = 0, injection_disabled_reason = ?,
                      trust_score = 0.0 WHERE id = ?""",
-                  (reason, pattern_id))
+            (reason, pattern_id),
+        )
         affected = c.rowcount
         self._close(conn)
         return affected > 0
@@ -2398,56 +2989,49 @@ class EliteStore:
         """Release an anti-pattern from quarantine after human review."""
         conn = self._connect()
         c = conn.cursor()
-        c.execute("""UPDATE anti_patterns SET quarantined = 0,
+        c.execute(
+            """UPDATE anti_patterns SET quarantined = 0,
                      injection_eligible = 1, injection_disabled_reason = NULL,
                      trust_score = 0.3, source = 'human_verified'
                      WHERE id = ? AND quarantined = 1""",
-                  (pattern_id,))
+            (pattern_id,),
+        )
         affected = c.rowcount
         self._close(conn)
         return affected > 0
 
     # ==================== RULE LIFECYCLE (Opus R2 Q6) ====================
 
-    def update_rule_lifecycle(self, rule_id: int, new_state: str,
-                              true_positives: int = None,
-                              false_positives: int = None) -> bool:
+    def update_rule_lifecycle(
+        self, rule_id: int, new_state: str, true_positives: int = None, false_positives: int = None
+    ) -> bool:
         """Update a prevention rule's lifecycle state.
         States: probation → active → trusted → retired
         Rules must earn their way to 'trusted' via demonstrated value."""
-        valid_states = ('probation', 'active', 'trusted', 'retired')
+        valid_states = ("probation", "active", "trusted", "retired")
         if new_state not in valid_states:
             return False
         conn = self._connect()
         c = conn.cursor()
         now = time.time()
         # Use explicit branches instead of dynamic SQL construction
-        if new_state == 'active':
+        if new_state == "active":
             c.execute(
                 "UPDATE prevention_rules SET lifecycle_state = ?, promoted_at = ? WHERE id = ?",
-                (new_state, now, rule_id)
+                (new_state, now, rule_id),
             )
-        elif new_state == 'retired':
+        elif new_state == "retired":
             c.execute(
                 "UPDATE prevention_rules SET lifecycle_state = ?, retired_at = ?, enabled = 0 WHERE id = ?",
-                (new_state, now, rule_id)
+                (new_state, now, rule_id),
             )
         else:
-            c.execute(
-                "UPDATE prevention_rules SET lifecycle_state = ? WHERE id = ?",
-                (new_state, rule_id)
-            )
+            c.execute("UPDATE prevention_rules SET lifecycle_state = ? WHERE id = ?", (new_state, rule_id))
         # Update optional counters separately (safe parameterized queries)
         if true_positives is not None:
-            c.execute(
-                "UPDATE prevention_rules SET true_positive_count = ? WHERE id = ?",
-                (true_positives, rule_id)
-            )
+            c.execute("UPDATE prevention_rules SET true_positive_count = ? WHERE id = ?", (true_positives, rule_id))
         if false_positives is not None:
-            c.execute(
-                "UPDATE prevention_rules SET false_positive_count = ? WHERE id = ?",
-                (false_positives, rule_id)
-            )
+            c.execute("UPDATE prevention_rules SET false_positive_count = ? WHERE id = ?", (false_positives, rule_id))
         affected = c.rowcount
         self._close(conn)
         return affected > 0
@@ -2462,24 +3046,33 @@ class EliteStore:
         rows = c.fetchall()
         self._close(conn)
         return {
-            "by_state": {r[0] or 'unknown': {
-                "count": r[1], "total_fires": r[2] or 0,
-                "true_positives": r[3] or 0, "false_positives": r[4] or 0}
-                for r in rows},
+            "by_state": {
+                r[0] or "unknown": {
+                    "count": r[1],
+                    "total_fires": r[2] or 0,
+                    "true_positives": r[3] or 0,
+                    "false_positives": r[4] or 0,
+                }
+                for r in rows
+            },
             "total_rules": sum(r[1] for r in rows),
         }
 
     # ==================== TRIGGER EFFECTIVENESS (Opus R2 Q4) ====================
 
-    def record_trigger_effectiveness(self, detection_type: str,
-                                      trigger_event: str,
-                                      quality_improved: bool = False,
-                                      quality_degraded: bool = False,
-                                      mistake_prevented: bool = False):
+    def record_trigger_effectiveness(
+        self,
+        detection_type: str,
+        trigger_event: str,
+        quality_improved: bool = False,
+        quality_degraded: bool = False,
+        mistake_prevented: bool = False,
+    ):
         """Record whether a trigger firing improved quality."""
         conn = self._connect()
         c = conn.cursor()
-        c.execute("""INSERT INTO trigger_effectiveness
+        c.execute(
+            """INSERT INTO trigger_effectiveness
                      (detection_type, trigger_event, fired_count,
                       quality_improved_count, quality_degraded_count,
                       mistake_prevented_count, last_updated)
@@ -2490,11 +3083,19 @@ class EliteStore:
                      quality_degraded_count = quality_degraded_count + ?,
                      mistake_prevented_count = mistake_prevented_count + ?,
                      last_updated = ?""",
-                  (detection_type, trigger_event,
-                   int(quality_improved), int(quality_degraded), int(mistake_prevented),
-                   time.time(),
-                   int(quality_improved), int(quality_degraded), int(mistake_prevented),
-                   time.time()))
+            (
+                detection_type,
+                trigger_event,
+                int(quality_improved),
+                int(quality_degraded),
+                int(mistake_prevented),
+                time.time(),
+                int(quality_improved),
+                int(quality_degraded),
+                int(mistake_prevented),
+                time.time(),
+            ),
+        )
         self._close(conn)
 
     def get_trigger_report(self) -> dict:
@@ -2508,11 +3109,16 @@ class EliteStore:
         rows = c.fetchall()
         self._close(conn)
         return {
-            "triggers": [{
-                "detection_type": r[0], "trigger_event": r[1],
-                "fired": r[2], "quality_improved": r[3],
-                "quality_degraded": r[4], "mistakes_prevented": r[5],
-                "effectiveness_ratio": round(
-                    (r[3] + r[5]) / max(r[2], 1), 3)
-            } for r in rows]
+            "triggers": [
+                {
+                    "detection_type": r[0],
+                    "trigger_event": r[1],
+                    "fired": r[2],
+                    "quality_improved": r[3],
+                    "quality_degraded": r[4],
+                    "mistakes_prevented": r[5],
+                    "effectiveness_ratio": round((r[3] + r[5]) / max(r[2], 1), 3),
+                }
+                for r in rows
+            ]
         }

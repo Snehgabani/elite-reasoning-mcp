@@ -1,4 +1,10 @@
+import argparse
+import json
 import os
+import shlex
+import shutil
+import subprocess
+import sys
 import uuid
 
 from mcp.server.fastmcp import FastMCP
@@ -6,6 +12,12 @@ from mcp.server.fastmcp import FastMCP
 from core.identity.user_profile import UserProfile
 from core.logging_config import get_logger
 from core.memory.persistent_store import EliteStore
+from core.runtime import (
+    PACKAGE_NAME,
+    SUPPORTED_TOOL_PROFILES,
+    package_version,
+    resolve_tool_profile,
+)
 from core.tools.error_boundary import smart_wrap
 
 logger = get_logger(__name__)
@@ -21,24 +33,29 @@ CONFIG_ALLOWLIST = frozenset({
     "ui.compact_mode",
 })
 
-# ── Security: Allowed sync hub domains ─────────────────────
-ALLOWED_HUB_DOMAINS = frozenset({
-    "localhost",
-    "127.0.0.1",
-    "elite-sync.local",
-})
-
-
-def create_mcp_server(brain_dir: str) -> FastMCP:
+def create_mcp_server(brain_dir: str, tool_profile: str | None = None) -> FastMCP:
     """
     Creates and configures the Elite Reasoning FastMCP Server.
     Each user gets their own personalized server instance with:
       - Isolated brain (elite.db, elite_graph.db)
-      - Personalized orchestration (scans THEIR installed MCPs/Skills)
-      - User identity for sync attribution
+      - A compact v2 public surface by default
+      - An explicit legacy profile for existing integrations
     """
-    mcp = FastMCP("EliteReasoning")
-    logger.info("MCP server starting", extra={"action": "init", "brain_dir": brain_dir})
+    profile_name = resolve_tool_profile(tool_profile)
+    mcp = FastMCP(
+        "EliteReasoning",
+        instructions="Evidence-gated workflow, trusted memory, and runtime verification for coding agents.",
+        website_url="https://github.com/Snehgabani/elite-reasoning-mcp",
+    )
+    # FastMCP currently omits a version constructor argument even though the
+    # low-level MCP server supports it. Set the protocol identity explicitly so
+    # clients can detect stale installations correctly.
+    mcp._mcp_server.version = package_version()
+    setattr(mcp, "_elite_tool_profile", profile_name)
+    logger.info(
+        "MCP server starting",
+        extra={"action": "init", "brain_dir": brain_dir, "tool_profile": profile_name},
+    )
 
     # ── User Profile ───────────────────────────────────────
     elite_dir = os.path.dirname(os.path.abspath(brain_dir))
@@ -52,47 +69,58 @@ def create_mcp_server(brain_dir: str) -> FastMCP:
 
     # ── Persistence ────────────────────────────────────────
     store = EliteStore(actual_brain_dir)
+    # Diagnostics and the CLI use these explicit references instead of
+    # reconstructing a second store/profile with subtly different state.
+    setattr(mcp, "_elite_store", store)
+    setattr(mcp, "_elite_profile", profile)
     logger.info("EliteStore initialized", extra={"action": "store_init"})
 
     # ── Seed Prevention Rules ──────────────────────────────
     _seed_prevention_rules(store)
 
-    # ── Register Tool Modules (legacy individual tools) ────
-    from core.integration import memory_bridge
-    from core.tools import (
-        adaptive,
-        analysis,
-        auditing,
-        doctor,
-        graph_tools,
-        orchestration,
-        planning,
-        reasoning_amplifier,
-        workflow,
-    )
+    if profile_name == "legacy":
+        # The previous broad surface remains available only through an explicit
+        # compatibility profile. New clients use the typed v2 gateway below.
+        from core.integration import memory_bridge
+        from core.tools import (
+            adaptive,
+            analysis,
+            auditing,
+            doctor,
+            graph_tools,
+            orchestration,
+            planning,
+            reasoning_amplifier,
+            workflow,
+        )
 
-    planning.register(mcp, store)
-    auditing.register(mcp, store)
-    analysis.register(mcp, store)
-    graph_tools.register(mcp, store)
-    orchestration.register(mcp, store)
-    workflow.register(mcp, store)
-    doctor.register(mcp, store, profile=profile)
-    adaptive.register(mcp, store)
-    reasoning_amplifier.register(mcp, store)
-    memory_bridge.register(mcp, store)
+        planning.register(mcp, store)
+        auditing.register(mcp, store)
+        analysis.register(mcp, store)
+        graph_tools.register(mcp, store)
+        orchestration.register(mcp, store)
+        workflow.register(mcp, store)
+        doctor.register(mcp, store, profile=profile)
+        adaptive.register(mcp, store)
+        reasoning_amplifier.register(mcp, store)
+        memory_bridge.register(mcp, store)
 
-    # ── Register Goal-Aligned Prompt Polisher ──────────────
-    from core.tools import goal_prompt_polisher
-    _polisher_instance = goal_prompt_polisher.register(mcp, store)
-    logger.info("Goal-Aligned Prompt Polisher registered",
-                extra={"action": "polisher_registered", "has_polisher": _polisher_instance is not None})
+        from core.tools import goal_prompt_polisher
 
-    logger.info("Tool modules registered", extra={"action": "tools_registered"})
+        polisher_instance = goal_prompt_polisher.register(mcp, store)
+        logger.info(
+            "Legacy tool modules registered",
+            extra={"action": "legacy_tools_registered", "has_polisher": polisher_instance is not None},
+        )
 
-    # ── Register Verb Tools (Blueprint #1: 66→8 surface) ──
-    from core.tools.verb_tools import register_verb_tools
-    register_verb_tools(mcp, store)
+        from core.tools.verb_tools import register_verb_tools
+
+        register_verb_tools(mcp, store)
+    else:
+        from core.tools import gateway
+
+        gateway.register(mcp, store, profile)
+        logger.info("Core gateway tools registered", extra={"action": "core_tools_registered", "count": 5})
 
     # ── Build Middleware Chain (Blueprint #3: replaces monkey-patch) ──
     # Opus R2: Correct order matters critically:
@@ -200,32 +228,35 @@ def create_mcp_server(brain_dir: str) -> FastMCP:
         return f"✅ Updated `{key}`: `{target[final_key]}`"
 
     @mcp.tool()
-    def list_team_users(hub_url: str = "") -> str:
+    def list_team_users(hub_url: str = "", confirm: bool = False) -> str:
         """
         List all users registered with the team sync hub.
         Shows each user's IDE type, MCP count, and skill count.
         Args:
             hub_url: Override sync hub URL (default: from user config)
+            confirm: Must be true before this tool makes a network request.
         """
-        from urllib.parse import urlparse
-
         import httpx
 
-        url = hub_url or profile.sync_hub_url
-        url = url.rstrip("/")
+        from core.privacy import safe_error_detail
+        from core.sync_security import authorize_manual_sync
 
-        # SECURITY: Validate hub URL against allowed domains (SSRF prevention)
-        parsed = urlparse(url)
-        hostname = parsed.hostname or ""
-        if hostname not in ALLOWED_HUB_DOMAINS:
-            return f"❌ Hub URL `{hostname}` is not in the allowed domains: {', '.join(sorted(ALLOWED_HUB_DOMAINS))}"
+        try:
+            url = authorize_manual_sync(hub_url or profile.sync_hub_url, confirm)
+        except (PermissionError, ValueError) as error:
+            return f"❌ Sync access denied: {safe_error_detail(error)}"
 
         headers = {}
         if profile.sync_api_key:
             headers["X-Elite-Sync-Key"] = profile.sync_api_key
 
         try:
-            resp = httpx.get(f"{url}/api/users", headers=headers, timeout=10.0)
+            resp = httpx.get(
+                f"{url}/api/users",
+                headers=headers,
+                timeout=10.0,
+                follow_redirects=False,
+            )
             resp.raise_for_status()
             data = resp.json()
 
@@ -248,22 +279,27 @@ def create_mcp_server(brain_dir: str) -> FastMCP:
                 )
             return out
 
-        except httpx.ConnectError:
-            return f"❌ Cannot reach sync hub at `{url}`. Is it running?"
-        except Exception as e:
-            return f"❌ Error listing team users: {e}"
+        except httpx.HTTPError as error:
+            logger.debug("Team-user request failed", extra={"error": safe_error_detail(error)})
+            return "❌ Unable to contact the approved sync hub. Check its local diagnostics."
+        except Exception as error:
+            logger.debug("Team-user response processing failed", extra={"error": safe_error_detail(error)})
+            return "❌ The approved sync hub returned an invalid response."
 
     @mcp.tool()
-    def share_skill(skill_name: str, description: str = "") -> str:
+    def share_skill(skill_name: str, description: str = "", confirm: bool = False) -> str:
         """
         Publish one of your locally installed skills to the team hub so other
         users can discover and install it.
         Args:
             skill_name: Name of the skill to share
             description: Optional description override
+            confirm: Must be true before publishing to a network sync hub.
         """
         import httpx
 
+        from core.privacy import safe_error_detail
+        from core.sync_security import authorize_manual_sync
         from core.tools.orchestration import scan_available_skills
 
         skills = scan_available_skills()
@@ -279,12 +315,15 @@ def create_mcp_server(brain_dir: str) -> FastMCP:
 
         # Push to hub if sync is enabled
         if profile.sync_enabled:
-            url = profile.sync_hub_url.rstrip("/")
+            try:
+                url = authorize_manual_sync(profile.sync_hub_url, confirm)
+            except (PermissionError, ValueError) as error:
+                return f"✅ Skill saved locally. Remote publish withheld: {safe_error_detail(error)}"
             headers = {}
             if profile.sync_api_key:
                 headers["X-Elite-Sync-Key"] = profile.sync_api_key
             try:
-                httpx.post(
+                response = httpx.post(
                     f"{url}/api/skills/share",
                     headers=headers,
                     json={
@@ -293,9 +332,12 @@ def create_mcp_server(brain_dir: str) -> FastMCP:
                         "description": description,
                     },
                     timeout=10.0,
+                    follow_redirects=False,
                 )
-            except Exception as e:
-                logger.debug(f'Skill share HTTP request failed: {e}')
+                response.raise_for_status()
+            except httpx.HTTPError as error:
+                logger.debug("Skill publish failed", extra={"error": safe_error_detail(error)})
+                return "✅ Skill saved locally. Remote publish failed safely; check the approved hub."
 
         return f"✅ Skill `{skill_name}` shared. Other team members will see it after their next sync."
 
@@ -438,35 +480,16 @@ def create_mcp_server(brain_dir: str) -> FastMCP:
             out += f"| {r[0]} | {r[1]} | {r[2] or '-'} | {r[3] or '-'} | {r[4]} |\n"
         return out
 
-    # ── Auto-Sync on Boot ──────────────────────────────────
-    if profile.sync_enabled and profile.config.get("sync", {}).get("auto_sync_on_boot", False):
-        import threading
+    # Automatic boot sync silently transmits workstation metadata. It is kept
+    # as a migrated config key for compatibility but deliberately never runs.
+    if profile_name == "legacy" and profile.sync_enabled and profile.config.get("sync", {}).get("auto_sync_on_boot", False):
+        logger.warning(
+            "Automatic boot sync is disabled; invoke sync_team_memory with confirm=true instead.",
+            extra={"action": "boot_sync_withheld"},
+        )
 
-        def _boot_sync():
-            try:
-                import httpx
-                url = profile.sync_hub_url.rstrip("/")
-                headers = {}
-                if profile.sync_api_key:
-                    headers["X-Elite-Sync-Key"] = profile.sync_api_key
-
-                from core.tools.orchestration import scan_available_mcps, scan_available_skills
-                httpx.post(
-                    f"{url}/api/users/register",
-                    headers=headers,
-                    json={
-                        "user_id": profile.user_id,
-                        "display_name": profile.display_name,
-                        "ide_type": profile.ide_type,
-                        "mcp_count": len(scan_available_mcps()),
-                        "skill_count": len(scan_available_skills()),
-                    },
-                    timeout=5.0,
-                )
-            except Exception as e:
-                logger.debug(f'Boot sync HTTP request failed: {e}')
-
-        threading.Thread(target=_boot_sync, daemon=True).start()
+    if profile_name == "core":
+        _restrict_core_surface(mcp)
 
     # ── Unique Session ID per MCP restart ──────────────────
     _session_id = f"mcp_{uuid.uuid4().hex[:8]}"
@@ -491,6 +514,29 @@ def create_mcp_server(brain_dir: str) -> FastMCP:
                       "tools will run without orchestration hooks")
 
     return mcp
+
+
+def _restrict_core_surface(mcp: FastMCP) -> None:
+    """Keep v2 discovery compact and prevent legacy network/admin exposure."""
+    core_tools = {
+        "elite_prepare",
+        "elite_progress",
+        "elite_verify",
+        "elite_memory",
+        "elite_admin",
+    }
+    tool_manager = mcp._tool_manager
+    for tool_name in list(tool_manager._tools):
+        if tool_name not in core_tools:
+            tool_manager._tools.pop(tool_name, None)
+
+    resource_manager = mcp._resource_manager
+    resource_manager._resources.clear()
+    resource_manager._templates.clear()
+    logger.info(
+        "Core public surface restricted",
+        extra={"tools": len(tool_manager._tools), "resources": len(resource_manager._resources)},
+    )
 
 
 def _wrap_tools_with_error_boundary(mcp: FastMCP):
@@ -1009,12 +1055,74 @@ def _install_orchestration_interceptor(mcp: FastMCP, store: EliteStore, session_
         logger.debug(f'Handler registration for tools/call failed: {e}')
 
 
-def main():
-    import os
-    brain_dir = os.environ.get('ELITE_BRAIN_DIR', os.path.expanduser("~/.elite-reasoning/brain"))
-    server = create_mcp_server(brain_dir)
+def _default_brain_dir() -> str:
+    return os.environ.get("ELITE_BRAIN_DIR", os.path.expanduser("~/.elite-reasoning/brain"))
+
+
+def _upgrade_command() -> list[str]:
+    """Choose the package manager that matches a standalone installation."""
+    uv = shutil.which("uv")
+    if uv:
+        return [uv, "tool", "upgrade", PACKAGE_NAME]
+    return [sys.executable, "-m", "pip", "install", "--upgrade", PACKAGE_NAME]
+
+
+def main(argv: list[str] | None = None) -> int:
+    """Run the MCP server or an explicit local maintenance command."""
+    parser = argparse.ArgumentParser(prog=PACKAGE_NAME)
+    parser.add_argument(
+        "--tool-profile",
+        choices=sorted(SUPPORTED_TOOL_PROFILES),
+        default=None,
+        help="Public tool surface; defaults to the compact core profile.",
+    )
+    parser.add_argument("--brain-dir", default=_default_brain_dir(), help="Path to local Elite state.")
+    parser.add_argument("--version", action="store_true", help="Print the installed package version and exit.")
+    subcommands = parser.add_subparsers(dest="command")
+    doctor_parser = subcommands.add_parser("doctor", help="Run local release diagnostics.")
+    doctor_parser.add_argument("--json", action="store_true", help="Emit machine-readable JSON.")
+    doctor_parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="Exit non-zero unless the report is release-ready.",
+    )
+    upgrade_parser = subcommands.add_parser("upgrade", help="Upgrade the standalone package explicitly.")
+    upgrade_parser.add_argument("--yes", action="store_true", help="Confirm the package-manager upgrade command.")
+    upgrade_parser.add_argument("--dry-run", action="store_true", help="Print the upgrade command without running it.")
+
+    args = parser.parse_args(argv)
+    if args.version:
+        print(package_version())
+        return 0
+
+    if args.command == "upgrade":
+        command = _upgrade_command()
+        if args.dry_run:
+            print(shlex.join(command))
+            return 0
+        if not args.yes:
+            print("Refusing to upgrade without --yes. Use --dry-run to inspect the command.", file=sys.stderr)
+            return 2
+        return subprocess.run(command, check=False).returncode
+
+    server = create_mcp_server(args.brain_dir, tool_profile=args.tool_profile)
+    if args.command == "doctor":
+        from core.tools.doctor import build_doctor_report, doctor_markdown
+
+        report = build_doctor_report(
+            getattr(server, "_elite_store"),
+            profile=getattr(server, "_elite_profile"),
+            mcp=server,
+        )
+        if args.json:
+            print(json.dumps(report, indent=2, sort_keys=True))
+        else:
+            print(doctor_markdown(report))
+        return 1 if args.strict and report["status"] != "release_ready" else 0
+
     server.run()
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

@@ -4,8 +4,8 @@
 
 | Version | Supported |
 | ------- | --------- |
-| 1.2.x | Yes |
-| < 1.2 | Upgrade first |
+| 2.0.x | Yes |
+| < 2.0 | Upgrade first |
 
 ## Reporting a Vulnerability
 
@@ -31,8 +31,14 @@ Expected response targets:
 Elite Reasoning MCP is designed to be local-first:
 - Persistent memory is stored under `ELITE_BRAIN_DIR`.
 - External model/API usage is opt-in through explicit environment configuration.
+- Tool telemetry is metadata-only by default; raw telemetry and prompt storage require separate local opt-ins.
 - Memory retrieval uses trust, confidence, scope, expiry, and privacy gates.
+- Secret-like memory content and workflow evidence are redacted before persistence; sensitive memory stays quarantined and cannot be promoted into context.
+- V2's one-time privacy migration replaces legacy raw prompts and telemetry summaries with metadata-only representations and scrubs redaction-covered legacy memory/workflow records.
 - Quarantined or low-trust memories should not be injected into task context.
+- Remote sync is legacy-only and requires confirmation, a host allowlist, network/outbound environment grants, and manual approval of imported records. Its optional hub binds to localhost by default; external binding requires credentials and an explicit environment grant. Multi-user hubs must use distinct credentials through `SYNC_USER_KEYS_JSON`; contributor identity is derived from the credential, not the request payload.
+- Sync-hub LLM quality judging is disabled by default. It additionally requires `ELITE_SYNC_ENABLE_LLM_JUDGE=1`, rejects secret-like content before egress, and fails closed if the external judge is unavailable or returns an invalid verdict.
+- Source distributions use an explicit allowlist, and the release gate rejects local profiles, team memory, databases, generated UI output, environment files, and credential-like artifacts.
 
 Security-sensitive areas include:
 - MCP tool registration and schema changes
@@ -64,9 +70,14 @@ The repository uses:
 - Immutable SHA and digest pins for GitHub Actions and Docker build inputs
 - GitHub artifact provenance attestations for release distributions
 - Trusted Publishing and PyPI digital attestations through GitHub Actions OIDC
+- A checksum-verified Gitleaks binary in a read-only workflow that scans Git history and checked-out files without printing secret values
 
 New runtime dependencies should be justified in the PR with:
 - Why the dependency is needed
 - Maintenance and license posture
 - Whether it handles secrets, network traffic, files, or untrusted input
 - How failure modes are tested
+
+## Repository Controls
+
+The controls that require GitHub organization or repository settings are documented in [docs/repository-security.md](docs/repository-security.md). Maintainers should treat the checklist as a release prerequisite rather than assuming repository YAML alone enforces branch protection or GitHub-native secret scanning.

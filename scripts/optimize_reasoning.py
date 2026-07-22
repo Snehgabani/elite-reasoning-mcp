@@ -1,8 +1,10 @@
-import dspy
-import os
 import argparse
-from dspy.teleprompt import BootstrapFewShotWithRandomSearch
+import os
+
+import dspy
 from core.reasoning.elite_framework import EliteReasoningFramework
+from dspy.teleprompt import BootstrapFewShotWithRandomSearch
+
 
 # Dummy evaluation metric for demonstration.
 # In production, this would use DeepEval metrics from Langfuse traces.

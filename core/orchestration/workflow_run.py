@@ -14,6 +14,7 @@ from typing import Any
 
 from core.eval.research_benchmarks import recommend_budget_tier
 from core.orchestration.capabilities import build_capability_registry
+from core.privacy import redact_text
 from core.reasoning.nuclear_prompt import nuclear_prompt_breakdown, protocol_recommendation
 
 
@@ -32,10 +33,7 @@ def _classify_intent(prompt: str) -> str:
         "memory": ("memory", "remember", "context", "personalization", "preference"),
         "deploy": ("deploy", "publish", "release", "ship", "production"),
     }
-    scores = {
-        intent: sum(1 for token in tokens if token in lower)
-        for intent, tokens in signals.items()
-    }
+    scores = {intent: sum(1 for token in tokens if token in lower) for intent, tokens in signals.items()}
     intent, score = max(scores.items(), key=lambda item: item[1])
     return intent if score else "general"
 
@@ -77,7 +75,7 @@ def _memory_context(store, prompt: str, limit: int) -> list[dict[str, Any]]:
             {
                 "kind": "memory_item",
                 "id": item.get("id"),
-                "summary": item.get("content", "")[:300],
+                "summary": redact_text(item.get("content", ""), limit=300),
                 "confidence": item.get("confidence"),
                 "trust_score": item.get("trust_score"),
                 "scope": item.get("scope"),
@@ -90,7 +88,7 @@ def _memory_context(store, prompt: str, limit: int) -> list[dict[str, Any]]:
             {
                 "kind": "anti_pattern",
                 "id": item.get("id"),
-                "summary": f"{item.get('mistake', '')} -> {item.get('fix', '')}"[:300],
+                "summary": redact_text(f"{item.get('mistake', '')} -> {item.get('fix', '')}", limit=300),
                 "severity": item.get("severity", "medium"),
             }
         )
@@ -100,7 +98,7 @@ def _memory_context(store, prompt: str, limit: int) -> list[dict[str, Any]]:
             {
                 "kind": "decision",
                 "id": item.get("id"),
-                "summary": f"{item.get('decision', '')}: {item.get('rationale', '')}"[:300],
+                "summary": redact_text(f"{item.get('decision', '')}: {item.get('rationale', '')}", limit=300),
             }
         )
 
@@ -225,11 +223,15 @@ def workflow_run_markdown(run: dict[str, Any]) -> str:
 
     lines.extend(["", "## Evidence Requirements"])
     evidence = run.get("evidence_requirements", [])
-    lines.extend(f"- {item}" for item in evidence) if evidence else lines.append("- No explicit evidence requirements detected.")
+    lines.extend(f"- {item}" for item in evidence) if evidence else lines.append(
+        "- No explicit evidence requirements detected."
+    )
 
     lines.extend(["", "## Validation Gates"])
     gates = run.get("validation_gates", [])
-    lines.extend(f"- {item}" for item in gates) if gates else lines.append("- State validation manually before completion.")
+    lines.extend(f"- {item}" for item in gates) if gates else lines.append(
+        "- State validation manually before completion."
+    )
 
     memory_context = run.get("memory_context", [])
     lines.extend(["", "## Memory Context"])
@@ -244,11 +246,7 @@ def workflow_run_markdown(run: dict[str, Any]) -> str:
         lines.extend(["", "## Capability Warnings"])
         lines.extend(f"- {warning}" for warning in warnings)
 
-    compact = {
-        key: value
-        for key, value in run.items()
-        if key not in {"prompt_breakdown"}
-    }
+    compact = {key: value for key, value in run.items() if key not in {"prompt_breakdown"}}
     lines.extend(["", "## JSON", "```json", json.dumps(compact, indent=2, sort_keys=True), "```"])
     return "\n".join(lines)
 

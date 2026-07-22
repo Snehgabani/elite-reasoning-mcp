@@ -7,11 +7,12 @@
 </p>
 
 <p align="center">
-  <strong>Make any LLM think harder, reason better, and stop repeating preventable mistakes.</strong>
+  <strong>Give coding agents a compact, evidence-gated workflow layer with trusted memory and local release verification.</strong>
 </p>
 
 <p align="center">
   <a href="https://github.com/Snehgabani/elite-reasoning-mcp/actions/workflows/ci.yml"><img src="https://github.com/Snehgabani/elite-reasoning-mcp/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/Snehgabani/elite-reasoning-mcp/actions/workflows/secret-scan.yml"><img src="https://github.com/Snehgabani/elite-reasoning-mcp/actions/workflows/secret-scan.yml/badge.svg" alt="Secret Scan"></a>
   <a href="https://pypi.org/project/elite-reasoning-mcp/"><img src="https://img.shields.io/pypi/v/elite-reasoning-mcp?style=flat-square&color=blue" alt="PyPI"></a>
   <a href="https://pypi.org/project/elite-reasoning-mcp/"><img src="https://img.shields.io/pypi/dm/elite-reasoning-mcp?style=flat-square&color=green" alt="Downloads"></a>
   <a href="https://pypi.org/project/elite-reasoning-mcp/"><img src="https://img.shields.io/pypi/pyversions/elite-reasoning-mcp?style=flat-square" alt="Python"></a>
@@ -25,7 +26,7 @@
   <a href="#-features">Features</a> •
   <a href="#who-this-is-for">Use Cases</a> •
   <a href="#%EF%B8%8F-architecture">Architecture</a> •
-  <a href="#-90-tools">All Tools</a> •
+  <a href="#-core-tools-default">Core Tools</a> •
   <a href="#-configuration">Config</a> •
   <a href="#-security--trust">Security</a> •
   <a href="#-contributing">Contributing</a>
@@ -37,7 +38,9 @@
 
 Every AI coding assistant makes the **same mistakes twice**. Elite Reasoning fixes that.
 
-It's a [Model Context Protocol](https://modelcontextprotocol.io/) server for AI IDEs and coding agents. It wraps around any LLM — GPT, Claude, Gemini, open-source — and adds a **persistent reasoning layer** with workflow flight recording, anti-pattern memory, decision tracking, confidence calibration, release doctor checks, eval harness exports, and self-improving prevention rules.
+It's a [Model Context Protocol](https://modelcontextprotocol.io/) server for AI IDEs and coding agents. It adds a **persistent workflow layer** with evidence-gated execution, quality-gated memory, release verification, local monitoring, and prevention guidance.
+
+Elite Reasoning does not claim to make a smaller model frontier-capable. It makes bounded coding workflows more reliable by reducing tool-selection noise, preserving trusted context, requiring evidence before completion, and returning typed MCP contracts.
 
 > **One install. Zero config. Works with Cursor, Antigravity, VS Code + Continue, Windsurf, and any MCP-compatible IDE.**
 
@@ -57,7 +60,7 @@ It's a [Model Context Protocol](https://modelcontextprotocol.io/) server for AI 
 | Generic responses | ✅ Intent-classified, complexity-scored routing |
 | No decision audit trail | ✅ Every architectural decision logged + searchable |
 | Manual quality checks | ✅ Automated pre-commit audits + FMEA risk gates |
-| Multi-step work gets lost | ✅ `workflow_run` creates durable evidence + validation gates |
+| Multi-step work gets lost | ✅ `elite_prepare` creates durable evidence + validation gates |
 | Memory can poison context | ✅ Trust/confidence/privacy gates quarantine risky memories |
 
 ---
@@ -74,6 +77,13 @@ For an isolated CLI installation:
 
 ```bash
 uv tool install elite-reasoning-mcp
+
+# Verify the actual binary your IDE will run
+elite-reasoning-mcp --version
+elite-reasoning-mcp doctor --json
+
+# Preview a safe standalone upgrade command
+elite-reasoning-mcp upgrade --dry-run
 ```
 
 ### Add to your IDE
@@ -86,7 +96,8 @@ uv tool install elite-reasoning-mcp
       "command": "elite-reasoning-mcp",
       "args": [],
       "env": {
-        "ELITE_BRAIN_DIR": "~/.elite-reasoning/brain"
+        "ELITE_BRAIN_DIR": "~/.elite-reasoning/brain",
+        "ELITE_TOOL_PROFILE": "core"
       }
     }
   }
@@ -100,7 +111,8 @@ uv tool install elite-reasoning-mcp
     "elite-reasoning": {
       "command": "elite-reasoning-mcp",
       "env": {
-        "ELITE_BRAIN_DIR": "~/.elite-reasoning/brain"
+        "ELITE_BRAIN_DIR": "~/.elite-reasoning/brain",
+        "ELITE_TOOL_PROFILE": "core"
       }
     }
   }
@@ -114,6 +126,7 @@ mcpServers:
     command: elite-reasoning-mcp
     env:
       ELITE_BRAIN_DIR: ~/.elite-reasoning/brain
+      ELITE_TOOL_PROFILE: core
 ```
 
 ### Activate the Pipeline
@@ -125,11 +138,15 @@ Add this to your IDE's system prompt (e.g., `~/.gemini/GEMINI.md` or Cursor Rule
 
 For non-trivial build, debug, research, audit, or release tasks, start with:
 
-orchestrate_request_tool(user_prompt="<the user's exact message>")
+elite_prepare(user_prompt="<the user's exact message>")
 
-For multi-step work that must be auditable, then create a durable run:
+Update each step with evidence before claiming completion:
 
-workflow_run(user_prompt="<the user's exact message>")
+elite_progress(run_id="<run id>", action="update", step_index=1, step_status="passed", evidence="<proof>")
+
+Before shipping, call:
+
+elite_verify(check="doctor")
 
 Skip tool calls for trivial acknowledgements like "ok", "thanks", "yes", "no".
 ```
@@ -140,8 +157,8 @@ Skip tool calls for trivial acknowledgements like "ok", "thanks", "yes", "no".
 
 ## 🚀 Features
 
-### 🧠 Reasoning Pipeline
-Every prompt flows through an intelligent routing system that classifies intent (13 categories), scores complexity (1-5), selects thinking mode, and checks anti-patterns — before your LLM even sees the task.
+### 🧠 Evidence-Gated Workflow
+When the IDE calls `elite_prepare`, the server creates a durable plan with risk-aware validation gates, trusted memory context, and a compact typed response. `elite_progress` rejects out-of-order completion and terminal claims without evidence.
 
 ### 🛡️ Anti-Pattern Memory
 Past mistakes are recorded with root-cause analysis and automatically surfaced when similar patterns appear. Your AI literally learns from its errors.
@@ -156,57 +173,68 @@ Critical decisions get a 5-perspective adversarial review — optimist, pessimis
 Custom auto-triggered rules for your workflow. Define patterns that should trigger warnings, blocks, or automatic corrections. Rules self-improve through a learning pipeline.
 
 ### 📈 8-Layer Middleware Chain
-Every tool call passes through telemetry → anti-pattern injection → prevention rules → cost tracking → usage logging → latency budgets → retry → fallback — with zero config.
+Every tool call passes through usage logging, latency measurement, prevention rules, anti-pattern injection, periodic scanning, cost tracking, fallback guidance, and real transient retries. Structured gateway responses retain a stable `warnings` field rather than receiving ad-hoc text wrappers.
 
 ### 🧪 Risk Analysis
 FMEA (Failure Mode & Effects Analysis), Swiss Cheese audits, smoke test gates, and pre-mortem simulations — all built-in, all callable as MCP tools.
 
 ### 💾 Persistent Memory
-Cross-session knowledge graph with temporal confidence decay, semantic search, decision audit trails, and quality-gated memory context. Your AI remembers what it learned last week without blindly injecting low-trust or sensitive content.
+Cross-session knowledge stays scoped, trust-weighted, and privacy-gated. Secret-like content is redacted before storage; low-trust, sensitive, expired, and remotely imported items remain quarantined until an explicit approval action promotes them. Sensitive records cannot be promoted, and `elite_memory(action="forget")` permanently removes a selected local item.
 
 ### 🧭 Workflow Flight Recorder
-`workflow_run` turns complex work into a persisted execution contract: intent, complexity, budget tier, relevant memory, evidence requirements, validation gates, confidence, and step status.
+`elite_prepare` records a durable execution contract, while `elite_progress` requires ordered evidence before completion. This gives agent work a recoverable audit trail without pretending the server executed the task itself.
 
-### 🏥 Release Doctor
-`elite_doctor` checks version, dependencies, DB schema, capability routing, exposed tool count, active IDE mismatch, and release blockers before shipping.
+### 🏥 Release Doctor And Local Monitoring
+`elite_verify(check="doctor")` checks runtime identity, protocol version, dependencies, DB schema, capability routing, exposed tool count, active IDE mismatch, and release blockers before shipping. `elite_admin(action="monitoring")` returns local aggregate latency, workflow, and memory health without exporting prompt content.
 
 ### 🧪 Eval Harness Exports
-`export_eval_harness` generates optional Promptfoo, DeepEval, and Inspect AI scaffolds for MCP-on/MCP-off comparisons without adding hard runtime dependencies.
+The explicit `legacy` profile retains `export_eval_harness` for optional Promptfoo, DeepEval, and Inspect AI scaffolds. The default profile stays compact so agents can select the correct workflow actions reliably.
 
 ---
 
 ## 🏗️ Architecture
 
 ```
-Your Prompt
+Your Task
     ↓
-orchestrate_request_tool (complex-task routing)
-    ↓
-┌──────────────────────────────────────────────┐
-│  🎯 Intent Classifier    → 13 categories     │
-│  📊 Complexity Scorer    → 1-5 scale         │
-│  🧠 Thinking Mode        → convergent/div.   │
-│  🛡️ Anti-Pattern Check   → Past mistake scan  │
-│  ⚡ Prevention Engine    → Custom auto-rules  │
-│  🔀 MCP/Skill Router    → Specialized tools   │
-└──────────────────────────────────────────────┘
-    ↓
-Execution Plan (returned to LLM)
-    ↓
-LLM follows plan → Better output
+elite_prepare (typed workflow contract)
     ↓
 ┌──────────────────────────────────────────────┐
-│  8-Layer Middleware Chain (wraps every tool)  │
-│  Telemetry → Injection → Prevention →        │
-│  Cost → Usage → Latency → Retry → Fallback  │
+│  Intent and risk      → bounded workflow     │
+│  Trusted memory       → scoped context       │
+│  Prevention engine    → phase guidance       │
+│  Validation gates     → evidence requirements │
+│  Typed output         → stable MCP contract  │
 └──────────────────────────────────────────────┘
     ↓
-Results recorded → Learning loop improves next time
+elite_progress (ordered evidence updates)
+    ↓
+elite_verify / elite_admin (release + monitoring)
+    ↓
+┌──────────────────────────────────────────────┐
+│ Local-first telemetry and memory boundaries    │
+│ Metadata by default; raw retention opt-in      │
+│ Remote memory remains quarantined until review │
+└──────────────────────────────────────────────┘
 ```
 
 ---
 
-## 🔧 90+ Tools
+## 🔧 Core Tools (default)
+
+The default v2 profile intentionally exposes five task-oriented tools. This improves tool selection, output-contract reliability, and safety for every MCP client.
+
+| Tool | Description |
+|:-----|:------------|
+| `elite_prepare` | Create a durable, evidence-gated workflow contract for a task. |
+| `elite_progress` | Read or update ordered workflow steps with evidence requirements. |
+| `elite_verify` | Run release doctor or IDE capability verification. |
+| `elite_memory` | Search, write, approve low-trust memory, or permanently forget a local memory item. |
+| `elite_admin` | Inspect runtime identity, privacy policy, and local aggregate monitoring. |
+
+### Legacy Catalog (explicit opt-in)
+
+Existing installations can retain the full legacy tool catalog by setting `ELITE_TOOL_PROFILE=legacy`. It is not the default because a broad discovery surface makes selection less reliable for agents. The legacy profile includes the following 90+ tools and resources:
 
 <details>
 <summary><strong>Core Pipeline (3)</strong></summary>
@@ -398,8 +426,21 @@ Plus **7 MCP Resources** (`elite://profile`, `elite://anti_patterns`, `elite://d
 | Variable | Default | Description |
 |:---------|:--------|:------------|
 | `ELITE_BRAIN_DIR` | `~/.elite-reasoning/brain` | Where to store persistent memory |
+| `ELITE_TOOL_PROFILE` | `core` | `core` exposes five typed gateway tools; `legacy` enables the compatibility catalog. |
+| `ELITE_TELEMETRY_MODE` | `metadata` | `off`, `metadata`, `summary`, or `raw`; raw requires a second opt-in. |
+| `ELITE_ALLOW_RAW_TELEMETRY` | unset | Must be `1` before `ELITE_TELEMETRY_MODE=raw` is honored. |
+| `ELITE_ALLOW_RAW_PROMPT_STORAGE` | unset | Must be `1` to retain redacted raw prompts; otherwise prompts are hashed and withheld. |
+| `ELITE_SYNC_ALLOWED_HOSTS` | localhost only | Comma-separated approved sync hosts. |
+| `ELITE_SYNC_ALLOW_NETWORK` | unset | Must be `1` for approved non-local sync hosts. |
+| `ELITE_SYNC_ALLOW_OUTBOUND` | unset | Must be `1` before legacy sync can push local decisions or anti-patterns. |
+| `ELITE_SYNC_BIND_ALL_INTERFACES` | unset | Required with a sync API key before the optional hub can bind beyond localhost. |
+| `SYNC_USER_KEYS_JSON` | unset | Optional sync-hub JSON mapping of user IDs to distinct API keys for auditable multi-user attribution. |
+| `SYNC_SINGLE_USER_ID` | `single-user` | Server-side actor label for a single-user hub using `SYNC_API_KEY`. |
+| `ELITE_SYNC_ENABLE_LLM_JUDGE` | unset | Required with `GEMINI_API_KEY` before the hub sends submissions to an external LLM judge. |
 | `ELITE_ENABLE_LEGACY_INTERCEPTOR` | `0` | Enable legacy monkey-patch interceptor |
-| `ELITE_GEMINI_BASE_URL` | (built-in) | Custom Gemini API endpoint |
+| `ELITE_GEMINI_BASE_URL` | (built-in) | HTTPS Gemini endpoint; a non-Google host also requires `ELITE_ALLOW_CUSTOM_GEMINI_ENDPOINT=1`. |
+
+The local profile is created with owner-only permissions at `~/.elite-reasoning/config.json`; it is not read from the repository checkout and must never be committed. Neutral configuration and team-memory shapes are available in [docs/examples/local-profile.example.json](docs/examples/local-profile.example.json) and [docs/examples/team-memory.example.json](docs/examples/team-memory.example.json). Keep credentials in process environment variables or an OS keychain, not in JSON.
 
 ### Development Setup
 
@@ -423,10 +464,11 @@ uv build
 ## 🧪 Testing
 
 ```bash
-# Run all tests (229 tests)
+# Run all tests
 ELITE_BRAIN_DIR=/tmp/elite-test uv run pytest tests/ -v --tb=short
 
-# Run the full release gate: tests, ruff, focused pyright, build, MCP smoke
+# Run the full release gate: tests, lint, types, high-severity scan,
+# package privacy/content inspection, wheel CLI, and MCP smoke
 uv run python scripts/release_check.py
 
 # Run with coverage
@@ -439,6 +481,9 @@ The test suite covers:
 - ✅ Connection pooling and stale connection recovery
 - ✅ FTS sanitization (injection prevention)
 - ✅ Workflow flight recorder and MCP tool exposure
+- ✅ stdio MCP protocol identity, structured output, and `isError=true` failures
+- ✅ privacy-safe telemetry, secret migration, approved sync, and memory quarantine
+- ✅ ordered workflow evidence, prevention events, retry, fallback, and local monitoring
 - ✅ Quality-gated memory quarantine
 - ✅ Release doctor and eval harness exporters
 
@@ -446,7 +491,9 @@ The test suite covers:
 
 ## 🔐 Security & Trust
 
-Elite Reasoning MCP is local-first by default: memory is stored under `ELITE_BRAIN_DIR`, and external API access is opt-in through environment configuration.
+Elite Reasoning MCP is local-first by default: memory is stored under `ELITE_BRAIN_DIR`, telemetry stores metadata rather than prompt content, and external API access is opt-in through environment configuration.
+
+The default profile does not expose network sync tools. In the explicit legacy profile, every sync request requires `confirm=true`, an allowlisted endpoint, redirect blocking, and environment grants for external or outbound traffic. The optional sync hub binds to localhost by default; external binding needs configured credentials and `ELITE_SYNC_BIND_ALL_INTERFACES=1`. For multi-user deployments, configure distinct credentials with `SYNC_USER_KEYS_JSON`; the hub derives contributor attribution from the credential and never trusts a caller-supplied user ID. Imported remote records are stored as low-trust quarantined memory until an operator explicitly approves them. External LLM judging is disabled unless both `GEMINI_API_KEY` and `ELITE_SYNC_ENABLE_LLM_JUDGE=1` are set.
 
 Public repository hardening includes:
 - `SECURITY.md` with supported versions, private vulnerability reporting, and memory/privacy boundaries
@@ -456,6 +503,8 @@ Public repository hardening includes:
 - OpenSSF Scorecard visibility for supply-chain posture
 - Immutable GitHub Action and Docker image pins, with Dependabot update coverage
 - GitHub build provenance and PyPI digital attestations for release distributions
+- An allowlisted source distribution plus a release gate that rejects local profiles, generated UI output, databases, and credential-like files
+- A checksum-verified, read-only Gitleaks workflow that scans full Git history and the checked-out files with redacted findings
 - Release-gate evidence via `scripts/release_check.py`
 
 Security reports should use [GitHub private vulnerability reporting](https://github.com/Snehgabani/elite-reasoning-mcp/security/advisories/new), not public issues.

@@ -45,7 +45,25 @@ INTENT_PHASE_MAP = {
     'deploy': 'deploy',
     'audit': 'audit',
     'test': 'code_change',
+    'security': 'code_change',
+    'research': 'audit',
 }
+
+PROMPT_TOOLS = frozenset({"elite_prepare", "orchestrate_request_tool", "workflow_run"})
+
+
+def _phase_for_prompt(prompt: str) -> str | None:
+    """Map gateway prompts to the same canonical phase events as legacy tools."""
+    text = (prompt or "").lower()
+    if any(term in text for term in ("architecture", "architect", "design", "schema", "data model")):
+        return "design"
+    if any(term in text for term in ("deploy", "publish", "ship to production")):
+        return "deploy"
+    if any(term in text for term in ("audit", "review", "inspect", "verify")):
+        return "audit"
+    if any(term in text for term in ("build", "create", "implement", "fix", "debug", "refactor", "test")):
+        return "code_change"
+    return None
 
 
 class EventBus:
@@ -62,7 +80,7 @@ class EventBus:
             rules = self.store.get_active_prevention_rules()
             self._rules_by_event = defaultdict(list)
             for r in rules:
-                trigger = r.get('trigger_event', '')
+                trigger = str(r.get('trigger_event') or '')
                 # Migrate old vocabulary
                 trigger = TRIGGER_MIGRATION.get(trigger, trigger)
                 self._rules_by_event[trigger].append(r)
@@ -90,20 +108,23 @@ class EventBus:
                 # Keyword-based check against payload
                 check = rule.get('check_query', rule.get('check', '')).lower()
                 context_text = ' '.join(str(v) for v in payload.values() if isinstance(v, str)).lower()
-
-                check_words = [w for w in check.split() if len(w) > 3]
-                if check_words:
-                    match_count = sum(1 for w in check_words if w in context_text)
-                    match_ratio = match_count / len(check_words)
-
-                    if match_ratio >= 0.25:  # 25% keyword overlap
-                        self.store.increment_rule_trigger(rule['id'])
-                        warnings.append(
-                            f"🛡️ Rule `{rule.get('name', rule.get('rule_name', 'unknown'))}` "
-                            f"[{rule.get('severity', 'P1')}] fired:\n"
-                            f"   Check: {check}\n"
-                            f"   Action: {rule.get('action_on_match', rule.get('action', ''))}"
-                        )
+                # Phase rules are intentionally event-gated: their check text
+                # describes the review to run, not a keyword condition that
+                # happens to be present in a user prompt. Other rules retain
+                # keyword matching to avoid broad, noisy reminders.
+                if event.startswith("phase."):
+                    matched = True
+                else:
+                    check_words = [word for word in check.split() if len(word) > 3]
+                    match_count = sum(1 for word in check_words if word in context_text)
+                    matched = bool(check_words) and match_count / len(check_words) >= 0.25
+                if matched:
+                    self.store.increment_rule_trigger(rule['id'])
+                    warnings.append(
+                        f"Rule `{rule.get('name', rule.get('rule_name', 'unknown'))}` "
+                        f"[{rule.get('severity', 'P1')}] fired: "
+                        f"{rule.get('action_on_match', rule.get('action', ''))}"
+                    )
             except Exception as e:
                 error = str(e)
                 logger.warning(f"Rule evaluation error: {e}")
@@ -153,11 +174,17 @@ class PreventionRuleMiddleware(Middleware):
         # (tool.before:<name> → also checks tool.before:*), so no explicit
         # wildcard emit is needed here.
 
-        # For orchestrate — also emit prompt.received
-        if ctx.tool_name == 'orchestrate_request_tool':
+        # Gateway and legacy prompt-bearing tools all emit the same canonical
+        # events so prevention coverage does not depend on the profile.
+        if ctx.tool_name in PROMPT_TOOLS:
             prompt = ctx.args.get('user_prompt', '')
             payload['prompt'] = prompt[:500]
             warnings.extend(self.bus.emit('prompt.received', payload))
+            phase = _phase_for_prompt(prompt)
+            if phase:
+                payload['phase'] = phase
+                ctx.metadata['workflow_phase'] = phase
+                warnings.extend(self.bus.emit(f'phase.before:{phase}', payload))
 
         if warnings:
             ctx.metadata['prevention_warnings'] = warnings

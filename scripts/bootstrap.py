@@ -1,11 +1,12 @@
-import os
+import argparse
 import json
 import logging
+import os
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-def bootstrap(brain_dir: str):
+def bootstrap(brain_dir: str, include_demo_mcps: bool = False):
     """
     Initializes the base directory structure and defaults for an Elite System.
     Run this when spinning up a fresh brain.
@@ -13,7 +14,11 @@ def bootstrap(brain_dir: str):
     logger.info(f"Bootstrapping brain directory at {brain_dir}")
     
     brain_path = Path(brain_dir)
-    brain_path.mkdir(parents=True, exist_ok=True)
+    brain_path.mkdir(parents=True, mode=0o700, exist_ok=True)
+    try:
+        os.chmod(brain_path, 0o700)
+    except OSError:
+        pass
     
     # 1. Setup Quarantine directory
     quarantine_path = brain_path / "skills" / ".quarantine"
@@ -25,44 +30,29 @@ def bootstrap(brain_dir: str):
     if not mcp_config_path.exists():
         logger.info("Generating default mcp_servers.json payload")
         
-        default_mcp_payload = {
-            "mcpServers": {
-                "fetch": {
-                    "command": "uvx",
-                    "args": ["mcp-server-fetch"]
-                },
-                "github": {
-                    "command": "npx",
-                    "args": ["-y", "@modelcontextprotocol/server-github"]
-                },
-                "memory": {
-                    "command": "npx",
-                    "args": ["-y", "@modelcontextprotocol/server-memory"]
-                },
-                "sequential-thinking": {
-                    "command": "npx",
-                    "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"]
-                },
-                "brave-search": {
-                    "command": "npx",
-                    "args": ["-y", "@modelcontextprotocol/server-brave-search"]
-                },
-                "puppeteer": {
-                    "command": "npx",
-                    "args": ["-y", "@modelcontextprotocol/server-puppeteer"]
-                }
+        default_mcp_payload = {"mcpServers": {}}
+        if include_demo_mcps:
+            default_mcp_payload["mcpServers"] = {
+                "fetch": {"command": "uvx", "args": ["mcp-server-fetch"]},
             }
-        }
-        
+            logger.warning("Demo MCP configuration enabled; review and pin every third-party tool before use.")
         mcp_config_path.write_text(json.dumps(default_mcp_payload, indent=2))
+        try:
+            os.chmod(mcp_config_path, 0o600)
+        except OSError:
+            pass
     else:
         logger.info("mcp_servers.json already exists. Skipping.")
         
 if __name__ == "__main__":
-    import argparse
     logging.basicConfig(level=logging.INFO)
     parser = argparse.ArgumentParser(description="Bootstrap Elite Reasoning System")
     parser.add_argument("--brain-dir", default="brain", help="Path to the brain directory")
+    parser.add_argument(
+        "--include-demo-mcps",
+        action="store_true",
+        help="Add a single demo MCP entry; review and pin it before execution.",
+    )
     args = parser.parse_args()
     
-    bootstrap(args.brain_dir)
+    bootstrap(args.brain_dir, include_demo_mcps=args.include_demo_mcps)

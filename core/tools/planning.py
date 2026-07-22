@@ -155,116 +155,204 @@ def register(mcp, store, orchestrator=None):
             return f'❌ Failed to resolve: {str(e)}'
 
     @mcp.tool()
-    def sync_team_memory(remote_url: str = 'http://localhost:8000') -> str:
-        """
-        Perform a bi-directional sync of the Elite Memory database with the central team hub.
-        Each user's contributions are tagged with their identity for attribution.
+    def sync_team_memory(
+        remote_url: str = "http://localhost:8000",
+        confirm: bool = False,
+        direction: str = "pull",
+    ) -> str:
+        """Synchronize only through an explicitly approved team endpoint.
+
+        Remote records are never promoted into anti-patterns or decisions
+        automatically. They arrive as low-trust quarantined memory and require
+        an explicit `elite_memory(action="approve")` review before use.
+
         Args:
-            remote_url: The URL of the central sync server (default: http://localhost:8000)
+            remote_url: Approved hub URL. Defaults to a local endpoint.
+            confirm: Must be true before any network request is made.
+            direction: `pull` (default), `push`, or `bidirectional`. Pushes
+                also require `ELITE_SYNC_ALLOW_OUTBOUND=1`.
         """
         import getpass
         import json
         import os
-        from datetime import datetime
+        import tempfile
+        from datetime import datetime, timedelta, timezone
 
         import httpx
 
-        # Override URL from env if available
-        remote_url = os.environ.get("TEAM_SYNC_URL", remote_url)
-        remote_url = remote_url.rstrip("/")
+        from core.privacy import redact_text, safe_error_detail
+        from core.sync_security import authorize_manual_sync
 
-        # Identify this user
+        normalized_direction = direction.strip().lower()
+        if normalized_direction not in {"pull", "push", "bidirectional"}:
+            return "❌ direction must be pull, push, or bidirectional."
+
+        configured_url = (
+            os.environ.get("ELITE_SYNC_URL")
+            or os.environ.get("TEAM_SYNC_URL")
+            or remote_url
+        )
+        try:
+            endpoint = authorize_manual_sync(configured_url, confirm)
+        except (PermissionError, ValueError) as error:
+            return f"❌ Sync access denied: {safe_error_detail(error)}"
+
+        push_requested = normalized_direction in {"push", "bidirectional"}
+        pull_requested = normalized_direction in {"pull", "bidirectional"}
+        if push_requested and os.environ.get("ELITE_SYNC_ALLOW_OUTBOUND") != "1":
+            return "❌ Outbound sync is disabled. Set ELITE_SYNC_ALLOW_OUTBOUND=1 after reviewing the data scope."
+
         user_id = os.environ.get("ELITE_USER_ID", getpass.getuser())
-
         headers = {}
         api_key = os.environ.get("ELITE_SYNC_API_KEY")
         if api_key:
             headers["X-Elite-Sync-Key"] = api_key
 
         cursor_path = os.path.join(store.brain_dir, "sync_cursor.json")
-        last_synced_at = None
+        last_pulled_at = None
+        last_pushed_at = None
         if os.path.exists(cursor_path):
             try:
-                with open(cursor_path, 'r') as f:
-                    last_synced_at = json.load(f).get("last_synced_at")
-            except Exception:
+                with open(cursor_path, encoding="utf-8") as handle:
+                    cursor = json.load(handle)
+                if isinstance(cursor, dict):
+                    # The v1 shared cursor used an incompatible ISO format and
+                    # conflated pull and push state. Ignore it rather than risk
+                    # silently dropping pre-upgrade local records.
+                    last_pulled_at = cursor.get("last_pulled_at")
+                    last_pushed_at = cursor.get("last_pushed_at")
+            except (OSError, ValueError, TypeError):
                 pass
 
-        try:
-            # 0. REGISTER this user with the hub (idempotent)
-            from core.orchestration.capabilities import build_capability_registry
-            registry = build_capability_registry()
+        def canonical_cursor(value: object) -> str | None:
+            if not isinstance(value, str) or not value:
+                return None
             try:
-                httpx.post(
-                    f"{remote_url}/api/users/register",
+                return datetime.strptime(value, "%Y-%m-%d %H:%M:%S").strftime("%Y-%m-%d %H:%M:%S")
+            except ValueError:
+                return None
+
+        last_pulled_at = canonical_cursor(last_pulled_at)
+        last_pushed_at = canonical_cursor(last_pushed_at)
+
+        def safe_records(records: list[dict]) -> list[dict]:
+            sanitized: list[dict] = []
+            for record in records[:200]:
+                if not isinstance(record, dict):
+                    continue
+                item: dict[str, object] = {}
+                for key, value in record.items():
+                    if key == "id" or not isinstance(key, str):
+                        continue
+                    if isinstance(value, str):
+                        item[key[:80]] = redact_text(value, limit=2000)
+                    elif isinstance(value, (bool, int, float)) or value is None:
+                        item[key[:80]] = value
+                if item:
+                    sanitized.append(item)
+            return sanitized
+
+        def write_cursor(pulled_at: str | None, pushed_at: str | None) -> None:
+            fd, temporary_path = tempfile.mkstemp(prefix=".sync_cursor.", suffix=".tmp", dir=store.brain_dir)
+            try:
+                os.fchmod(fd, 0o600)
+                with os.fdopen(fd, "w", encoding="utf-8") as handle:
+                    json.dump(
+                        {
+                            "version": 2,
+                            "last_pulled_at": pulled_at,
+                            "last_pushed_at": pushed_at,
+                            "user_id": user_id,
+                        },
+                        handle,
+                    )
+                    handle.write("\n")
+                os.replace(temporary_path, cursor_path)
+                os.chmod(cursor_path, 0o600)
+            except Exception:
+                try:
+                    os.unlink(temporary_path)
+                except OSError:
+                    pass
+                raise
+
+        quarantined = 0
+        accepted = 0
+        rejected = 0
+        # Deliberately overlap one second because the legacy tables have only
+        # second precision. The hub deduplicates re-sent records by content.
+        operation_cursor = (datetime.now(timezone.utc) - timedelta(seconds=1)).strftime("%Y-%m-%d %H:%M:%S")
+        next_pulled_at = last_pulled_at
+        next_pushed_at = last_pushed_at
+        try:
+            if pull_requested:
+                params = {"user_id": user_id}
+                if last_pulled_at:
+                    params["since"] = last_pulled_at
+                pull_response = httpx.get(
+                    f"{endpoint}/api/sync/pull",
+                    params=params,
+                    headers=headers,
+                    timeout=30.0,
+                    follow_redirects=False,
+                )
+                pull_response.raise_for_status()
+                remote_data = pull_response.json()
+                if not isinstance(remote_data, dict):
+                    return "❌ The approved sync hub returned an invalid payload."
+
+                for key, memory_type in (
+                    ("anti_patterns", "remote_anti_pattern"),
+                    ("decisions", "remote_decision"),
+                ):
+                    records = remote_data.get(key, [])
+                    if not isinstance(records, list):
+                        continue
+                    for record in safe_records(records):
+                        store.record_memory_item(
+                            memory_type=memory_type,
+                            content=json.dumps(record, sort_keys=True),
+                            scope="team",
+                            source="remote_sync",
+                            confidence=0.2,
+                            trust_score=0.2,
+                            privacy_class="internal",
+                            tags="remote_sync,unverified",
+                        )
+                        quarantined += 1
+                next_pulled_at = operation_cursor
+
+            if push_requested:
+                local_anti_patterns = safe_records(store.get_all_anti_patterns(since=last_pushed_at))
+                local_decisions = safe_records(store.get_all_decisions(since=last_pushed_at))
+                push_response = httpx.post(
+                    f"{endpoint}/api/sync/push",
                     headers=headers,
                     json={
                         "user_id": user_id,
-                        "display_name": user_id,
-                        "ide_type": registry.active_ide,
-                        "mcp_count": len(registry.names("mcp")),
-                        "skill_count": len(registry.names("skill")),
+                        "anti_patterns": local_anti_patterns,
+                        "decisions": local_decisions,
                     },
-                    timeout=5.0,
+                    timeout=30.0,
+                    follow_redirects=False,
                 )
-            except Exception:
-                pass  # Registration is best-effort
+                push_response.raise_for_status()
+                push_result = push_response.json()
+                if not isinstance(push_result, dict):
+                    return "❌ The approved sync hub returned an invalid push response."
+                accepted = int(push_result.get("accepted", len(local_anti_patterns) + len(local_decisions)))
+                rejected = int(push_result.get("rejected", 0))
+                # Keep the outbound cursor unchanged after a partial reject so
+                # the user can safely retry. The hub deduplicates accepted rows.
+                if rejected == 0:
+                    next_pushed_at = operation_cursor
 
-            # 1. PULL from remote
-            pull_url = f"{remote_url}/api/sync/pull"
-            pull_params = {"user_id": user_id}
-            if last_synced_at:
-                pull_params["since"] = last_synced_at
-            pull_resp = httpx.get(pull_url, params=pull_params, headers=headers, timeout=30.0)
-            pull_resp.raise_for_status()
-            remote_data = pull_resp.json()
-
-            # Merge remote into local
-            existing_aps = {ap['mistake'] for ap in store.get_all_anti_patterns()}
-            added_aps = 0
-            for ap in remote_data.get('anti_patterns', []):
-                if ap['mistake'] not in existing_aps:
-                    store.record_mistake(
-                        mistake=ap.get('mistake', ''),
-                        root_cause=ap.get('root_cause', ''),
-                        fix=ap.get('fix', ''),
-                        severity=ap.get('severity', 'medium'),
-                        tags=ap.get('tags', '')
-                    )
-                    added_aps += 1
-
-            existing_decs = {d['decision'] for d in store.get_all_decisions()}
-            added_decs = 0
-            for d in remote_data.get('decisions', []):
-                if d['decision'] not in existing_decs:
-                    store.record_decision(
-                        context=d.get('context', ''),
-                        decision=d.get('decision', ''),
-                        rationale=d.get('rationale', '')
-                    )
-                    added_decs += 1
-
-            # 2. PUSH local to remote (with user_id)
-            local_aps = store.get_all_anti_patterns(since=last_synced_at)
-            local_decs = store.get_all_decisions(since=last_synced_at)
-            local_payload = {
-                "user_id": user_id,
-                "anti_patterns": local_aps,
-                "decisions": local_decs
-            }
-            push_resp = httpx.post(f"{remote_url}/api/sync/push", headers=headers, json=local_payload, timeout=30.0)
-            push_resp.raise_for_status()
-            push_res = push_resp.json()
-
-            accepted = push_res.get("accepted", len(local_aps) + len(local_decs))
-            rejected = push_res.get("rejected", 0)
-            total_users = push_res.get("total_users", "?")
-
-            # Update cursor
-            new_cursor_time = datetime.utcnow().isoformat()
-            with open(cursor_path, 'w') as f:
-                json.dump({"last_synced_at": new_cursor_time, "user_id": user_id}, f)
-
-            return f"✅ Sync Complete (user: {user_id})! Pulled {added_aps} anti-patterns and {added_decs} decisions. Pushed: {accepted} accepted, {rejected} rejected. Team size: {total_users} users."
-        except Exception as e:
-            return f"❌ Sync Failed: {str(e)}"
+            write_cursor(next_pulled_at, next_pushed_at)
+            summary = [f"quarantined remote records: {quarantined}"] if pull_requested else []
+            if push_requested:
+                summary.append(f"outbound records: {accepted} accepted, {rejected} rejected")
+            return "✅ Sync complete. " + "; ".join(summary) + ". Review remote memory before approval."
+        except httpx.HTTPError as error:
+            return f"❌ Sync failed safely: {safe_error_detail(error)}"
+        except (OSError, ValueError, TypeError) as error:
+            return f"❌ Sync failed safely: {safe_error_detail(error)}"

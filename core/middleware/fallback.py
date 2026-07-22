@@ -6,32 +6,20 @@ Implements:
 1. RetryMiddleware — retries transient errors with exponential backoff
 2. FallbackMiddleware — tries alternative tool when primary fails
 """
-import asyncio
 import logging
-import time
+from typing import Optional
 
 from core.middleware.base import CallContext, CallResult, Middleware
+from core.tools.errors import EliteToolError, is_transient_error
 
 logger = logging.getLogger(__name__)
-
-# Transient error signatures that warrant a retry
-TRANSIENT_ERRORS = (
-    "SQLITE_BUSY",
-    "database is locked",
-    "connection refused",
-    "timeout",
-    "rate limit",
-    "429",
-    "503",
-    "temporary failure",
-)
-
 
 class RetryMiddleware(Middleware):
     """Retries tool calls on transient errors with exponential backoff.
     
     Default: 2 retries, 0.5s initial delay, 2x backoff.
-    Only retries errors matching TRANSIENT_ERRORS signatures.
+    Only retries transient errors. The chain owns re-execution so a retry is a
+    real second call, not a successful placeholder response.
     """
     name = "retry"
     applies_to = "*"
@@ -41,37 +29,21 @@ class RetryMiddleware(Middleware):
         self.initial_delay = initial_delay
         self.backoff_factor = backoff_factor
 
-    async def on_error(self, ctx: CallContext, error: Exception) -> CallResult | None:
-        error_str = str(error).lower()
-        is_transient = any(sig.lower() in error_str for sig in TRANSIENT_ERRORS)
-
-        if not is_transient:
-            logger.debug("RetryMiddleware: non-transient error, not retrying",
-                        extra={"tool": ctx.tool_name, "error": error_str[:200]})
-            return None  # Let error propagate
-
-        attempt = ctx.metadata.get('_retry_attempt', 0)
+    def should_retry(self, error: Exception, attempt: int) -> bool:
+        """Return whether the chain should execute the original call again."""
         if attempt >= self.max_retries:
-            logger.warning("RetryMiddleware: max retries exhausted",
-                          extra={"tool": ctx.tool_name, "attempts": attempt})
-            return None  # Let error propagate
+            return False
+        if isinstance(error, EliteToolError):
+            return error.retryable
+        return is_transient_error(error)
 
-        delay = self.initial_delay * (self.backoff_factor ** attempt)
-        ctx.metadata['_retry_attempt'] = attempt + 1
+    def delay_for(self, attempt: int) -> float:
+        """Calculate exponential backoff for the next retry attempt."""
+        return self.initial_delay * (self.backoff_factor ** attempt)
 
-        logger.info("RetryMiddleware: retrying after transient error",
-                    extra={"tool": ctx.tool_name, "attempt": attempt + 1,
-                           "delay_s": delay, "error": error_str[:100]})
-
-        await asyncio.sleep(delay)
-
-        # Return a result that signals "retry" to the chain
-        return CallResult(
-            value=None,
-            duration_ms=delay * 1000,
-            short_circuited=True,
-            augmentations=[f"⟳ Retry {attempt + 1}/{self.max_retries} after {delay:.1f}s delay"],
-        )
+    async def on_error(self, ctx: CallContext, exc: Exception) -> CallResult | None:
+        """Retry execution is owned by ``MiddlewareChain``."""
+        return None
 
 
 # ── Fallback Tool Registry ──────────────────────────────
@@ -97,25 +69,12 @@ class FallbackMiddleware(Middleware):
     name = "fallback"
     applies_to = "*"
 
-    def __init__(self, registry: dict[str, list[str]] = None):
-        self.registry = registry or FALLBACK_REGISTRY
+    def __init__(self, registry: Optional[dict[str, list[str]]] = None):
+        self.registry = registry if registry is not None else FALLBACK_REGISTRY
 
-    async def on_error(self, ctx: CallContext, error: Exception) -> CallResult | None:
-        fallbacks = self.registry.get(ctx.tool_name, [])
-        if not fallbacks:
-            return None
+    def fallbacks_for(self, tool_name: str) -> tuple[str, ...]:
+        """Return safe alternatives without converting a failure into success."""
+        return tuple(self.registry.get(tool_name, []))
 
-        logger.info("FallbackMiddleware: suggesting alternatives",
-                    extra={"tool": ctx.tool_name, "fallbacks": fallbacks})
-
-        suggestion = (
-            f"⚠️ Tool `{ctx.tool_name}` failed: {str(error)[:200]}. "
-            f"Consider trying: {', '.join(f'`{f}`' for f in fallbacks)}"
-        )
-
-        return CallResult(
-            value=suggestion,
-            duration_ms=(time.perf_counter() - ctx.started_at) * 1000,
-            short_circuited=True,
-            augmentations=[suggestion],
-        )
+    async def on_error(self, ctx: CallContext, exc: Exception) -> CallResult | None:
+        return None

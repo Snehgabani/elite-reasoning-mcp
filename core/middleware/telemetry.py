@@ -2,6 +2,7 @@
 import logging
 
 from core.middleware.base import CallContext, CallResult, Middleware
+from core.privacy import telemetry_mode, telemetry_summary
 
 logger = logging.getLogger(__name__)
 
@@ -22,13 +23,13 @@ class UsageLogMiddleware(Middleware):
         self.session_id = session_id
 
     async def after(self, ctx: CallContext, result: CallResult) -> CallResult:
+        if telemetry_mode() == "off":
+            return result
         try:
-            args_summary = str(ctx.args)[:200] if ctx.args else ''
-            result_text = ''
-            if isinstance(result.value, str):
-                result_text = result.value[:200]
-            elif isinstance(result.value, dict):
-                result_text = str(result.value)[:200]
+            # Metadata-only telemetry is the default. Raw values require an
+            # explicit local opt-in and are still passed through redaction.
+            args_summary = telemetry_summary(ctx.args) if ctx.args else ''
+            result_text = telemetry_summary(result.value)
             self.store.log_tool_usage(
                 ctx.tool_name, args_summary, result_text,
                 self.session_id, int(result.duration_ms)
@@ -131,4 +132,3 @@ class CostTrackingMiddleware(Middleware):
         except Exception as e:
             logger.debug(f'Cost tracking failed for {ctx.tool_name}: {e}')
         return result
-

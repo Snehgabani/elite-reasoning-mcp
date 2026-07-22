@@ -5,6 +5,39 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2026-07-16
+
+### Added
+- Compact default `core` MCP profile with five typed, annotated gateway tools: `elite_prepare`, `elite_progress`, `elite_verify`, `elite_memory`, and `elite_admin`.
+- Protocol runtime identity: the MCP initialize response now advertises the package version, and the doctor reports executable, package, protocol, and tool-profile diagnostics.
+- Explicit local CLI commands for `--version`, `doctor`, and a confirmation-gated `upgrade` preview/run path.
+- Ordered workflow completion controls: terminal statuses require evidence, later steps cannot complete before earlier steps, and workflow status is derived from step outcomes.
+- Typed structured `warnings` fields so prevention and middleware feedback survives without breaking MCP output schemas.
+- Privacy-safe local monitoring through `elite_admin(action="monitoring")`, exposing only aggregate latency, workflow, and memory health.
+- Stdio protocol tests for server identity, compact discovery, structured output, and `isError=true` tool failures.
+
+### Changed
+- The default public surface is now five task-oriented tools. The 90+ tool catalog and resources are available only with `ELITE_TOOL_PROFILE=legacy`.
+- Tool errors now become sanitized typed MCP failures instead of successful-looking text responses; transient retries re-execute the original call and fallback guidance remains an error.
+- Phase prevention rules are emitted from the v2 gateway, and their guidance is returned through the typed warning contract.
+- Prompt-intelligence and workflow flight-recorder persistence now withhold raw prompts by default.
+- `elite_memory` now supports explicit permanent deletion with `action="forget"`, and non-persisted workflow plans declare that `elite_progress` cannot resume them.
+- Gateway argument schemas now constrain action enums, input sizes, and trust-score bounds for more reliable client-side tool selection.
+- Runtime dependencies now use tested major-version bounds, and the release gate validates lock integrity, a high-severity Bandit scan, and an isolated installed-wheel CLI invocation.
+- Source distributions now use an explicit allowlist and the release gate rejects local profiles, generated UI output, databases, environment files, and credential-like artifacts.
+- Added a checksum-verified, redacted Gitleaks CI scan for both full Git history and the checked-out repository, with a narrow synthetic-fixture allowlist.
+- Telemetry defaults to metadata-only retention; `off` disables usage logging, and raw retention requires explicit local opt-ins.
+- User profile configuration is owner-only, migrates persisted provider/sync secrets out of JSON, and disables automatic boot sync.
+- Team sync now requires `confirm=true`, approved host configuration, redirect blocking, explicit external/outbound grants, and quarantines imported records pending review.
+- Release checks now validate the v2 protocol identity and compact contract instead of the obsolete 90-tool default.
+
+### Security
+- Removed plaintext API-key persistence from the user profile and moved credentials to process environment/keychain-backed configuration.
+- Added common token, JSON secret, bearer-token, and private-key redaction before telemetry, error diagnostics, and outbound sync payloads.
+- Prevented silent startup network writes and direct promotion of remotely supplied anti-patterns or decisions.
+- Redact secret-like memory content, metadata, and workflow evidence before persistence; sensitive memory cannot be promoted and legacy v2 upgrades scrub covered raw prompts, telemetry, and stored records.
+- Replaced MD5 context hashes with SHA-256, made the optional sync hub localhost-only by default, removed wildcard CORS, and require explicit custom-provider endpoint approval.
+
 ## [1.2.1] - 2026-07-10
 
 ### Added
