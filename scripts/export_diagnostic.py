@@ -192,8 +192,8 @@ def main():
     out_file.write_text(final_output, encoding="utf-8")
     try:
         os.chmod(out_file, 0o600)
-    except OSError:
-        pass
+    except OSError as error:
+        raise RuntimeError("Unable to set owner-only permissions on the diagnostic export.") from error
     print(f"\\n✅ Export complete: {out_file}")
     print(f"File size: {os.path.getsize(out_file) / 1024:.2f} KB")
 

@@ -12,7 +12,7 @@
     "better-sqlite3": "^12.10.0",
     "framer-motion": "^12.40.0",
     "lucide-react": "^1.17.0",
-    "next": "16.3.0-canary.77",
+    "next": "^16.2.11",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "reactflow": "^11.11.4"
@@ -24,8 +24,12 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.3.0-canary.77",
+    "eslint-config-next": "^16.2.11",
     "tailwindcss": "^4",
     "typescript": "^5"
+  },
+  "overrides": {
+    "sharp": "0.35.3",
+    "postcss": "8.5.22"
   }
 }

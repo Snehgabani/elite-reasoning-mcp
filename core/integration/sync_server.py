@@ -832,9 +832,10 @@ def health(api_key: str = Depends(get_api_key)):
             },
         }
     except Exception as error:
+        logger.warning("Health check failed safely: %s", safe_error_detail(error))
         return {
             "status": "degraded",
-            "error": safe_error_detail(error),
+            "error": "The health check encountered an internal error.",
         }
 
 
