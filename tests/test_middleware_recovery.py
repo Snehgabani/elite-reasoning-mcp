@@ -1,8 +1,37 @@
 import pytest
 
-from core.middleware.chain import MiddlewareChain
+from core.middleware.base import CallResult
+from core.middleware.chain import MiddlewareChain, _render
 from core.middleware.fallback import FallbackMiddleware, RetryMiddleware
 from core.tools.errors import EliteToolError
+from core.tools.gateway import PrepareResult
+
+
+def test_render_preserves_tool_warnings_when_middleware_adds_augmentations():
+    result = CallResult(
+        value=PrepareResult(
+            run_id="run-123",
+            persisted=False,
+            intent="build",
+            complexity=3,
+            budget_tier="balanced",
+            confidence=0.8,
+            steps=[],
+            validation_gates=[],
+            evidence_requirements=[],
+            memory_context=[],
+            capability_warnings=[],
+            warnings=["This workflow is not durable."],
+        ),
+        augmentations=["Prevention guidance was added."],
+    )
+
+    rendered = _render(None, result)
+
+    assert rendered.warnings == [
+        "This workflow is not durable.",
+        "Prevention guidance was added.",
+    ]
 
 
 @pytest.mark.asyncio

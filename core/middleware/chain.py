@@ -22,7 +22,8 @@ def _render(ctx: CallContext, result: CallResult):
     # schema while surfacing evidence/prevention feedback to the client.
     model_fields = getattr(type(result.value), "model_fields", {})
     if "warnings" in model_fields and hasattr(result.value, "model_copy"):
-        return result.value.model_copy(update={"warnings": list(result.augmentations)})
+        existing_warnings = list(getattr(result.value, "warnings", None) or [])
+        return result.value.model_copy(update={"warnings": existing_warnings + list(result.augmentations)})
     # Other structured results do not get ad-hoc wrapper keys because that
     # would silently violate their output schema contract.
     return result.value
