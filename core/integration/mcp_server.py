@@ -61,7 +61,7 @@ def create_mcp_server(brain_dir: str, tool_profile: str | None = None) -> FastMC
     elite_dir = os.path.dirname(os.path.abspath(brain_dir))
     profile = UserProfile(elite_dir)
     profile.ensure_dirs()
-    logger.info("User profile loaded", extra={"user": profile.config.get("user_name", "unknown")})
+    logger.info("Local profile loaded", extra={"action": "profile_loaded"})
 
     # Use the profile's brain_dir if the passed-in dir matches default layout
     actual_brain_dir = brain_dir
@@ -177,9 +177,8 @@ def create_mcp_server(brain_dir: str, tool_profile: str | None = None) -> FastMC
     @mcp.tool()
     def get_user_profile() -> str:
         """
-        Returns the current user's profile, including their identity,
-        IDE type, installed MCP/Skill counts, sync status, and preferences.
-        Use this to understand WHO you are serving and what tools they have.
+        Returns a privacy-safe local profile with IDE, capability, sync, and
+        preference status. Local identifiers, paths, and endpoints are hidden.
         """
         return profile.get_profile_summary()
 
@@ -347,7 +346,7 @@ def create_mcp_server(brain_dir: str, tool_profile: str | None = None) -> FastMC
 
     @mcp.resource("elite://profile")
     def get_profile_resource() -> str:
-        """Current user's identity, preferences, and environment."""
+        """Privacy-safe local profile, preferences, and environment status."""
         return profile.get_profile_summary()
 
     @mcp.resource("elite://anti_patterns")
@@ -440,7 +439,7 @@ def create_mcp_server(brain_dir: str, tool_profile: str | None = None) -> FastMC
         out += "| Component | Status | Detail |\n|---|---|---|\n"
         for c in checks:
             out += c + "\n"
-        out += f"\n**User:** {profile.user_id} | **IDE:** {profile.ide_type}\n"
+        out += f"\n**Local profile:** {profile.config.get('identity_mode', 'anonymous')} | **IDE:** {profile.ide_type}\n"
         return out
 
     @mcp.resource("elite://goals")
@@ -1056,7 +1055,8 @@ def _install_orchestration_interceptor(mcp: FastMCP, store: EliteStore, session_
 
 
 def _default_brain_dir() -> str:
-    return os.environ.get("ELITE_BRAIN_DIR", os.path.expanduser("~/.elite-reasoning/brain"))
+    configured = os.environ.get("ELITE_BRAIN_DIR", "~/.elite-reasoning/brain")
+    return os.path.abspath(os.path.expanduser(configured))
 
 
 def _upgrade_command() -> list[str]:
@@ -1091,6 +1091,7 @@ def main(argv: list[str] | None = None) -> int:
     upgrade_parser.add_argument("--dry-run", action="store_true", help="Print the upgrade command without running it.")
 
     args = parser.parse_args(argv)
+    args.brain_dir = os.path.abspath(os.path.expanduser(args.brain_dir))
     if args.version:
         print(package_version())
         return 0

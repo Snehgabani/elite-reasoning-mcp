@@ -1,9 +1,24 @@
 'use server';
 
 import Database from 'better-sqlite3';
+import { homedir } from 'node:os';
 import path from 'path';
 
-const BRAIN_DIR = process.env.BRAIN_DIR || '/Users/snehgabani/.gemini/antigravity/brain/2126fc46-8eea-4684-8e0b-5ac8b7e69c4b/scratch';
+function resolveBrainDir(): string {
+  const configured = process.env.ELITE_BRAIN_DIR || process.env.BRAIN_DIR;
+  if (!configured) {
+    return path.join(homedir(), '.elite-reasoning', 'brain');
+  }
+  if (configured === '~') {
+    return homedir();
+  }
+  if (configured.startsWith('~/')) {
+    return path.join(homedir(), configured.slice(2));
+  }
+  return path.resolve(configured);
+}
+
+const BRAIN_DIR = resolveBrainDir();
 
 type GraphNodeRow = {
   node_id: string;
@@ -106,8 +121,8 @@ export async function getGraphData(): Promise<GraphData> {
     }));
 
     return { nodes: reactFlowNodes, edges: reactFlowEdges };
-  } catch (e) {
-    console.error('Error fetching graph data', e);
+  } catch {
+    console.error('Error fetching graph data');
     return { nodes: [], edges: [] };
   } finally {
     db.close();
@@ -122,8 +137,8 @@ export async function getDashboardMetrics(): Promise<DashboardMetrics> {
     const decisions = db.prepare('SELECT id, decision, rationale FROM decisions ORDER BY created_at DESC LIMIT 5').all() as DashboardMetrics['decisions'];
     
     return { mistakes, goals, decisions };
-  } catch (e) {
-    console.error('Error fetching metrics', e);
+  } catch {
+    console.error('Error fetching metrics');
     return { mistakes: [], goals: [], decisions: [] };
   } finally {
     db.close();

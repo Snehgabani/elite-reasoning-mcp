@@ -11,17 +11,17 @@ def main():
     
     # Stress test command
     test_parser = subparsers.add_parser("test", help="Run the diagnostic stress test")
-    test_parser.add_argument("--brain-dir", default=os.path.expanduser("~/.gemini/antigravity/scratch/elite-system/brain"))
+    test_parser.add_argument("--brain-dir", default=os.path.expanduser("~/.elite-reasoning/brain"))
     test_parser.add_argument("--mock", action="store_true")
     test_parser.add_argument("--step", type=int, default=None)
     
     # Export command
     export_parser = subparsers.add_parser("export", help="Export system diagnostic state")
-    export_parser.add_argument("--brain-dir", default=os.path.expanduser("~/.gemini/antigravity/scratch/elite-system/brain"))
+    export_parser.add_argument("--brain-dir", default=os.path.expanduser("~/.elite-reasoning/brain"))
     
     # Guide command
     guide_parser = subparsers.add_parser("guide", help="Start the interactive Elite Local Guide")
-    guide_parser.add_argument("--brain-dir", default=os.path.expanduser("~/.gemini/antigravity/scratch/elite-system/brain"))
+    guide_parser.add_argument("--brain-dir", default=os.path.expanduser("~/.elite-reasoning/brain"))
     guide_parser.add_argument("--model", default="llama3")
     
     args = parser.parse_args()

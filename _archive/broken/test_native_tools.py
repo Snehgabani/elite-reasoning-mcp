@@ -7,7 +7,7 @@ sys.path.append(str(Path(__file__).parent.parent))
 from core.tools.native_tools import NativeTools
 
 def test_native_tools():
-    workspace = os.path.expanduser("~/.gemini/antigravity/scratch/elite-system/brain")
+    workspace = os.path.expanduser("~/.elite-reasoning/brain")
     tools = NativeTools(workspace_dir=workspace, auto_approve=True)
     
     # Test 1: Jail test

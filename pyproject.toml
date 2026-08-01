@@ -1,12 +1,12 @@
 [project]
 name = "elite-reasoning-mcp"
-version = "2.0.0"
+version = "2.0.1"
 description = "Privacy-first, evidence-gated Model Context Protocol workflow gateway for AI coding agents: trusted memory, durable execution, local monitoring, and release verification."
 readme = "README.md"
 requires-python = ">=3.11"
 license = {text = "MIT"}
 authors = [
-    {name = "Sneh Gabani", email = "snehgabani@gmail.com"},
+    {name = "Elite Reasoning MCP maintainers"},
 ]
 keywords = [
     "mcp",

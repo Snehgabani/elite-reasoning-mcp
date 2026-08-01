@@ -11,7 +11,6 @@ Config lives at: ~/.elite-reasoning/config.json
 Brain lives at:  ~/.elite-reasoning/brain/
 """
 import copy
-import getpass
 import json
 import os
 import tempfile
@@ -19,8 +18,9 @@ import time
 from typing import Optional
 
 DEFAULT_CONFIG = {
-    "user_id": "",
-    "display_name": "",
+    "user_id": "local-user",
+    "display_name": "Local User",
+    "identity_mode": "anonymous",
     "ide_type": "auto",
     "sync": {
         "enabled": False,
@@ -45,17 +45,43 @@ DEFAULT_CONFIG = {
     "updated_at": "",
 }
 
+_ANONYMOUS_USER_ID = "local-user"
+_ANONYMOUS_DISPLAY_NAME = "Local User"
+
+
+def _configured_identity() -> tuple[str, str, str]:
+    """Return an opt-in pseudonym without reading workstation account data."""
+    user_id = os.environ.get("ELITE_USER_ID", "").strip()
+    display_name = os.environ.get("ELITE_DISPLAY_NAME", "").strip()
+    if user_id:
+        return user_id, display_name or _ANONYMOUS_DISPLAY_NAME, "explicit"
+    return _ANONYMOUS_USER_ID, _ANONYMOUS_DISPLAY_NAME, "anonymous"
+
+
+def _migrate_identity(config: dict) -> None:
+    """Remove pre-v2.1 implicit workstation identity from persisted profiles."""
+    if config.get("identity_mode") in {"anonymous", "explicit"}:
+        return
+    user_id, display_name, mode = _configured_identity()
+    config["user_id"] = user_id
+    config["display_name"] = display_name
+    config["identity_mode"] = mode
+
 
 class UserProfile:
     """Manages per-user configuration and identity."""
 
     def __init__(self, elite_dir: Optional[str] = None):
         if elite_dir:
-            self.elite_dir = elite_dir
+            self.elite_dir = os.path.abspath(os.path.expanduser(elite_dir))
         else:
-            self.elite_dir = os.environ.get(
-                "ELITE_DIR",
-                os.path.join(os.path.expanduser("~"), ".elite-reasoning")
+            self.elite_dir = os.path.abspath(
+                os.path.expanduser(
+                    os.environ.get(
+                        "ELITE_DIR",
+                        os.path.join(os.path.expanduser("~"), ".elite-reasoning"),
+                    )
+                )
             )
         self.config_path = os.path.join(self.elite_dir, "config.json")
         self.brain_dir = os.path.join(self.elite_dir, "brain")
@@ -88,6 +114,7 @@ class UserProfile:
                 # Keys must be supplied by the process environment or keychain,
                 # never copied into a project-independent JSON file.
                 migrated = _strip_persisted_secrets(stored)
+                _migrate_identity(migrated)
                 # Boot-time synchronization can disclose installed-tool and
                 # workstation metadata before the user has confirmed a run.
                 if isinstance(migrated.get("sync"), dict):
@@ -107,8 +134,7 @@ class UserProfile:
 
         # First-time setup: auto-detect
         config = copy.deepcopy(DEFAULT_CONFIG)
-        config["user_id"] = os.environ.get("ELITE_USER_ID", getpass.getuser())
-        config["display_name"] = config["user_id"]
+        config["user_id"], config["display_name"], config["identity_mode"] = _configured_identity()
         config["ide_type_source"] = "auto"
         config["created_at"] = time.strftime("%Y-%m-%d %H:%M:%S")
         config["updated_at"] = config["created_at"]
@@ -169,11 +195,11 @@ class UserProfile:
     # ── Identity ───────────────────────────────────────────
     @property
     def user_id(self) -> str:
-        return self.config.get("user_id", getpass.getuser())
+        return self.config.get("user_id", _ANONYMOUS_USER_ID)
 
     @property
     def display_name(self) -> str:
-        return self.config.get("display_name", self.user_id)
+        return self.config.get("display_name", _ANONYMOUS_DISPLAY_NAME)
 
     @property
     def ide_type(self) -> str:
@@ -218,23 +244,22 @@ class UserProfile:
 
     # ── Summary ────────────────────────────────────────────
     def get_profile_summary(self) -> str:
-        """Return a human-readable profile summary."""
+        """Return a human-readable summary without exposing local identifiers."""
         from core.orchestration.capabilities import build_capability_registry
         registry = build_capability_registry()
         mcps = registry.names("mcp")
         skills = registry.names("skill")
+        identity = "Explicit pseudonym" if self.config.get("identity_mode") == "explicit" else "Anonymous local mode"
         return (
-            f"# User Profile: {self.display_name}\n\n"
+            "# Local Profile\n\n"
             f"| Field | Value |\n|---|---|\n"
-            f"| User ID | `{self.user_id}` |\n"
+            f"| Identity | {identity} |\n"
             f"| IDE | `{self.ide_type}` |\n"
             f"| MCPs | {len(mcps)} installed |\n"
             f"| Skills | {len(skills)} installed |\n"
             f"| Sync | {'✅ Enabled' if self.sync_enabled else '❌ Disabled'} |\n"
-            f"| Hub URL | `{self.sync_hub_url}` |\n"
             f"| Orchestration | `{self.orchestration_mode}` |\n"
-            f"| Brain Dir | `{self.brain_dir}` |\n"
-            f"| Config | `{self.config_path}` |\n"
+            "| Storage | Local owner-only state |\n"
         )
 
 

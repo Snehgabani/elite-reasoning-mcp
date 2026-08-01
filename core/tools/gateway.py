@@ -236,7 +236,7 @@ def register(mcp, store, profile) -> None:
         privacy_class: Annotated[str, Field(min_length=1, max_length=64)] = "internal",
         confirm: bool = False,
     ) -> MemoryResult:
-        """Search, record, or explicitly approve scoped memory items."""
+        """Search, record, or explicitly review and approve scoped memory items."""
         normalized_action = action.strip().lower()
         if normalized_action == "search":
             return MemoryResult(
@@ -265,6 +265,10 @@ def register(mcp, store, profile) -> None:
         if normalized_action == "approve":
             if memory_id < 1:
                 raise validation_error("memory_id is required for action=approve.")
+            if not confirm:
+                raise validation_error(
+                    "action=approve promotes quarantined memory; re-run with confirm=true after human review."
+                )
             if not store.approve_memory_item(memory_id, trust_score=trust_score):
                 raise validation_error(f"Quarantined memory item `{memory_id}` was not found.")
             item = store.get_memory_item(memory_id, include_quarantined=True)
@@ -307,6 +311,7 @@ def register(mcp, store, profile) -> None:
                     "telemetry_mode": telemetry_mode(),
                     "raw_prompt_storage_enabled": raw_prompt_storage_enabled(),
                     "sync_requires_confirm": True,
+                    "memory_approval_requires_confirm": True,
                 },
             )
         if normalized_action == "monitoring":

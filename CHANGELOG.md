@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.1] - 2026-08-01
+
+### Fixed
+- Default profile and legacy orchestration/sync paths no longer derive identity from the operating-system account name. Local profiles now use an anonymous default, while `ELITE_USER_ID` is an explicit pseudonym opt-in.
+- Profile and health output no longer reveal local identifiers, configuration paths, or sync endpoints.
+- `ELITE_BRAIN_DIR` and `--brain-dir` now expand `~` consistently; legacy launchers, diagnostics, archived helpers, and the telemetry UI no longer reference a developer-specific machine path.
+- Quarantined memory promotion now requires `confirm=true`, matching the explicit-review boundary used for destructive memory actions.
+- Docker Compose now starts Uvicorn rather than the stdio MCP entrypoint, persists the sync hub to the mounted volume, binds its published port to localhost, requires a sync key, and checks the authenticated health endpoint.
+
+### Changed
+- Docker images install the locked runtime environment through `uv sync --frozen`.
+- Package metadata uses project maintainer attribution without a personal email address.
+- Added privacy, path portability, memory-promotion, and CLI-path regression coverage, plus a versioned hardening roadmap.
+
 ## [2.0.0] - 2026-07-16
 
 ### Added

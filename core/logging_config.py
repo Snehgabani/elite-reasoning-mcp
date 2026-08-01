@@ -4,7 +4,7 @@ Structured logging configuration for the Elite Reasoning system.
 Usage:
     from core.logging_config import get_logger
     logger = get_logger(__name__)
-    logger.info("Tool called", extra={"tool": "set_goal", "user": "sneh"})
+    logger.info("Tool called", extra={"tool": "set_goal", "action": "create"})
 """
 import json
 import logging
@@ -26,7 +26,7 @@ class StructuredFormatter(logging.Formatter):
         }
 
         # Include any extra fields
-        for key in ('tool', 'user', 'action', 'duration_ms', 'error', 'gap_id'):
+        for key in ('tool', 'action', 'duration_ms', 'error', 'gap_id'):
             if hasattr(record, key):
                 log_entry[key] = getattr(record, key)
 

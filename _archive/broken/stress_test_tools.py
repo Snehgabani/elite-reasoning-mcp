@@ -53,7 +53,7 @@ class MockLLMWithTools:
         return AIMessage(content="Final response after tool execution")
 
 def main():
-    brain_dir = os.path.expanduser("~/.gemini/antigravity/scratch/elite-system/brain")
+    brain_dir = os.path.expanduser("~/.elite-reasoning/brain")
     os.makedirs(brain_dir, exist_ok=True)
     os.makedirs(os.path.join(brain_dir, "skills"), exist_ok=True)
     

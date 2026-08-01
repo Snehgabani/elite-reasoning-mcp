@@ -46,7 +46,7 @@ class IDEBridge:
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(description="IDE Integration Bridge")
-    parser.add_argument("--brain-dir", default=os.path.expanduser("~/.gemini/antigravity/scratch/elite-system/brain"))
+    parser.add_argument("--brain-dir", default=os.path.expanduser("~/.elite-reasoning/brain"))
     parser.add_argument("--status", action="store_true", help="Print system status as JSON")
     args = parser.parse_args()
     

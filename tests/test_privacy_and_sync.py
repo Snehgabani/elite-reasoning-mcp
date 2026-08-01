@@ -2,6 +2,7 @@ import json
 import os
 import sqlite3
 import stat
+from pathlib import Path
 
 import pytest
 
@@ -93,7 +94,38 @@ def test_profile_migration_removes_secrets_and_disables_boot_sync(tmp_path):
     assert "gemini_api_key" not in config["orchestration"]
     assert config["ide_type"] == "auto"
     assert config["ide_type_source"] == "auto"
+    assert config["user_id"] == "local-user"
+    assert config["display_name"] == "Local User"
+    assert config["identity_mode"] == "anonymous"
     assert stat.S_IMODE(os.stat(config_path).st_mode) == 0o600
+
+
+def test_profile_uses_anonymous_identity_and_hides_local_metadata(tmp_path, monkeypatch):
+    monkeypatch.delenv("ELITE_USER_ID", raising=False)
+    monkeypatch.delenv("ELITE_DISPLAY_NAME", raising=False)
+    profile = UserProfile(str(tmp_path))
+    config = profile.config
+    config["sync"]["hub_url"] = "https://private.example.invalid"
+
+    assert profile.user_id == "local-user"
+    assert profile.display_name == "Local User"
+    assert config["identity_mode"] == "anonymous"
+
+    summary = profile.get_profile_summary()
+    assert "local-user" not in summary
+    assert "private.example.invalid" not in summary
+    assert str(tmp_path) not in summary
+
+
+def test_profile_uses_only_explicit_pseudonym_configuration(tmp_path, monkeypatch):
+    monkeypatch.setenv("ELITE_USER_ID", "team-pseudonym-42")
+    monkeypatch.setenv("ELITE_DISPLAY_NAME", "Release Team")
+
+    profile = UserProfile(str(tmp_path))
+
+    assert profile.user_id == "team-pseudonym-42"
+    assert profile.display_name == "Release Team"
+    assert profile.config["identity_mode"] == "explicit"
 
 
 def test_remote_memory_is_quarantined_until_explicit_approval(tmp_path):
@@ -341,6 +373,7 @@ async def test_sync_uses_directional_cursors_and_replays_after_legacy_cursor(tmp
 
     assert "1 accepted" in completed
     assert captured["anti_patterns"]
+    assert captured["user_id"] == "local-user"
     cursor = json.loads(cursor_path.read_text(encoding="utf-8"))
     assert cursor["version"] == 2
     assert cursor["last_pulled_at"]
@@ -357,3 +390,22 @@ async def test_telemetry_off_does_not_write_usage_records(tmp_path, monkeypatch)
     await middleware.after(context, CallResult(value={"status": "ok"}, duration_ms=10))
 
     assert store.get_tool_usage_stats()["total_invocations"] == 0
+
+
+def test_runtime_sources_do_not_include_developer_machine_paths_or_package_email():
+    repository = Path(__file__).resolve().parents[1]
+    source_files = [
+        *(repository / "core").rglob("*.py"),
+        *(repository / "app").rglob("*.py"),
+        *(repository / "scripts").rglob("*.py"),
+        repository / "run_sync_server.sh",
+        repository / "Dockerfile",
+        repository / "docker-compose.yml",
+        repository / "telemetry-ui" / "src" / "app" / "actions" / "db.ts",
+        repository / "pyproject.toml",
+    ]
+
+    for source_file in source_files:
+        contents = source_file.read_text(encoding="utf-8")
+        assert "/Users/" not in contents, source_file
+        assert "snehgabani@gmail.com" not in contents, source_file

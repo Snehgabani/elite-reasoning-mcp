@@ -99,6 +99,27 @@ async def test_gateway_memory_can_be_forgotten_and_ephemeral_runs_are_labeled(tm
 
 
 @pytest.mark.asyncio
+async def test_gateway_requires_confirmation_before_memory_promotion(tmp_path):
+    mcp = create_mcp_server(str(tmp_path / "brain"))
+    tools = mcp._tool_manager._tools
+    memory_id = mcp._elite_store.record_memory_item(
+        memory_type="remote_decision",
+        content="Review this imported deployment decision.",
+        source="remote_sync",
+        confidence=0.2,
+        trust_score=0.2,
+    )
+
+    with pytest.raises(EliteToolError, match="confirm=true"):
+        await tools["elite_memory"].fn(action="approve", memory_id=memory_id)
+
+    approved = await tools["elite_memory"].fn(action="approve", memory_id=memory_id, confirm=True)
+
+    assert approved.quarantined is False
+    assert mcp._elite_store.get_memory_item(memory_id)["quarantined"] is False
+
+
+@pytest.mark.asyncio
 async def test_gateway_middleware_merges_tool_and_prevention_warnings(tmp_path):
     mcp = create_mcp_server(str(tmp_path / "brain"))
     tools = mcp._tool_manager._tools

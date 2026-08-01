@@ -11,13 +11,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY --from=ghcr.io/astral-sh/uv:latest@sha256:0f36cb9361a3346885ca3677e3767016687b5a170c1a6b88465ec14aefec90aa /uv /usr/local/bin/uv
 
 # Copy project files
-COPY pyproject.toml ./
+COPY pyproject.toml uv.lock ./
 COPY README.md ./
 COPY core/ ./core/
 COPY app/ ./app/
 
-# Install dependencies
-RUN uv pip install --system --no-cache .
+# Install the locked runtime environment, including the project itself.
+RUN uv sync --frozen --no-dev
 
 # Create brain directory
 RUN mkdir -p /data/brain
@@ -26,6 +26,7 @@ RUN mkdir -p /data/brain
 ENV ELITE_BRAIN_DIR=/data/brain
 ENV ELITE_LOG_LEVEL=INFO
 ENV PYTHONUNBUFFERED=1
+ENV PATH="/app/.venv/bin:$PATH"
 
 # The MCP server uses stdio transport
 ENTRYPOINT ["elite-reasoning-mcp"]

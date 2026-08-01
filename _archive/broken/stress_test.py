@@ -313,7 +313,7 @@ def run_stress_test(brain_dir: str, use_mock: bool = False, step_idx: int = None
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--brain-dir", type=str, default=os.path.expanduser("~/.gemini/antigravity/scratch/elite-system/brain"))
+    parser.add_argument("--brain-dir", type=str, default=os.path.expanduser("~/.elite-reasoning/brain"))
     parser.add_argument("--mock", action="store_true", help="Run with FakeListChatModel instead of real LLM")
     parser.add_argument("--step", type=int, default=None, help="Run a specific prompt index for 1-by-1 diagnostics")
     args = parser.parse_args()

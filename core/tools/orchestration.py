@@ -105,17 +105,6 @@ def _resolve_user_paths() -> tuple[str, str]:
     return mcp_dir, skills_dir
 
 
-def _get_user_identity() -> str:
-    """Return a stable user identifier for sync namespacing."""
-    # Priority: explicit env var > system username > hostname
-    user_id = os.environ.get("ELITE_USER_ID")
-    if user_id:
-        return user_id
-    import getpass
-
-    return getpass.getuser()
-
-
 def scan_available_mcps(mcp_dir: Optional[str] = None) -> list[str]:
     """Scan the user's MCP directory for installed servers."""
     if not mcp_dir:
@@ -177,8 +166,6 @@ def orchestrate_request(user_prompt: str) -> str:
     registry = build_capability_registry()
     mcps = registry.names("mcp")
     skills = registry.names("skill")
-    user_id = _get_user_identity()
-
     # ── Goal-Aligned Prompt Polishing ──────────────────────
     polish_result = None
     if _polisher is not None:
@@ -227,7 +214,7 @@ def orchestrate_request(user_prompt: str) -> str:
     if orch_mode == "llm" or (orch_mode == "auto" and api_key):
         if api_key:
             try:
-                plan = _llm_orchestration(user_prompt, mcps, skills, user_id, api_key)
+                plan = _llm_orchestration(user_prompt, mcps, skills, api_key)
                 return _append_elite_metadata(plan, user_prompt, registry.active_ide, registry.warnings, polish_result)
             except Exception as error:
                 logger.warning("LLM orchestration failed safely: %s", safe_error_detail(error))
@@ -235,7 +222,6 @@ def orchestrate_request(user_prompt: str) -> str:
                     user_prompt,
                     mcps,
                     skills,
-                    user_id,
                     "LLM fallback: provider request failed safely.",
                     active_ide=registry.active_ide,
                     capability_warnings=registry.warnings,
@@ -246,7 +232,6 @@ def orchestrate_request(user_prompt: str) -> str:
         user_prompt,
         mcps,
         skills,
-        user_id,
         "Heuristic mode",
         active_ide=registry.active_ide,
         capability_warnings=registry.warnings,
@@ -254,7 +239,7 @@ def orchestrate_request(user_prompt: str) -> str:
     )
 
 
-def _llm_orchestration(user_prompt: str, mcps: list[str], skills: list[str], user_id: str, api_key: str) -> str:
+def _llm_orchestration(user_prompt: str, mcps: list[str], skills: list[str], api_key: str) -> str:
     """Use Gemini to generate a smart, personalized orchestration plan."""
     url = _gemini_endpoint()
 
@@ -266,7 +251,6 @@ def _llm_orchestration(user_prompt: str, mcps: list[str], skills: list[str], use
     )
 
     prompt = (
-        f"User: {user_id}\n"
         f"Available MCPs ({len(mcps)}): {', '.join(mcps)}\n"
         f"Available Skills ({len(skills)}): {', '.join(skills)}\n\n"
         f"User Request: {user_prompt}"
@@ -328,7 +312,6 @@ def _heuristic_orchestration(
     user_prompt: str,
     mcps: list[str],
     skills: list[str],
-    user_id: str,
     reason: str = "",
     active_ide: str = "",
     capability_warnings: tuple[str, ...] = (),
@@ -537,7 +520,7 @@ def _heuristic_orchestration(
     # ── Build the plan ─────────────────────────────────────────
     plan = "# Elite Orchestrator Plan\n\n"
     policy = recommend_budget_tier(user_prompt)
-    plan += f"**User:** `{user_id}` | **Mode:** Heuristic ({reason})\n\n"
+    plan += f"**Mode:** Heuristic ({reason})\n\n"
     plan += "## Environment\n"
     plan += f"- **Active IDE:** `{active_ide or 'unknown'}`\n"
     plan += f"- **Recommendable MCP servers:** {len(mcps)}\n"

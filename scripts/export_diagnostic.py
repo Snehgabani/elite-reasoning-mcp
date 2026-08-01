@@ -146,15 +146,16 @@ def collect_history(brain_dir: Path, slim: bool) -> str:
 
 
 def main():
+    project_root = Path(__file__).resolve().parents[1]
     parser = argparse.ArgumentParser(description="Export Elite System Diagnostic State")
     parser.add_argument(
         "--brain-dir",
-        default=os.path.expanduser("~/.gemini/antigravity/scratch/elite-system/brain"),
+        default=os.environ.get("ELITE_BRAIN_DIR", os.path.expanduser("~/.elite-reasoning/brain")),
         help="Path to brain directory",
     )
     parser.add_argument(
         "--sys-dir",
-        default=os.path.expanduser("~/.gemini/antigravity/scratch/elite-system"),
+        default=os.environ.get("ELITE_SOURCE_DIR", str(project_root)),
         help="Path to core system directory",
     )
     parser.add_argument("--slim", action="store_true", help="Limit execution history output to save context tokens")

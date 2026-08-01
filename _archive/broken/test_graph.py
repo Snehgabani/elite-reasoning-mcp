@@ -33,7 +33,7 @@ class MockLLM:
         return HumanMessage(content="This is a mocked response.")
 
 def main():
-    brain_dir = os.path.expanduser("~/.gemini/antigravity/scratch/elite-system/brain")
+    brain_dir = os.path.expanduser("~/.elite-reasoning/brain")
     os.makedirs(brain_dir, exist_ok=True)
     os.makedirs(os.path.join(brain_dir, "memory"), exist_ok=True)
     
@@ -106,4 +106,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

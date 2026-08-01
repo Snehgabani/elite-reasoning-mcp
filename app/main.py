@@ -7,7 +7,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 from app.cli import main as cli_main
 
 def main():
-    cli_main()
+    return cli_main()
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

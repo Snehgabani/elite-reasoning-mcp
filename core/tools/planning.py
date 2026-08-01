@@ -172,7 +172,6 @@ def register(mcp, store, orchestrator=None):
             direction: `pull` (default), `push`, or `bidirectional`. Pushes
                 also require `ELITE_SYNC_ALLOW_OUTBOUND=1`.
         """
-        import getpass
         import json
         import os
         import tempfile
@@ -202,7 +201,9 @@ def register(mcp, store, orchestrator=None):
         if push_requested and os.environ.get("ELITE_SYNC_ALLOW_OUTBOUND") != "1":
             return "❌ Outbound sync is disabled. Set ELITE_SYNC_ALLOW_OUTBOUND=1 after reviewing the data scope."
 
-        user_id = os.environ.get("ELITE_USER_ID", getpass.getuser())
+        # Sync attribution is credential-bound server-side. The client only
+        # sends an optional pseudonym, never the workstation account name.
+        user_id = os.environ.get("ELITE_USER_ID", "").strip() or "local-user"
         headers = {}
         api_key = os.environ.get("ELITE_SYNC_API_KEY")
         if api_key:

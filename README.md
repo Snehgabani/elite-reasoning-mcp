@@ -96,7 +96,6 @@ elite-reasoning-mcp upgrade --dry-run
       "command": "elite-reasoning-mcp",
       "args": [],
       "env": {
-        "ELITE_BRAIN_DIR": "~/.elite-reasoning/brain",
         "ELITE_TOOL_PROFILE": "core"
       }
     }
@@ -111,7 +110,6 @@ elite-reasoning-mcp upgrade --dry-run
     "elite-reasoning": {
       "command": "elite-reasoning-mcp",
       "env": {
-        "ELITE_BRAIN_DIR": "~/.elite-reasoning/brain",
         "ELITE_TOOL_PROFILE": "core"
       }
     }
@@ -125,7 +123,6 @@ mcpServers:
   - name: elite-reasoning
     command: elite-reasoning-mcp
     env:
-      ELITE_BRAIN_DIR: ~/.elite-reasoning/brain
       ELITE_TOOL_PROFILE: core
 ```
 
@@ -426,6 +423,8 @@ Plus **7 MCP Resources** (`elite://profile`, `elite://anti_patterns`, `elite://d
 | Variable | Default | Description |
 |:---------|:--------|:------------|
 | `ELITE_BRAIN_DIR` | `~/.elite-reasoning/brain` | Where to store persistent memory |
+| `ELITE_USER_ID` | `local-user` | Optional opaque pseudonym for legacy sync; never defaults to the OS account name. |
+| `ELITE_DISPLAY_NAME` | `Local User` | Optional display label paired with an explicit pseudonym. |
 | `ELITE_TOOL_PROFILE` | `core` | `core` exposes five typed gateway tools; `legacy` enables the compatibility catalog. |
 | `ELITE_TELEMETRY_MODE` | `metadata` | `off`, `metadata`, `summary`, or `raw`; raw requires a second opt-in. |
 | `ELITE_ALLOW_RAW_TELEMETRY` | unset | Must be `1` before `ELITE_TELEMETRY_MODE=raw` is honored. |
@@ -493,7 +492,7 @@ The test suite covers:
 
 Elite Reasoning MCP is local-first by default: memory is stored under `ELITE_BRAIN_DIR`, telemetry stores metadata rather than prompt content, and external API access is opt-in through environment configuration.
 
-The default profile does not expose network sync tools. In the explicit legacy profile, every sync request requires `confirm=true`, an allowlisted endpoint, redirect blocking, and environment grants for external or outbound traffic. The optional sync hub binds to localhost by default; external binding needs configured credentials and `ELITE_SYNC_BIND_ALL_INTERFACES=1`. For multi-user deployments, configure distinct credentials with `SYNC_USER_KEYS_JSON`; the hub derives contributor attribution from the credential and never trusts a caller-supplied user ID. Imported remote records are stored as low-trust quarantined memory until an operator explicitly approves them. External LLM judging is disabled unless both `GEMINI_API_KEY` and `ELITE_SYNC_ENABLE_LLM_JUDGE=1` are set.
+The default profile does not expose network sync tools. In the explicit legacy profile, every sync request requires `confirm=true`, an allowlisted endpoint, redirect blocking, and environment grants for external or outbound traffic. The optional sync hub binds to localhost by default; external binding needs configured credentials and `ELITE_SYNC_BIND_ALL_INTERFACES=1`. For multi-user deployments, configure distinct credentials with `SYNC_USER_KEYS_JSON`; the hub derives contributor attribution from the credential and never trusts a caller-supplied user ID. Imported remote records are stored as low-trust quarantined memory until an operator explicitly approves them with `elite_memory(action="approve", confirm=true)`. External LLM judging is disabled unless both `GEMINI_API_KEY` and `ELITE_SYNC_ENABLE_LLM_JUDGE=1` are set. The server never reads an operating-system account name; set `ELITE_USER_ID` only when an explicit pseudonym is required for a legacy sync integration.
 
 Public repository hardening includes:
 - `SECURITY.md` with supported versions, private vulnerability reporting, and memory/privacy boundaries
@@ -537,7 +536,7 @@ We use [Conventional Commits](https://www.conventionalcommits.org/):
 
 ## 📄 License
 
-MIT © [Sneh Gabani](https://github.com/Snehgabani)
+MIT License
 
 ---
 

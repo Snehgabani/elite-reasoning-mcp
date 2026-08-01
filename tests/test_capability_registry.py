@@ -35,7 +35,7 @@ def test_scan_zed_context_servers_reports_configured_servers(tmp_path):
             {
                 "context_servers": {
                     "elite-reasoning": {
-                        "command": "/Users/test/.local/bin/elite-reasoning-mcp",
+                        "command": "/opt/test/bin/elite-reasoning-mcp",
                         "args": [],
                     },
                     "disabled-server": {"enabled": False, "command": "noop"},

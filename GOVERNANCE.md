@@ -1,6 +1,6 @@
 # Governance
 
-Elite Reasoning MCP is maintained by Sneh Gabani.
+Elite Reasoning MCP is maintained by its project maintainers.
 
 ## Project Direction
 

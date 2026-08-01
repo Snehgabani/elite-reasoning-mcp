@@ -5,7 +5,7 @@ import pytest
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
-from core.integration.mcp_server import main
+from core.integration.mcp_server import _default_brain_dir, main
 from core.runtime import package_version, runtime_identity
 
 CORE_TOOLS = {
@@ -26,6 +26,13 @@ def test_runtime_identity_prefers_the_running_virtualenv_entrypoint(tmp_path, mo
     monkeypatch.setattr(sys, "executable", str(entrypoint.parent / "python"))
 
     assert runtime_identity()["entrypoint"] == str(entrypoint.resolve())
+
+
+def test_brain_dir_expands_home_in_environment_configuration(tmp_path, monkeypatch):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("ELITE_BRAIN_DIR", "~/.elite-private/brain")
+
+    assert _default_brain_dir() == str(tmp_path / ".elite-private" / "brain")
 
 
 @pytest.mark.asyncio
