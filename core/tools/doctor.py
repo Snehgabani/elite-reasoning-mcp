@@ -10,7 +10,7 @@ import sys
 from typing import Any
 
 from core.orchestration.capabilities import build_capability_registry
-from core.runtime import package_version, runtime_identity
+from core.runtime import package_version, public_runtime_identity, runtime_identity
 
 REQUIRED_TABLES = {
     "anti_patterns",
@@ -146,6 +146,15 @@ def build_doctor_report(store, profile=None, mcp=None) -> dict[str, Any]:
         "blockers": blockers,
         "warnings": warnings,
     }
+
+
+def public_doctor_report(report: dict[str, Any]) -> dict[str, Any]:
+    """Redact machine-local paths before returning diagnostics to an MCP client."""
+    safe_report = dict(report)
+    safe_report["runtime"] = public_runtime_identity()
+    safe_report["brain_dir"] = "[local path withheld]"
+    safe_report["db_path"] = "[local path withheld]"
+    return safe_report
 
 
 def doctor_markdown(report: dict[str, Any]) -> str:

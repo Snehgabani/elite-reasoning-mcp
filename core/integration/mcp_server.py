@@ -37,7 +37,7 @@ def create_mcp_server(brain_dir: str, tool_profile: str | None = None) -> FastMC
     """
     Creates and configures the Elite Reasoning FastMCP Server.
     Each user gets their own personalized server instance with:
-      - Isolated brain (elite.db, elite_graph.db)
+      - Isolated brain (elite.db, including graph tables)
       - A compact v2 public surface by default
       - An explicit legacy profile for existing integrations
     """

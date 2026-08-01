@@ -128,6 +128,38 @@ def test_profile_uses_only_explicit_pseudonym_configuration(tmp_path, monkeypatc
     assert profile.config["identity_mode"] == "explicit"
 
 
+def test_profile_refreshes_pseudonym_from_environment_on_each_startup(tmp_path, monkeypatch):
+    monkeypatch.delenv("ELITE_USER_ID", raising=False)
+    monkeypatch.delenv("ELITE_DISPLAY_NAME", raising=False)
+    anonymous = UserProfile(str(tmp_path))
+
+    assert anonymous.user_id == "local-user"
+    assert anonymous.config["identity_mode"] == "anonymous"
+
+    monkeypatch.setenv("ELITE_USER_ID", "team-pseudonym-42")
+    monkeypatch.setenv("ELITE_DISPLAY_NAME", "Release Team")
+    explicit = UserProfile(str(tmp_path))
+
+    assert explicit.user_id == "team-pseudonym-42"
+    assert explicit.display_name == "Release Team"
+    assert explicit.config["identity_mode"] == "explicit"
+
+    monkeypatch.setenv("ELITE_USER_ID", "team-pseudonym-99")
+    monkeypatch.setenv("ELITE_DISPLAY_NAME", "Platform Team")
+    rotated = UserProfile(str(tmp_path))
+
+    assert rotated.user_id == "team-pseudonym-99"
+    assert rotated.display_name == "Platform Team"
+
+    monkeypatch.delenv("ELITE_USER_ID")
+    monkeypatch.delenv("ELITE_DISPLAY_NAME")
+    reset = UserProfile(str(tmp_path))
+
+    assert reset.user_id == "local-user"
+    assert reset.display_name == "Local User"
+    assert reset.config["identity_mode"] == "anonymous"
+
+
 def test_remote_memory_is_quarantined_until_explicit_approval(tmp_path):
     store = EliteStore(str(tmp_path / "brain"))
     memory_id = store.record_memory_item(
@@ -342,6 +374,7 @@ async def test_sync_uses_directional_cursors_and_replays_after_legacy_cursor(tmp
     import httpx
 
     monkeypatch.setenv("ELITE_SYNC_ALLOW_OUTBOUND", "1")
+    monkeypatch.setenv("ELITE_USER_ID", "team-pseudonym-42")
     mcp = create_mcp_server(str(tmp_path / "brain"), tool_profile="legacy")
     store = mcp._elite_store
     store.record_mistake("Local sync record with enough detail", "A specific root cause is documented", "Apply a durable corrective action")
@@ -373,7 +406,7 @@ async def test_sync_uses_directional_cursors_and_replays_after_legacy_cursor(tmp
 
     assert "1 accepted" in completed
     assert captured["anti_patterns"]
-    assert captured["user_id"] == "local-user"
+    assert captured["user_id"] == mcp._elite_profile.user_id == "team-pseudonym-42"
     cursor = json.loads(cursor_path.read_text(encoding="utf-8"))
     assert cursor["version"] == 2
     assert cursor["last_pulled_at"]

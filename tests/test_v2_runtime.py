@@ -37,9 +37,10 @@ def test_brain_dir_expands_home_in_environment_configuration(tmp_path, monkeypat
 
 @pytest.mark.asyncio
 async def test_stdio_protocol_advertises_runtime_version_and_typed_errors(tmp_path):
+    brain_dir = tmp_path / "brain"
     parameters = StdioServerParameters(
         command=sys.executable,
-        args=["-m", "core.integration.mcp_server", "--brain-dir", str(tmp_path / "brain")],
+        args=["-m", "core.integration.mcp_server", "--brain-dir", str(brain_dir)],
     )
 
     async with stdio_client(parameters) as (read, write):
@@ -48,6 +49,8 @@ async def test_stdio_protocol_advertises_runtime_version_and_typed_errors(tmp_pa
             tools = await session.list_tools()
             secret_run_id = "sk-12345678901234567890"
             invalid = await session.call_tool("elite_progress", {"run_id": secret_run_id})
+            verification = await session.call_tool("elite_verify", {"check": "doctor"})
+            status = await session.call_tool("elite_admin", {"action": "status"})
             prepared = await session.call_tool(
                 "elite_prepare",
                 {"user_prompt": "Build a feature with tests and validation.", "persist": True},
@@ -60,6 +63,14 @@ async def test_stdio_protocol_advertises_runtime_version_and_typed_errors(tmp_pa
     assert "validation_error" in invalid.content[0].text
     assert secret_run_id not in invalid.content[0].text
     assert "Traceback" not in invalid.content[0].text
+    assert verification.isError is not True
+    assert verification.structuredContent is not None
+    assert str(brain_dir) not in verification.content[0].text
+    assert verification.structuredContent["data"]["db_path"] == "[local path withheld]"
+    assert status.isError is not True
+    assert status.structuredContent is not None
+    assert str(brain_dir) not in status.content[0].text
+    assert "python_executable" not in status.structuredContent["data"]["runtime"]
     assert prepared.isError is not True
     assert prepared.structuredContent is not None
     assert prepared.structuredContent["status"] == "ok"

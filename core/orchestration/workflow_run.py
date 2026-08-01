@@ -54,11 +54,11 @@ def _complexity(prompt: str, intent: str) -> int:
     return max(1, min(5, score))
 
 
-def _safe_store_call(default: Any, fn, *args, **kwargs) -> Any:
+def _safe_store_call(default: Any, operation: str, fn, *args, **kwargs) -> tuple[Any, str | None]:
     try:
-        return fn(*args, **kwargs)
+        return fn(*args, **kwargs), None
     except Exception:
-        return default
+        return default, f"Trusted {operation} context could not be read; proceeding without it."
 
 
 def _string_list(value: object) -> list[str]:
@@ -67,10 +67,16 @@ def _string_list(value: object) -> list[str]:
     return [str(item) for item in value]
 
 
-def _memory_context(store, prompt: str, limit: int) -> list[dict[str, Any]]:
+def _memory_context(store, prompt: str, limit: int) -> tuple[list[dict[str, Any]], list[str]]:
     context: list[dict[str, Any]] = []
+    warnings: list[str] = []
 
-    for item in _safe_store_call([], store.search_memory_items, prompt, limit=limit):
+    memory_items, warning = _safe_store_call(
+        [], "memory", store.search_memory_items, prompt, limit=limit
+    )
+    if warning:
+        warnings.append(warning)
+    for item in memory_items:
         context.append(
             {
                 "kind": "memory_item",
@@ -83,7 +89,12 @@ def _memory_context(store, prompt: str, limit: int) -> list[dict[str, Any]]:
             }
         )
 
-    for item in _safe_store_call([], store.check_anti_patterns, prompt, limit=3):
+    anti_patterns, warning = _safe_store_call(
+        [], "anti-pattern", store.check_anti_patterns, prompt, limit=3
+    )
+    if warning:
+        warnings.append(warning)
+    for item in anti_patterns:
         context.append(
             {
                 "kind": "anti_pattern",
@@ -93,7 +104,12 @@ def _memory_context(store, prompt: str, limit: int) -> list[dict[str, Any]]:
             }
         )
 
-    for item in _safe_store_call([], store.search_decisions, prompt, limit=3):
+    decisions, warning = _safe_store_call(
+        [], "decision", store.search_decisions, prompt, limit=3
+    )
+    if warning:
+        warnings.append(warning)
+    for item in decisions:
         context.append(
             {
                 "kind": "decision",
@@ -102,7 +118,7 @@ def _memory_context(store, prompt: str, limit: int) -> list[dict[str, Any]]:
             }
         )
 
-    return context[:limit]
+    return context[:limit], warnings
 
 
 def build_workflow_run(user_prompt: str, store=None, persist: bool = True) -> dict[str, Any]:
@@ -117,7 +133,7 @@ def build_workflow_run(user_prompt: str, store=None, persist: bool = True) -> di
     breakdown = nuclear_prompt_breakdown(cleaned)
     protocol = protocol_recommendation(cleaned, complexity)
     registry = build_capability_registry()
-    memory_context = _memory_context(store, cleaned, limit=8) if store is not None else []
+    memory_context, memory_warnings = _memory_context(store, cleaned, limit=8) if store is not None else ([], [])
     run_id = f"wf_{uuid.uuid4().hex[:12]}"
     now = _utc_now()
 
@@ -188,6 +204,7 @@ def build_workflow_run(user_prompt: str, store=None, persist: bool = True) -> di
         "evidence_requirements": evidence_requirements,
         "validation_gates": validation_gates,
         "memory_context": memory_context,
+        "warnings": memory_warnings,
         "tool_budget": {
             "tier": budget.tier,
             "max_tool_calls": budget.max_tool_calls,
@@ -241,7 +258,7 @@ def workflow_run_markdown(run: dict[str, Any]) -> str:
     else:
         lines.append("- No trusted memory context matched this prompt.")
 
-    warnings = run.get("capability_warnings", [])
+    warnings = [*run.get("capability_warnings", []), *run.get("warnings", [])]
     if warnings:
         lines.extend(["", "## Capability Warnings"])
         lines.extend(f"- {warning}" for warning in warnings)

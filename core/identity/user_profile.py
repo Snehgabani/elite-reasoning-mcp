@@ -59,10 +59,14 @@ def _configured_identity() -> tuple[str, str, str]:
 
 
 def _migrate_identity(config: dict) -> None:
-    """Remove pre-v2.1 implicit workstation identity from persisted profiles."""
-    if config.get("identity_mode") in {"anonymous", "explicit"}:
-        return
+    """Resolve identity from the current process without retaining stale pseudonyms."""
     user_id, display_name, mode = _configured_identity()
+    if (
+        config.get("user_id") == user_id
+        and config.get("display_name") == display_name
+        and config.get("identity_mode") == mode
+    ):
+        return
     config["user_id"] = user_id
     config["display_name"] = display_name
     config["identity_mode"] = mode

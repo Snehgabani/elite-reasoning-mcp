@@ -23,16 +23,23 @@ const emptyMetrics: DashboardMetrics = { mistakes: [], goals: [], decisions: [] 
 export default function Dashboard() {
   const [graph, setGraph] = useState<GraphData>(emptyGraph);
   const [metrics, setMetrics] = useState<DashboardMetrics>(emptyMetrics);
+  const [dataError, setDataError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         const gData = await getGraphData();
         const mData = await getDashboardMetrics();
-        setGraph(gData);
-        setMetrics(mData);
+        setDataError(gData.error || mData.error || null);
+        if (!gData.error) {
+          setGraph(gData);
+        }
+        if (!mData.error) {
+          setMetrics(mData);
+        }
       } catch (err) {
         console.error(err);
+        setDataError('Unable to refresh local telemetry data.');
       }
     };
 
@@ -51,8 +58,10 @@ export default function Dashboard() {
           <p className="text-slate-400 mt-1">Live LangGraph & Temporal Knowledge Visualization</p>
         </div>
         <div className="flex gap-4">
-          <div className="px-4 py-2 bg-emerald-500/10 text-emerald-400 rounded-full text-sm font-medium border border-emerald-500/20">
-            ● System Active
+          <div className={`px-4 py-2 rounded-full text-sm font-medium border ${dataError
+            ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+            : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'}`}>
+            {dataError ? '● Local data unavailable' : '● Local data connected'}
           </div>
         </div>
       </header>

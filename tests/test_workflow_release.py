@@ -42,6 +42,21 @@ def test_workflow_markdown_contains_machine_readable_json(tmp_path):
     assert parsed["budget_tier"] in {"standard", "high_risk", "research_grade", "trivial"}
 
 
+def test_workflow_surfaces_degraded_memory_reads(tmp_path):
+    class MemoryUnavailableStore(EliteStore):
+        def search_memory_items(self, *args, **kwargs):
+            raise RuntimeError("database temporarily unavailable")
+
+    store = MemoryUnavailableStore(str(tmp_path / "brain"))
+    run = build_workflow_run("Build a release-grade feature.", store=store, persist=False)
+
+    assert run["memory_context"] == []
+    assert run["warnings"] == [
+        "Trusted memory context could not be read; proceeding without it."
+    ]
+    assert "Trusted memory context could not be read" in workflow_run_markdown(run)
+
+
 def test_memory_items_are_quality_gated(tmp_path):
     store = EliteStore(str(tmp_path))
     trusted_id = store.record_memory_item(

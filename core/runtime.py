@@ -61,3 +61,12 @@ def runtime_identity() -> dict[str, str]:
         "entrypoint": str(entrypoint.resolve()),
         "distribution_path": distribution_path,
     }
+
+
+def public_runtime_identity() -> dict[str, str]:
+    """Return runtime fields that are safe to expose through an MCP client."""
+    identity = runtime_identity()
+    return {
+        "package_name": identity["package_name"],
+        "package_version": identity["package_version"],
+    }

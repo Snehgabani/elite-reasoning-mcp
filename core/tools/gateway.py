@@ -13,8 +13,8 @@ from pydantic import BaseModel, Field
 
 from core.orchestration.capabilities import build_capability_registry
 from core.orchestration.workflow_run import build_workflow_run
-from core.runtime import runtime_identity
-from core.tools.doctor import build_doctor_report
+from core.runtime import public_runtime_identity
+from core.tools.doctor import build_doctor_report, public_doctor_report
 from core.tools.errors import validation_error
 
 
@@ -210,7 +210,8 @@ def register(mcp, store, profile) -> None:
         """Verify release health or the active IDE capability snapshot."""
         normalized_check = check.strip().lower()
         if normalized_check == "doctor":
-            return VerifyResult(check="doctor", data=build_doctor_report(store, profile=profile, mcp=mcp))
+            report = build_doctor_report(store, profile=profile, mcp=mcp)
+            return VerifyResult(check="doctor", data=public_doctor_report(report))
         if normalized_check == "capabilities":
             registry = build_capability_registry()
             return VerifyResult(
@@ -296,7 +297,7 @@ def register(mcp, store, profile) -> None:
             return AdminResult(
                 action="status",
                 data={
-                    "runtime": runtime_identity(),
+                    "runtime": public_runtime_identity(),
                     "tool_profile": getattr(mcp, "_elite_tool_profile", "unknown"),
                     "active_ide": profile.ide_type,
                     "sync_enabled": profile.sync_enabled,

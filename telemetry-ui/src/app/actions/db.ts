@@ -21,12 +21,13 @@ function resolveBrainDir(): string {
 const BRAIN_DIR = resolveBrainDir();
 
 type GraphNodeRow = {
-  node_id: string;
+  id: string;
   label: string;
   properties: string | null;
 };
 
 type GraphEdgeRow = {
+  id: string;
   source_id: string;
   target_id: string;
   relation: string;
@@ -46,6 +47,7 @@ export type GraphData = {
     label: string;
     animated: boolean;
   }>;
+  error?: string;
 };
 
 export type DashboardMetrics = {
@@ -64,6 +66,7 @@ export type DashboardMetrics = {
     decision: string;
     rationale: string | null;
   }>;
+  error?: string;
 };
 
 function parseProperties(raw: string | null): Record<string, unknown> {
@@ -86,34 +89,38 @@ function graphNodeType(label: string): 'input' | 'output' | 'default' {
 }
 
 function getEliteDb() {
-  const db = new Database(path.join(BRAIN_DIR, 'elite.db'), { readonly: true });
-  return db;
-}
-
-function getGraphDb() {
-  const db = new Database(path.join(BRAIN_DIR, 'elite_graph.db'), { readonly: true });
-  return db;
+  return new Database(path.join(BRAIN_DIR, 'elite.db'), {
+    readonly: true,
+    fileMustExist: true,
+  });
 }
 
 export async function getGraphData(): Promise<GraphData> {
-  const db = getGraphDb();
+  let db: ReturnType<typeof getEliteDb> | undefined;
   try {
-    const nodes = db.prepare('SELECT node_id, label, properties, valid_from FROM nodes').all() as GraphNodeRow[];
-    const edges = db.prepare('SELECT source_id, target_id, relation, properties, valid_from FROM edges').all() as GraphEdgeRow[];
+    db = getEliteDb();
+    const nodes = db.prepare('SELECT id, label, properties FROM graph_nodes ORDER BY created_at ASC').all() as GraphNodeRow[];
+    const edges = db.prepare(
+      `SELECT id, source_id, target_id, relation
+       FROM graph_edges
+       WHERE (valid_from IS NULL OR datetime(valid_from) <= datetime('now'))
+         AND (valid_to IS NULL OR datetime(valid_to) > datetime('now'))
+       ORDER BY valid_from ASC`,
+    ).all() as GraphEdgeRow[];
 
     // Map to React Flow format
     const reactFlowNodes = nodes.map((n, i) => ({
-      id: n.node_id,
+      id: n.id,
       position: { x: (i % 5) * 250, y: Math.floor(i / 5) * 150 }, // simple layout
-      data: { 
-        label: `${n.label}\n${n.node_id}`,
+      data: {
+        label: `${n.label}\n${n.id}`,
         properties: parseProperties(n.properties)
       },
       type: graphNodeType(n.label),
     }));
 
-    const reactFlowEdges = edges.map((e, i) => ({
-      id: `e${i}-${e.source_id}-${e.target_id}`,
+    const reactFlowEdges = edges.map((e) => ({
+      id: e.id,
       source: e.source_id,
       target: e.target_id,
       label: e.relation,
@@ -123,15 +130,16 @@ export async function getGraphData(): Promise<GraphData> {
     return { nodes: reactFlowNodes, edges: reactFlowEdges };
   } catch {
     console.error('Error fetching graph data');
-    return { nodes: [], edges: [] };
+    return { nodes: [], edges: [], error: 'Unable to read local graph data.' };
   } finally {
-    db.close();
+    db?.close();
   }
 }
 
 export async function getDashboardMetrics(): Promise<DashboardMetrics> {
-  const db = getEliteDb();
+  let db: ReturnType<typeof getEliteDb> | undefined;
   try {
+    db = getEliteDb();
     const mistakes = db.prepare('SELECT id, mistake, severity FROM anti_patterns ORDER BY created_at DESC LIMIT 5').all() as DashboardMetrics['mistakes'];
     const goals = db.prepare("SELECT id, objective, progress FROM goals WHERE status = 'active' ORDER BY created_at DESC LIMIT 5").all() as DashboardMetrics['goals'];
     const decisions = db.prepare('SELECT id, decision, rationale FROM decisions ORDER BY created_at DESC LIMIT 5').all() as DashboardMetrics['decisions'];
@@ -139,8 +147,8 @@ export async function getDashboardMetrics(): Promise<DashboardMetrics> {
     return { mistakes, goals, decisions };
   } catch {
     console.error('Error fetching metrics');
-    return { mistakes: [], goals: [], decisions: [] };
+    return { mistakes: [], goals: [], decisions: [], error: 'Unable to read local metrics.' };
   } finally {
-    db.close();
+    db?.close();
   }
 }

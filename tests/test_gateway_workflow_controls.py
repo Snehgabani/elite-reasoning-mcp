@@ -70,6 +70,24 @@ async def test_gateway_exposes_privacy_safe_local_monitoring(tmp_path):
 
 
 @pytest.mark.asyncio
+async def test_gateway_diagnostics_do_not_expose_machine_local_paths(tmp_path):
+    brain_dir = tmp_path / "brain"
+    mcp = create_mcp_server(str(brain_dir))
+    tools = mcp._tool_manager._tools
+
+    verification = await tools["elite_verify"].fn(check="doctor")
+    status = await tools["elite_admin"].fn(action="status")
+
+    assert str(brain_dir) not in verification.model_dump_json()
+    assert "python_executable" not in verification.data["runtime"]
+    assert str(brain_dir) not in status.model_dump_json()
+    assert status.data["runtime"] == {
+        "package_name": "elite-reasoning-mcp",
+        "package_version": verification.data["runtime"]["package_version"],
+    }
+
+
+@pytest.mark.asyncio
 async def test_gateway_memory_can_be_forgotten_and_ephemeral_runs_are_labeled(tmp_path):
     mcp = create_mcp_server(str(tmp_path / "brain"))
     tools = mcp._tool_manager._tools
