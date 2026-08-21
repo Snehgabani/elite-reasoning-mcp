@@ -25,12 +25,12 @@ jobs:
     
     steps:
       - name: Checkout Source Code
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        uses: actions/checkout@v4
         with:
           persist-credentials: false
       
       - name: Install uv Package Manager
-        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        uses: astral-sh/setup-uv@v5
       
       - name: Set up Python ${{ matrix.python-version }}
         run: uv python install ${{ matrix.python-version }}
@@ -51,7 +51,7 @@ jobs:
           fi
 
       - name: Upload Quality Scorecard Artifact
-        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: science-grade-scorecard-${{ matrix.python-version }}
