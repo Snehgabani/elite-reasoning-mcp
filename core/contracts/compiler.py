@@ -81,7 +81,7 @@ class ContractCompiler:
 
         # 3. Extract File Scope Limits (e.g. 'modify only auth.py')
         for match in re.finditer(
-            r"\b(?:modify only|touch only|only edit)\s+([a-zA-Z0-9_\-\.\/,\s]+?)(?=\.|\band\b|$)",
+            r"\b(?:modify only|touch only|only edit)\s+([a-zA-Z0-9_\-\.\/,\s]+?)(?=\s+and\b|\s+[A-Z]|\s*$)",
             prompt,
             re.IGNORECASE,
         ):
