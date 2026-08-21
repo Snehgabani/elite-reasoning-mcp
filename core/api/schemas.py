@@ -85,3 +85,46 @@ class AdminResult(BaseModel):
     action: str
     data: dict[str, Any]
     warnings: list[str] = Field(default_factory=list)
+
+
+# Requirement-oriented v1 contracts retained alongside the compact gateway
+# schemas while clients migrate to one stable representation.
+class BaseMcpResponse(BaseModel):
+    schema_version: str = "1.0.0"
+    status: Literal["SUCCESS", "FAILED", "UNKNOWN"] = "SUCCESS"
+    duration_ms: float = 0.0
+
+
+class ElitePrepareResponse(BaseMcpResponse):
+    task_id: str
+    task_contract: Any
+    risk_tier: str
+    topology_modules: list[str] = Field(default_factory=list)
+    injected_lessons_count: int = 0
+    note: str = ""
+
+
+class EliteVerifyResponse(BaseMcpResponse):
+    overall_status: VerificationStatus
+    results: list[Any] = Field(default_factory=list)
+    passed_count: int = 0
+    failed_count: int = 0
+    unknown_count: int = 0
+    not_checked_count: int = 0
+    prevented_completion: bool = False
+    evidence_bundle_digest: str | None = None
+
+
+class EliteMemoryResponse(BaseMcpResponse):
+    action: str
+    items_count: int = 0
+    lessons: list[dict[str, Any]] = Field(default_factory=list)
+    trust_state: str = "approved"
+
+
+class EliteProgressResponse(BaseMcpResponse):
+    task_id: str
+    current_step: int
+    total_steps: int
+    completed_outcomes: list[str] = Field(default_factory=list)
+    remaining_outcomes: list[str] = Field(default_factory=list)

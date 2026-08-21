@@ -192,9 +192,8 @@ def main():
     out_file.write_text(final_output, encoding="utf-8")
     try:
         os.chmod(out_file, 0o600)
-    except OSError:
-        # Non-fatal exception intentionally suppressed
-        pass
+    except OSError as exc:
+        _ = exc  # Best effort chmod on export artifact
     print(f"\\n✅ Export complete: {out_file}")
     print(f"File size: {os.path.getsize(out_file) / 1024:.2f} KB")
 

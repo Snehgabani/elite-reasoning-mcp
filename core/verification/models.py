@@ -86,3 +86,33 @@ def evidence_record(
 
 def status_from_bool(value: bool) -> VerificationStatus:
     return VerificationStatus.PASS if value else VerificationStatus.FAIL
+
+
+class Evidence(BaseModel):
+    """Compatibility evidence model used by requirement-oriented plugin verifiers."""
+
+    id: str
+    kind: str
+    producer: str
+    collected_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    subject_digest: str
+    payload: dict[str, Any] = Field(default_factory=dict)
+    redactions: list[str] = Field(default_factory=list)
+    artifact_digest: str = ""
+
+    @classmethod
+    def compute_subject_digest(cls, content: str) -> str:
+        return hashlib.sha256(content.encode("utf-8")).hexdigest()
+
+
+class VerificationResult(BaseModel):
+    """Requirement-level result used by the verifier plugin SDK."""
+
+    requirement_id: str
+    verifier: str
+    verifier_version: str = "1.0.0"
+    status: VerificationStatus
+    reason: str
+    evidence_ids: list[str] = Field(default_factory=list)
+    limitations: list[str] = Field(default_factory=list)
+    duration_ms: float = 0.0

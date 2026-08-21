@@ -14,10 +14,13 @@ Brain lives at:  ~/.elite-reasoning/brain/
 import copy
 import getpass
 import json
+import logging
 import os
 import tempfile
 import time
 from typing import Optional
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_CONFIG = {
     "user_id": "",
@@ -101,8 +104,8 @@ class UserProfile:
                 if migrated != stored:
                     self._save_config(merged)
                 return merged
-            except (json.JSONDecodeError, IOError):
-                pass
+            except (json.JSONDecodeError, OSError) as exc:
+                logger.warning("Failed to load user profile config from %s: %s; using defaults", self.config_path, exc)
 
         # First-time setup: auto-detect
         config = copy.deepcopy(DEFAULT_CONFIG)

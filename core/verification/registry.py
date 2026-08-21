@@ -8,7 +8,11 @@ falsifiable and makes the set of supported checks inspectable.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import time
 from typing import Any, Protocol
+
+from core.contracts.models import Requirement, RequirementKind
+from core.verification.models import Evidence, VerificationResult
 
 from core.verification.command import CommandInputError, run_allowlisted_command
 from core.verification.git_diff import verify_git_diff
@@ -57,17 +61,91 @@ class Verifier(Protocol):
 
 
 class VerifierRegistry:
-    def __init__(self, context: VerifierContext):
-        self._context = context
-        self._verifiers: dict[str, Verifier] = {}
+    def __init__(self, context: VerifierContext | None = None, register_builtins: bool = True):
+        self._context = context or VerifierContext(store=None)
+        self._verifiers: dict[str, Any] = {}
+        self._kind_mapping: dict[RequirementKind, str] = {}
+        self._builtins_loaded = not register_builtins
 
-    def register(self, verifier: Verifier) -> None:
+    def _ensure_builtins(self) -> None:
+        if self._builtins_loaded:
+            return
+        self._builtins_loaded = True
+        from core.verification.cegis import CEGISPropertyVerifier
+        from core.verification.completeness import EvidenceCompletenessVerifier
+        from core.verification.constraints import ConstraintVerifier as RequirementConstraintVerifier
+        from core.verification.git_diff import GitDiffScopeVerifier
+        from core.verification.syntax import PythonSyntaxVerifier
+        from core.verification.test_command import TestCommandVerifier as RequirementTestCommandVerifier
+        from core.verification.type_checker import TypeInvariantVerifier
+
+        for verifier in (
+            RequirementConstraintVerifier(),
+            PythonSyntaxVerifier(),
+            RequirementTestCommandVerifier(),
+            GitDiffScopeVerifier(),
+            EvidenceCompletenessVerifier(),
+            CEGISPropertyVerifier(),
+            TypeInvariantVerifier(),
+        ):
+            self.register(verifier, allow_replace=True)
+
+    def register(
+        self,
+        verifier: Any,
+        default_for_kinds: list[RequirementKind] | None = None,
+        *,
+        allow_replace: bool = False,
+    ) -> None:
         name = verifier.name.strip().lower()
         if not name:
             raise ValueError("verifier name is required")
-        if name in self._verifiers:
+        if name in self._verifiers and not allow_replace:
             raise ValueError(f"verifier already registered: {name}")
         self._verifiers[name] = verifier
+        kinds = default_for_kinds if default_for_kinds is not None else getattr(verifier, "supported_requirement_kinds", ())
+        for kind in kinds:
+            self._kind_mapping.setdefault(kind, name)
+
+    def get(self, name: str) -> Any | None:
+        self._ensure_builtins()
+        return self._verifiers.get(name.strip().lower())
+
+    def get_for_kind(self, kind: RequirementKind) -> Any | None:
+        self._ensure_builtins()
+        name = self._kind_mapping.get(kind)
+        return self._verifiers.get(name) if name else None
+
+    def verify_requirement(
+        self,
+        requirement: Requirement,
+        subject_content: str,
+        evidence_records: list[Evidence] | None = None,
+    ) -> VerificationResult:
+        started = time.perf_counter()
+        verifier = self.get(requirement.verifier) if requirement.verifier else self.get_for_kind(requirement.kind)
+        if verifier is None:
+            return VerificationResult(
+                requirement_id=requirement.id,
+                verifier="unregistered",
+                status=VerificationStatus.NOT_CHECKED,
+                reason=f"No matching verifier registered for requirement kind: {requirement.kind.value}",
+                duration_ms=round((time.perf_counter() - started) * 1000, 3),
+            )
+        try:
+            result = verifier.verify(requirement, subject_content, evidence_records)
+            result.duration_ms = round((time.perf_counter() - started) * 1000, 3)
+            return result
+        except Exception as exc:
+            return VerificationResult(
+                requirement_id=requirement.id,
+                verifier=verifier.name,
+                verifier_version=getattr(verifier, "version", "1.0.0"),
+                status=VerificationStatus.UNKNOWN,
+                reason=f"Verifier execution error: {type(exc).__name__}: {exc}",
+                limitations=["Unhandled runtime exception during verification"],
+                duration_ms=round((time.perf_counter() - started) * 1000, 3),
+            )
 
     def names(self) -> tuple[str, ...]:
         return tuple(sorted(self._verifiers))
@@ -393,6 +471,88 @@ class GitDiffVerifier:
         )
 
 
+class CegisVerifier:
+    name = "cegis"
+
+    async def verify(self, request: VerifierRequest, context: VerifierContext) -> VerificationExecution:
+        from core.contracts.models import RequirementSeverity
+        from core.verification.cegis import CEGISPropertyVerifier
+
+        if not request.code.strip():
+            raise VerificationInputError("code is required for check=cegis.")
+        requirement = Requirement(
+            id="cegis",
+            kind=RequirementKind.ROBUSTNESS,
+            source_text="",
+            interpretation="Check boundary resilience",
+            severity=RequirementSeverity.REQUIRED,
+        )
+        result = CEGISPropertyVerifier().verify(requirement, request.code)
+        data = result.model_dump(mode="json")
+        data["status"] = result.status.value
+        return VerificationExecution(
+            check=self.name,
+            status=result.status,
+            data=data,
+            subject_kind="source:python",
+            subject=request.code,
+            producer="core.verification.cegis.CEGISPropertyVerifier",
+            evidence_payload={"status": result.status.value, "reason": result.reason},
+            limitations=tuple(result.limitations),
+        )
+
+
+class TypeVerifier:
+    name = "types"
+
+    async def verify(self, request: VerifierRequest, context: VerifierContext) -> VerificationExecution:
+        from core.verification.type_checker import TypeInvariantVerifier
+
+        if not request.code.strip():
+            raise VerificationInputError("code is required for check=types.")
+        requirement = Requirement(
+            id="types",
+            kind=RequirementKind.COMPATIBILITY,
+            source_text="",
+            interpretation="Check public return annotations",
+        )
+        result = TypeInvariantVerifier().verify(requirement, request.code)
+        data = result.model_dump(mode="json")
+        data["status"] = result.status.value
+        return VerificationExecution(
+            check=self.name,
+            status=result.status,
+            data=data,
+            subject_kind="source:python",
+            subject=request.code,
+            producer="core.verification.type_checker.TypeInvariantVerifier",
+            evidence_payload={"status": result.status.value, "reason": result.reason},
+            limitations=tuple(result.limitations),
+        )
+
+
+class DiagnosticVerifier:
+    name = "diagnostics"
+
+    async def verify(self, request: VerifierRequest, context: VerifierContext) -> VerificationExecution:
+        from core.verification.diagnostics import extract_diagnostic_slice
+
+        if not request.query.strip():
+            raise VerificationInputError("query traceback is required for check=diagnostics.")
+        diagnostic = extract_diagnostic_slice(request.query, source_code=request.code or None)
+        data = diagnostic.model_dump(mode="json")
+        return VerificationExecution(
+            check=self.name,
+            status=VerificationStatus.NOT_CHECKED,
+            data=data,
+            subject_kind="diagnostic_input",
+            subject=f"{request.query}\0{request.code}",
+            producer="core.verification.diagnostics.extract_diagnostic_slice",
+            evidence_payload={"error_type": diagnostic.error_type, "failing_line_number": diagnostic.failing_line_number},
+            limitations=("Diagnostic slicing structures an error; it does not verify a repair.",),
+        )
+
+
 class GroundingVerifier:
     name = "grounding"
 
@@ -441,7 +601,13 @@ def build_core_verifier_registry(store: Any) -> VerifierRegistry:
         SyntaxVerifier(),
         TestCommandVerifier(),
         GitDiffVerifier(),
+        CegisVerifier(),
+        DiagnosticVerifier(),
+        TypeVerifier(),
         GroundingVerifier(),
     ):
         registry.register(verifier)
     return registry
+
+
+GLOBAL_VERIFIER_REGISTRY = VerifierRegistry()

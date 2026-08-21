@@ -1,0 +1,26 @@
+{
+  "schema_version": "1.0.0",
+  "dataset_version": "2026.08.v1",
+  "created_at": "2026-08-22T00:00:00Z",
+  "tasks": [
+    {
+      "id": "TASK-EVAL-001",
+      "instruction": "Refactor auth middleware to verify JWT signatures. Must include jwt.verify and do not use insecure decode. Modify only auth/jwt.py.",
+      "expected_requirements": [
+        {"kind": "required_content", "term": "jwt.verify"},
+        {"kind": "forbidden_content", "term": "insecure decode"},
+        {"kind": "allowed_files", "files": ["auth/jwt.py"]}
+      ]
+    },
+    {
+      "id": "TASK-EVAL-002",
+      "instruction": "Implement billing calculation. Must include tax_rate and do not use hardcoded_discount. Modify only billing/calc.py. Run pytest.",
+      "expected_requirements": [
+        {"kind": "required_content", "term": "tax_rate"},
+        {"kind": "forbidden_content", "term": "hardcoded_discount"},
+        {"kind": "allowed_files", "files": ["billing/calc.py"]},
+        {"kind": "test_command", "command": "pytest"}
+      ]
+    }
+  ]
+}

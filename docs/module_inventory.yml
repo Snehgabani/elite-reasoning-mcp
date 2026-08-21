@@ -1,0 +1,57 @@
+# Module Inventory & Architectural Classification
+version: "1.0.0"
+updated_at: "2026-08-22T00:00:00Z"
+target_standard: "Core 5-Tool Minimalist Exoskeleton"
+
+classifications:
+  core:
+    description: "Required by the default 5-tool workflow (prepare, progress, verify, memory, admin)"
+    modules:
+      - "core.integration.mcp_server"
+      - "core.tools.gateway"
+      - "core.tools.doctor"
+      - "core.reasoning.task_contract"
+      - "core.reasoning.constraint_check"
+      - "core.cognitive.leverage.param_coercion"
+      - "core.cognitive.leverage.small_model_adapter"
+      - "core.cognitive.leverage.micro_scaffold"
+      - "core.cognitive.leverage.deterministic_gates"
+      - "core.memory.persistent_store"
+      - "core.identity.user_profile"
+
+  optional:
+    description: "Separately installed or activated plugins and adapters (web, vectors, IDE)"
+    modules:
+      - "core.evidence.query_planner"
+      - "core.evidence.fact_grounder"
+      - "core.evidence.grounded_search"
+      - "core.orchestration.ide_installer"
+      - "core.eval.benchmark_daemon"
+      - "core.eval.launchd_manager"
+      - "core.memory.hybrid_search"
+      - "core.memory.embedding"
+
+  experimental:
+    description: "Research & exploratory reasoning graphs; excluded from default core runtime"
+    modules:
+      - "core.cognitive.engine"
+      - "core.cognitive.agent_nodes"
+      - "core.cognitive.leverage.cegis_repair"
+      - "core.cognitive.leverage.tree_of_thoughts"
+      - "core.cognitive.leverage.storm_research"
+      - "core.cognitive.leverage.epistemic_divergence"
+      - "core.eval.rct_runner"
+      - "core.eval.statistical_significance"
+
+  legacy:
+    description: "Compatibility surface for legacy multi-tool calls; receiving security fixes only"
+    modules:
+      - "core.tools.cognitive_tools"
+      - "core.tools.unified_mix_tools"
+      - "core.orchestration.workflow_recorder"
+      - "core.orchestration.capability_registry"
+
+  remove:
+    description: "Scheduled for deprecation and pruning in v3.0.0"
+    modules:
+      - "core.reasoning.nuclear_prompt"

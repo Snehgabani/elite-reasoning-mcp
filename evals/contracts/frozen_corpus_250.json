@@ -1,0 +1,3507 @@
+{
+  "schema_version": "1.0.0",
+  "dataset_version": "frozen_2026.08_v1",
+  "total_tasks": 250,
+  "tasks": [
+    {
+      "task_id": "TASK-CORPUS-0001",
+      "instruction": "Refactor billing authentication. Must include OAuth2 and do not use md5. Modify only auth.py.",
+      "module": "billing",
+      "expected_required_terms": [
+        "OAuth2"
+      ],
+      "expected_forbidden_terms": [
+        "md5"
+      ],
+      "expected_allowed_files": [
+        "auth.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0002",
+      "instruction": "Implement billing data pipeline. Must contain OAuth2 and avoid md5. Modify only auth.py. Run pytest.",
+      "module": "billing",
+      "expected_required_terms": [
+        "OAuth2"
+      ],
+      "expected_forbidden_terms": [
+        "md5"
+      ],
+      "expected_allowed_files": [
+        "auth.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0003",
+      "instruction": "Fix security vulnerability in billing. Must have OAuth2 and never use md5. Only edit auth.py.",
+      "module": "billing",
+      "expected_required_terms": [
+        "OAuth2"
+      ],
+      "expected_forbidden_terms": [
+        "md5"
+      ],
+      "expected_allowed_files": [
+        "auth.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0004",
+      "instruction": "Add caching layer for billing. Must include OAuth2 and do not use md5. Touch only auth.py.",
+      "module": "billing",
+      "expected_required_terms": [
+        "OAuth2"
+      ],
+      "expected_forbidden_terms": [
+        "md5"
+      ],
+      "expected_allowed_files": [
+        "auth.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0005",
+      "instruction": "Update API endpoints for billing. Must contain OAuth2 and avoid md5. Modify only auth.py.",
+      "module": "billing",
+      "expected_required_terms": [
+        "OAuth2"
+      ],
+      "expected_forbidden_terms": [
+        "md5"
+      ],
+      "expected_allowed_files": [
+        "auth.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0006",
+      "instruction": "Refactor billing authentication. Must include jwt.verify and do not use eval. Modify only service.py.",
+      "module": "billing",
+      "expected_required_terms": [
+        "jwt.verify"
+      ],
+      "expected_forbidden_terms": [
+        "eval"
+      ],
+      "expected_allowed_files": [
+        "service.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0007",
+      "instruction": "Implement billing data pipeline. Must contain jwt.verify and avoid eval. Modify only service.py. Run pytest.",
+      "module": "billing",
+      "expected_required_terms": [
+        "jwt.verify"
+      ],
+      "expected_forbidden_terms": [
+        "eval"
+      ],
+      "expected_allowed_files": [
+        "service.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0008",
+      "instruction": "Fix security vulnerability in billing. Must have jwt.verify and never use eval. Only edit service.py.",
+      "module": "billing",
+      "expected_required_terms": [
+        "jwt.verify"
+      ],
+      "expected_forbidden_terms": [
+        "eval"
+      ],
+      "expected_allowed_files": [
+        "service.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0009",
+      "instruction": "Add caching layer for billing. Must include jwt.verify and do not use eval. Touch only service.py.",
+      "module": "billing",
+      "expected_required_terms": [
+        "jwt.verify"
+      ],
+      "expected_forbidden_terms": [
+        "eval"
+      ],
+      "expected_allowed_files": [
+        "service.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0010",
+      "instruction": "Update API endpoints for billing. Must contain jwt.verify and avoid eval. Modify only service.py.",
+      "module": "billing",
+      "expected_required_terms": [
+        "jwt.verify"
+      ],
+      "expected_forbidden_terms": [
+        "eval"
+      ],
+      "expected_allowed_files": [
+        "service.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0011",
+      "instruction": "Refactor billing authentication. Must include bcrypt.hashpw and do not use insecure_transport. Modify only models.py.",
+      "module": "billing",
+      "expected_required_terms": [
+        "bcrypt.hashpw"
+      ],
+      "expected_forbidden_terms": [
+        "insecure_transport"
+      ],
+      "expected_allowed_files": [
+        "models.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0012",
+      "instruction": "Implement billing data pipeline. Must contain bcrypt.hashpw and avoid insecure_transport. Modify only models.py. Run pytest.",
+      "module": "billing",
+      "expected_required_terms": [
+        "bcrypt.hashpw"
+      ],
+      "expected_forbidden_terms": [
+        "insecure_transport"
+      ],
+      "expected_allowed_files": [
+        "models.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0013",
+      "instruction": "Fix security vulnerability in billing. Must have bcrypt.hashpw and never use insecure_transport. Only edit models.py.",
+      "module": "billing",
+      "expected_required_terms": [
+        "bcrypt.hashpw"
+      ],
+      "expected_forbidden_terms": [
+        "insecure_transport"
+      ],
+      "expected_allowed_files": [
+        "models.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0014",
+      "instruction": "Add caching layer for billing. Must include bcrypt.hashpw and do not use insecure_transport. Touch only models.py.",
+      "module": "billing",
+      "expected_required_terms": [
+        "bcrypt.hashpw"
+      ],
+      "expected_forbidden_terms": [
+        "insecure_transport"
+      ],
+      "expected_allowed_files": [
+        "models.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0015",
+      "instruction": "Update API endpoints for billing. Must contain bcrypt.hashpw and avoid insecure_transport. Modify only models.py.",
+      "module": "billing",
+      "expected_required_terms": [
+        "bcrypt.hashpw"
+      ],
+      "expected_forbidden_terms": [
+        "insecure_transport"
+      ],
+      "expected_allowed_files": [
+        "models.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0016",
+      "instruction": "Refactor billing authentication. Must include redis_client and do not use plaintext_secret. Modify only routes.py.",
+      "module": "billing",
+      "expected_required_terms": [
+        "redis_client"
+      ],
+      "expected_forbidden_terms": [
+        "plaintext_secret"
+      ],
+      "expected_allowed_files": [
+        "routes.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0017",
+      "instruction": "Implement billing data pipeline. Must contain redis_client and avoid plaintext_secret. Modify only routes.py. Run pytest.",
+      "module": "billing",
+      "expected_required_terms": [
+        "redis_client"
+      ],
+      "expected_forbidden_terms": [
+        "plaintext_secret"
+      ],
+      "expected_allowed_files": [
+        "routes.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0018",
+      "instruction": "Fix security vulnerability in billing. Must have redis_client and never use plaintext_secret. Only edit routes.py.",
+      "module": "billing",
+      "expected_required_terms": [
+        "redis_client"
+      ],
+      "expected_forbidden_terms": [
+        "plaintext_secret"
+      ],
+      "expected_allowed_files": [
+        "routes.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0019",
+      "instruction": "Add caching layer for billing. Must include redis_client and do not use plaintext_secret. Touch only routes.py.",
+      "module": "billing",
+      "expected_required_terms": [
+        "redis_client"
+      ],
+      "expected_forbidden_terms": [
+        "plaintext_secret"
+      ],
+      "expected_allowed_files": [
+        "routes.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0020",
+      "instruction": "Update API endpoints for billing. Must contain redis_client and avoid plaintext_secret. Modify only routes.py.",
+      "module": "billing",
+      "expected_required_terms": [
+        "redis_client"
+      ],
+      "expected_forbidden_terms": [
+        "plaintext_secret"
+      ],
+      "expected_allowed_files": [
+        "routes.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0021",
+      "instruction": "Refactor billing authentication. Must include argon2 and do not use global_state. Modify only db.py.",
+      "module": "billing",
+      "expected_required_terms": [
+        "argon2"
+      ],
+      "expected_forbidden_terms": [
+        "global_state"
+      ],
+      "expected_allowed_files": [
+        "db.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0022",
+      "instruction": "Implement billing data pipeline. Must contain argon2 and avoid global_state. Modify only db.py. Run pytest.",
+      "module": "billing",
+      "expected_required_terms": [
+        "argon2"
+      ],
+      "expected_forbidden_terms": [
+        "global_state"
+      ],
+      "expected_allowed_files": [
+        "db.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0023",
+      "instruction": "Fix security vulnerability in billing. Must have argon2 and never use global_state. Only edit db.py.",
+      "module": "billing",
+      "expected_required_terms": [
+        "argon2"
+      ],
+      "expected_forbidden_terms": [
+        "global_state"
+      ],
+      "expected_allowed_files": [
+        "db.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0024",
+      "instruction": "Add caching layer for billing. Must include argon2 and do not use global_state. Touch only db.py.",
+      "module": "billing",
+      "expected_required_terms": [
+        "argon2"
+      ],
+      "expected_forbidden_terms": [
+        "global_state"
+      ],
+      "expected_allowed_files": [
+        "db.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0025",
+      "instruction": "Update API endpoints for billing. Must contain argon2 and avoid global_state. Modify only db.py.",
+      "module": "billing",
+      "expected_required_terms": [
+        "argon2"
+      ],
+      "expected_forbidden_terms": [
+        "global_state"
+      ],
+      "expected_allowed_files": [
+        "db.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0026",
+      "instruction": "Refactor billing authentication. Must include rate_limit and do not use hardcoded_token. Modify only security.py.",
+      "module": "billing",
+      "expected_required_terms": [
+        "rate_limit"
+      ],
+      "expected_forbidden_terms": [
+        "hardcoded_token"
+      ],
+      "expected_allowed_files": [
+        "security.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0027",
+      "instruction": "Implement billing data pipeline. Must contain rate_limit and avoid hardcoded_token. Modify only security.py. Run pytest.",
+      "module": "billing",
+      "expected_required_terms": [
+        "rate_limit"
+      ],
+      "expected_forbidden_terms": [
+        "hardcoded_token"
+      ],
+      "expected_allowed_files": [
+        "security.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0028",
+      "instruction": "Fix security vulnerability in billing. Must have rate_limit and never use hardcoded_token. Only edit security.py.",
+      "module": "billing",
+      "expected_required_terms": [
+        "rate_limit"
+      ],
+      "expected_forbidden_terms": [
+        "hardcoded_token"
+      ],
+      "expected_allowed_files": [
+        "security.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0029",
+      "instruction": "Add caching layer for billing. Must include rate_limit and do not use hardcoded_token. Touch only security.py.",
+      "module": "billing",
+      "expected_required_terms": [
+        "rate_limit"
+      ],
+      "expected_forbidden_terms": [
+        "hardcoded_token"
+      ],
+      "expected_allowed_files": [
+        "security.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0030",
+      "instruction": "Update API endpoints for billing. Must contain rate_limit and avoid hardcoded_token. Modify only security.py.",
+      "module": "billing",
+      "expected_required_terms": [
+        "rate_limit"
+      ],
+      "expected_forbidden_terms": [
+        "hardcoded_token"
+      ],
+      "expected_allowed_files": [
+        "security.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0031",
+      "instruction": "Refactor billing authentication. Must include aes_gcm and do not use raw_exec. Modify only tokens.py.",
+      "module": "billing",
+      "expected_required_terms": [
+        "aes_gcm"
+      ],
+      "expected_forbidden_terms": [
+        "raw_exec"
+      ],
+      "expected_allowed_files": [
+        "tokens.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0032",
+      "instruction": "Implement billing data pipeline. Must contain aes_gcm and avoid raw_exec. Modify only tokens.py. Run pytest.",
+      "module": "billing",
+      "expected_required_terms": [
+        "aes_gcm"
+      ],
+      "expected_forbidden_terms": [
+        "raw_exec"
+      ],
+      "expected_allowed_files": [
+        "tokens.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0033",
+      "instruction": "Fix security vulnerability in billing. Must have aes_gcm and never use raw_exec. Only edit tokens.py.",
+      "module": "billing",
+      "expected_required_terms": [
+        "aes_gcm"
+      ],
+      "expected_forbidden_terms": [
+        "raw_exec"
+      ],
+      "expected_allowed_files": [
+        "tokens.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0034",
+      "instruction": "Add caching layer for billing. Must include aes_gcm and do not use raw_exec. Touch only tokens.py.",
+      "module": "billing",
+      "expected_required_terms": [
+        "aes_gcm"
+      ],
+      "expected_forbidden_terms": [
+        "raw_exec"
+      ],
+      "expected_allowed_files": [
+        "tokens.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0035",
+      "instruction": "Update API endpoints for billing. Must contain aes_gcm and avoid raw_exec. Modify only tokens.py.",
+      "module": "billing",
+      "expected_required_terms": [
+        "aes_gcm"
+      ],
+      "expected_forbidden_terms": [
+        "raw_exec"
+      ],
+      "expected_allowed_files": [
+        "tokens.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0036",
+      "instruction": "Refactor billing authentication. Must include pydantic.BaseModel and do not use pickle.loads. Modify only handler.py.",
+      "module": "billing",
+      "expected_required_terms": [
+        "pydantic.BaseModel"
+      ],
+      "expected_forbidden_terms": [
+        "pickle.loads"
+      ],
+      "expected_allowed_files": [
+        "handler.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0037",
+      "instruction": "Implement billing data pipeline. Must contain pydantic.BaseModel and avoid pickle.loads. Modify only handler.py. Run pytest.",
+      "module": "billing",
+      "expected_required_terms": [
+        "pydantic.BaseModel"
+      ],
+      "expected_forbidden_terms": [
+        "pickle.loads"
+      ],
+      "expected_allowed_files": [
+        "handler.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0038",
+      "instruction": "Fix security vulnerability in billing. Must have pydantic.BaseModel and never use pickle.loads. Only edit handler.py.",
+      "module": "billing",
+      "expected_required_terms": [
+        "pydantic.BaseModel"
+      ],
+      "expected_forbidden_terms": [
+        "pickle.loads"
+      ],
+      "expected_allowed_files": [
+        "handler.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0039",
+      "instruction": "Add caching layer for billing. Must include pydantic.BaseModel and do not use pickle.loads. Touch only handler.py.",
+      "module": "billing",
+      "expected_required_terms": [
+        "pydantic.BaseModel"
+      ],
+      "expected_forbidden_terms": [
+        "pickle.loads"
+      ],
+      "expected_allowed_files": [
+        "handler.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0040",
+      "instruction": "Update API endpoints for billing. Must contain pydantic.BaseModel and avoid pickle.loads. Modify only handler.py.",
+      "module": "billing",
+      "expected_required_terms": [
+        "pydantic.BaseModel"
+      ],
+      "expected_forbidden_terms": [
+        "pickle.loads"
+      ],
+      "expected_allowed_files": [
+        "handler.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0041",
+      "instruction": "Refactor billing authentication. Must include httpx.AsyncClient and do not use shell=True. Modify only config.py.",
+      "module": "billing",
+      "expected_required_terms": [
+        "httpx.AsyncClient"
+      ],
+      "expected_forbidden_terms": [
+        "shell=True"
+      ],
+      "expected_allowed_files": [
+        "config.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0042",
+      "instruction": "Implement billing data pipeline. Must contain httpx.AsyncClient and avoid shell=True. Modify only config.py. Run pytest.",
+      "module": "billing",
+      "expected_required_terms": [
+        "httpx.AsyncClient"
+      ],
+      "expected_forbidden_terms": [
+        "shell=True"
+      ],
+      "expected_allowed_files": [
+        "config.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0043",
+      "instruction": "Fix security vulnerability in billing. Must have httpx.AsyncClient and never use shell=True. Only edit config.py.",
+      "module": "billing",
+      "expected_required_terms": [
+        "httpx.AsyncClient"
+      ],
+      "expected_forbidden_terms": [
+        "shell=True"
+      ],
+      "expected_allowed_files": [
+        "config.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0044",
+      "instruction": "Add caching layer for billing. Must include httpx.AsyncClient and do not use shell=True. Touch only config.py.",
+      "module": "billing",
+      "expected_required_terms": [
+        "httpx.AsyncClient"
+      ],
+      "expected_forbidden_terms": [
+        "shell=True"
+      ],
+      "expected_allowed_files": [
+        "config.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0045",
+      "instruction": "Update API endpoints for billing. Must contain httpx.AsyncClient and avoid shell=True. Modify only config.py.",
+      "module": "billing",
+      "expected_required_terms": [
+        "httpx.AsyncClient"
+      ],
+      "expected_forbidden_terms": [
+        "shell=True"
+      ],
+      "expected_allowed_files": [
+        "config.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0046",
+      "instruction": "Refactor billing authentication. Must include sql_quote and do not use disable_ssl. Modify only utils.py.",
+      "module": "billing",
+      "expected_required_terms": [
+        "sql_quote"
+      ],
+      "expected_forbidden_terms": [
+        "disable_ssl"
+      ],
+      "expected_allowed_files": [
+        "utils.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0047",
+      "instruction": "Implement billing data pipeline. Must contain sql_quote and avoid disable_ssl. Modify only utils.py. Run pytest.",
+      "module": "billing",
+      "expected_required_terms": [
+        "sql_quote"
+      ],
+      "expected_forbidden_terms": [
+        "disable_ssl"
+      ],
+      "expected_allowed_files": [
+        "utils.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0048",
+      "instruction": "Fix security vulnerability in billing. Must have sql_quote and never use disable_ssl. Only edit utils.py.",
+      "module": "billing",
+      "expected_required_terms": [
+        "sql_quote"
+      ],
+      "expected_forbidden_terms": [
+        "disable_ssl"
+      ],
+      "expected_allowed_files": [
+        "utils.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0049",
+      "instruction": "Add caching layer for billing. Must include sql_quote and do not use disable_ssl. Touch only utils.py.",
+      "module": "billing",
+      "expected_required_terms": [
+        "sql_quote"
+      ],
+      "expected_forbidden_terms": [
+        "disable_ssl"
+      ],
+      "expected_allowed_files": [
+        "utils.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0050",
+      "instruction": "Update API endpoints for billing. Must contain sql_quote and avoid disable_ssl. Modify only utils.py.",
+      "module": "billing",
+      "expected_required_terms": [
+        "sql_quote"
+      ],
+      "expected_forbidden_terms": [
+        "disable_ssl"
+      ],
+      "expected_allowed_files": [
+        "utils.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0051",
+      "instruction": "Refactor auth authentication. Must include OAuth2 and do not use md5. Modify only auth.py.",
+      "module": "auth",
+      "expected_required_terms": [
+        "OAuth2"
+      ],
+      "expected_forbidden_terms": [
+        "md5"
+      ],
+      "expected_allowed_files": [
+        "auth.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0052",
+      "instruction": "Implement auth data pipeline. Must contain OAuth2 and avoid md5. Modify only auth.py. Run pytest.",
+      "module": "auth",
+      "expected_required_terms": [
+        "OAuth2"
+      ],
+      "expected_forbidden_terms": [
+        "md5"
+      ],
+      "expected_allowed_files": [
+        "auth.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0053",
+      "instruction": "Fix security vulnerability in auth. Must have OAuth2 and never use md5. Only edit auth.py.",
+      "module": "auth",
+      "expected_required_terms": [
+        "OAuth2"
+      ],
+      "expected_forbidden_terms": [
+        "md5"
+      ],
+      "expected_allowed_files": [
+        "auth.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0054",
+      "instruction": "Add caching layer for auth. Must include OAuth2 and do not use md5. Touch only auth.py.",
+      "module": "auth",
+      "expected_required_terms": [
+        "OAuth2"
+      ],
+      "expected_forbidden_terms": [
+        "md5"
+      ],
+      "expected_allowed_files": [
+        "auth.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0055",
+      "instruction": "Update API endpoints for auth. Must contain OAuth2 and avoid md5. Modify only auth.py.",
+      "module": "auth",
+      "expected_required_terms": [
+        "OAuth2"
+      ],
+      "expected_forbidden_terms": [
+        "md5"
+      ],
+      "expected_allowed_files": [
+        "auth.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0056",
+      "instruction": "Refactor auth authentication. Must include jwt.verify and do not use eval. Modify only service.py.",
+      "module": "auth",
+      "expected_required_terms": [
+        "jwt.verify"
+      ],
+      "expected_forbidden_terms": [
+        "eval"
+      ],
+      "expected_allowed_files": [
+        "service.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0057",
+      "instruction": "Implement auth data pipeline. Must contain jwt.verify and avoid eval. Modify only service.py. Run pytest.",
+      "module": "auth",
+      "expected_required_terms": [
+        "jwt.verify"
+      ],
+      "expected_forbidden_terms": [
+        "eval"
+      ],
+      "expected_allowed_files": [
+        "service.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0058",
+      "instruction": "Fix security vulnerability in auth. Must have jwt.verify and never use eval. Only edit service.py.",
+      "module": "auth",
+      "expected_required_terms": [
+        "jwt.verify"
+      ],
+      "expected_forbidden_terms": [
+        "eval"
+      ],
+      "expected_allowed_files": [
+        "service.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0059",
+      "instruction": "Add caching layer for auth. Must include jwt.verify and do not use eval. Touch only service.py.",
+      "module": "auth",
+      "expected_required_terms": [
+        "jwt.verify"
+      ],
+      "expected_forbidden_terms": [
+        "eval"
+      ],
+      "expected_allowed_files": [
+        "service.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0060",
+      "instruction": "Update API endpoints for auth. Must contain jwt.verify and avoid eval. Modify only service.py.",
+      "module": "auth",
+      "expected_required_terms": [
+        "jwt.verify"
+      ],
+      "expected_forbidden_terms": [
+        "eval"
+      ],
+      "expected_allowed_files": [
+        "service.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0061",
+      "instruction": "Refactor auth authentication. Must include bcrypt.hashpw and do not use insecure_transport. Modify only models.py.",
+      "module": "auth",
+      "expected_required_terms": [
+        "bcrypt.hashpw"
+      ],
+      "expected_forbidden_terms": [
+        "insecure_transport"
+      ],
+      "expected_allowed_files": [
+        "models.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0062",
+      "instruction": "Implement auth data pipeline. Must contain bcrypt.hashpw and avoid insecure_transport. Modify only models.py. Run pytest.",
+      "module": "auth",
+      "expected_required_terms": [
+        "bcrypt.hashpw"
+      ],
+      "expected_forbidden_terms": [
+        "insecure_transport"
+      ],
+      "expected_allowed_files": [
+        "models.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0063",
+      "instruction": "Fix security vulnerability in auth. Must have bcrypt.hashpw and never use insecure_transport. Only edit models.py.",
+      "module": "auth",
+      "expected_required_terms": [
+        "bcrypt.hashpw"
+      ],
+      "expected_forbidden_terms": [
+        "insecure_transport"
+      ],
+      "expected_allowed_files": [
+        "models.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0064",
+      "instruction": "Add caching layer for auth. Must include bcrypt.hashpw and do not use insecure_transport. Touch only models.py.",
+      "module": "auth",
+      "expected_required_terms": [
+        "bcrypt.hashpw"
+      ],
+      "expected_forbidden_terms": [
+        "insecure_transport"
+      ],
+      "expected_allowed_files": [
+        "models.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0065",
+      "instruction": "Update API endpoints for auth. Must contain bcrypt.hashpw and avoid insecure_transport. Modify only models.py.",
+      "module": "auth",
+      "expected_required_terms": [
+        "bcrypt.hashpw"
+      ],
+      "expected_forbidden_terms": [
+        "insecure_transport"
+      ],
+      "expected_allowed_files": [
+        "models.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0066",
+      "instruction": "Refactor auth authentication. Must include redis_client and do not use plaintext_secret. Modify only routes.py.",
+      "module": "auth",
+      "expected_required_terms": [
+        "redis_client"
+      ],
+      "expected_forbidden_terms": [
+        "plaintext_secret"
+      ],
+      "expected_allowed_files": [
+        "routes.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0067",
+      "instruction": "Implement auth data pipeline. Must contain redis_client and avoid plaintext_secret. Modify only routes.py. Run pytest.",
+      "module": "auth",
+      "expected_required_terms": [
+        "redis_client"
+      ],
+      "expected_forbidden_terms": [
+        "plaintext_secret"
+      ],
+      "expected_allowed_files": [
+        "routes.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0068",
+      "instruction": "Fix security vulnerability in auth. Must have redis_client and never use plaintext_secret. Only edit routes.py.",
+      "module": "auth",
+      "expected_required_terms": [
+        "redis_client"
+      ],
+      "expected_forbidden_terms": [
+        "plaintext_secret"
+      ],
+      "expected_allowed_files": [
+        "routes.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0069",
+      "instruction": "Add caching layer for auth. Must include redis_client and do not use plaintext_secret. Touch only routes.py.",
+      "module": "auth",
+      "expected_required_terms": [
+        "redis_client"
+      ],
+      "expected_forbidden_terms": [
+        "plaintext_secret"
+      ],
+      "expected_allowed_files": [
+        "routes.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0070",
+      "instruction": "Update API endpoints for auth. Must contain redis_client and avoid plaintext_secret. Modify only routes.py.",
+      "module": "auth",
+      "expected_required_terms": [
+        "redis_client"
+      ],
+      "expected_forbidden_terms": [
+        "plaintext_secret"
+      ],
+      "expected_allowed_files": [
+        "routes.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0071",
+      "instruction": "Refactor auth authentication. Must include argon2 and do not use global_state. Modify only db.py.",
+      "module": "auth",
+      "expected_required_terms": [
+        "argon2"
+      ],
+      "expected_forbidden_terms": [
+        "global_state"
+      ],
+      "expected_allowed_files": [
+        "db.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0072",
+      "instruction": "Implement auth data pipeline. Must contain argon2 and avoid global_state. Modify only db.py. Run pytest.",
+      "module": "auth",
+      "expected_required_terms": [
+        "argon2"
+      ],
+      "expected_forbidden_terms": [
+        "global_state"
+      ],
+      "expected_allowed_files": [
+        "db.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0073",
+      "instruction": "Fix security vulnerability in auth. Must have argon2 and never use global_state. Only edit db.py.",
+      "module": "auth",
+      "expected_required_terms": [
+        "argon2"
+      ],
+      "expected_forbidden_terms": [
+        "global_state"
+      ],
+      "expected_allowed_files": [
+        "db.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0074",
+      "instruction": "Add caching layer for auth. Must include argon2 and do not use global_state. Touch only db.py.",
+      "module": "auth",
+      "expected_required_terms": [
+        "argon2"
+      ],
+      "expected_forbidden_terms": [
+        "global_state"
+      ],
+      "expected_allowed_files": [
+        "db.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0075",
+      "instruction": "Update API endpoints for auth. Must contain argon2 and avoid global_state. Modify only db.py.",
+      "module": "auth",
+      "expected_required_terms": [
+        "argon2"
+      ],
+      "expected_forbidden_terms": [
+        "global_state"
+      ],
+      "expected_allowed_files": [
+        "db.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0076",
+      "instruction": "Refactor auth authentication. Must include rate_limit and do not use hardcoded_token. Modify only security.py.",
+      "module": "auth",
+      "expected_required_terms": [
+        "rate_limit"
+      ],
+      "expected_forbidden_terms": [
+        "hardcoded_token"
+      ],
+      "expected_allowed_files": [
+        "security.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0077",
+      "instruction": "Implement auth data pipeline. Must contain rate_limit and avoid hardcoded_token. Modify only security.py. Run pytest.",
+      "module": "auth",
+      "expected_required_terms": [
+        "rate_limit"
+      ],
+      "expected_forbidden_terms": [
+        "hardcoded_token"
+      ],
+      "expected_allowed_files": [
+        "security.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0078",
+      "instruction": "Fix security vulnerability in auth. Must have rate_limit and never use hardcoded_token. Only edit security.py.",
+      "module": "auth",
+      "expected_required_terms": [
+        "rate_limit"
+      ],
+      "expected_forbidden_terms": [
+        "hardcoded_token"
+      ],
+      "expected_allowed_files": [
+        "security.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0079",
+      "instruction": "Add caching layer for auth. Must include rate_limit and do not use hardcoded_token. Touch only security.py.",
+      "module": "auth",
+      "expected_required_terms": [
+        "rate_limit"
+      ],
+      "expected_forbidden_terms": [
+        "hardcoded_token"
+      ],
+      "expected_allowed_files": [
+        "security.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0080",
+      "instruction": "Update API endpoints for auth. Must contain rate_limit and avoid hardcoded_token. Modify only security.py.",
+      "module": "auth",
+      "expected_required_terms": [
+        "rate_limit"
+      ],
+      "expected_forbidden_terms": [
+        "hardcoded_token"
+      ],
+      "expected_allowed_files": [
+        "security.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0081",
+      "instruction": "Refactor auth authentication. Must include aes_gcm and do not use raw_exec. Modify only tokens.py.",
+      "module": "auth",
+      "expected_required_terms": [
+        "aes_gcm"
+      ],
+      "expected_forbidden_terms": [
+        "raw_exec"
+      ],
+      "expected_allowed_files": [
+        "tokens.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0082",
+      "instruction": "Implement auth data pipeline. Must contain aes_gcm and avoid raw_exec. Modify only tokens.py. Run pytest.",
+      "module": "auth",
+      "expected_required_terms": [
+        "aes_gcm"
+      ],
+      "expected_forbidden_terms": [
+        "raw_exec"
+      ],
+      "expected_allowed_files": [
+        "tokens.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0083",
+      "instruction": "Fix security vulnerability in auth. Must have aes_gcm and never use raw_exec. Only edit tokens.py.",
+      "module": "auth",
+      "expected_required_terms": [
+        "aes_gcm"
+      ],
+      "expected_forbidden_terms": [
+        "raw_exec"
+      ],
+      "expected_allowed_files": [
+        "tokens.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0084",
+      "instruction": "Add caching layer for auth. Must include aes_gcm and do not use raw_exec. Touch only tokens.py.",
+      "module": "auth",
+      "expected_required_terms": [
+        "aes_gcm"
+      ],
+      "expected_forbidden_terms": [
+        "raw_exec"
+      ],
+      "expected_allowed_files": [
+        "tokens.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0085",
+      "instruction": "Update API endpoints for auth. Must contain aes_gcm and avoid raw_exec. Modify only tokens.py.",
+      "module": "auth",
+      "expected_required_terms": [
+        "aes_gcm"
+      ],
+      "expected_forbidden_terms": [
+        "raw_exec"
+      ],
+      "expected_allowed_files": [
+        "tokens.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0086",
+      "instruction": "Refactor auth authentication. Must include pydantic.BaseModel and do not use pickle.loads. Modify only handler.py.",
+      "module": "auth",
+      "expected_required_terms": [
+        "pydantic.BaseModel"
+      ],
+      "expected_forbidden_terms": [
+        "pickle.loads"
+      ],
+      "expected_allowed_files": [
+        "handler.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0087",
+      "instruction": "Implement auth data pipeline. Must contain pydantic.BaseModel and avoid pickle.loads. Modify only handler.py. Run pytest.",
+      "module": "auth",
+      "expected_required_terms": [
+        "pydantic.BaseModel"
+      ],
+      "expected_forbidden_terms": [
+        "pickle.loads"
+      ],
+      "expected_allowed_files": [
+        "handler.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0088",
+      "instruction": "Fix security vulnerability in auth. Must have pydantic.BaseModel and never use pickle.loads. Only edit handler.py.",
+      "module": "auth",
+      "expected_required_terms": [
+        "pydantic.BaseModel"
+      ],
+      "expected_forbidden_terms": [
+        "pickle.loads"
+      ],
+      "expected_allowed_files": [
+        "handler.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0089",
+      "instruction": "Add caching layer for auth. Must include pydantic.BaseModel and do not use pickle.loads. Touch only handler.py.",
+      "module": "auth",
+      "expected_required_terms": [
+        "pydantic.BaseModel"
+      ],
+      "expected_forbidden_terms": [
+        "pickle.loads"
+      ],
+      "expected_allowed_files": [
+        "handler.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0090",
+      "instruction": "Update API endpoints for auth. Must contain pydantic.BaseModel and avoid pickle.loads. Modify only handler.py.",
+      "module": "auth",
+      "expected_required_terms": [
+        "pydantic.BaseModel"
+      ],
+      "expected_forbidden_terms": [
+        "pickle.loads"
+      ],
+      "expected_allowed_files": [
+        "handler.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0091",
+      "instruction": "Refactor auth authentication. Must include httpx.AsyncClient and do not use shell=True. Modify only config.py.",
+      "module": "auth",
+      "expected_required_terms": [
+        "httpx.AsyncClient"
+      ],
+      "expected_forbidden_terms": [
+        "shell=True"
+      ],
+      "expected_allowed_files": [
+        "config.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0092",
+      "instruction": "Implement auth data pipeline. Must contain httpx.AsyncClient and avoid shell=True. Modify only config.py. Run pytest.",
+      "module": "auth",
+      "expected_required_terms": [
+        "httpx.AsyncClient"
+      ],
+      "expected_forbidden_terms": [
+        "shell=True"
+      ],
+      "expected_allowed_files": [
+        "config.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0093",
+      "instruction": "Fix security vulnerability in auth. Must have httpx.AsyncClient and never use shell=True. Only edit config.py.",
+      "module": "auth",
+      "expected_required_terms": [
+        "httpx.AsyncClient"
+      ],
+      "expected_forbidden_terms": [
+        "shell=True"
+      ],
+      "expected_allowed_files": [
+        "config.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0094",
+      "instruction": "Add caching layer for auth. Must include httpx.AsyncClient and do not use shell=True. Touch only config.py.",
+      "module": "auth",
+      "expected_required_terms": [
+        "httpx.AsyncClient"
+      ],
+      "expected_forbidden_terms": [
+        "shell=True"
+      ],
+      "expected_allowed_files": [
+        "config.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0095",
+      "instruction": "Update API endpoints for auth. Must contain httpx.AsyncClient and avoid shell=True. Modify only config.py.",
+      "module": "auth",
+      "expected_required_terms": [
+        "httpx.AsyncClient"
+      ],
+      "expected_forbidden_terms": [
+        "shell=True"
+      ],
+      "expected_allowed_files": [
+        "config.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0096",
+      "instruction": "Refactor auth authentication. Must include sql_quote and do not use disable_ssl. Modify only utils.py.",
+      "module": "auth",
+      "expected_required_terms": [
+        "sql_quote"
+      ],
+      "expected_forbidden_terms": [
+        "disable_ssl"
+      ],
+      "expected_allowed_files": [
+        "utils.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0097",
+      "instruction": "Implement auth data pipeline. Must contain sql_quote and avoid disable_ssl. Modify only utils.py. Run pytest.",
+      "module": "auth",
+      "expected_required_terms": [
+        "sql_quote"
+      ],
+      "expected_forbidden_terms": [
+        "disable_ssl"
+      ],
+      "expected_allowed_files": [
+        "utils.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0098",
+      "instruction": "Fix security vulnerability in auth. Must have sql_quote and never use disable_ssl. Only edit utils.py.",
+      "module": "auth",
+      "expected_required_terms": [
+        "sql_quote"
+      ],
+      "expected_forbidden_terms": [
+        "disable_ssl"
+      ],
+      "expected_allowed_files": [
+        "utils.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0099",
+      "instruction": "Add caching layer for auth. Must include sql_quote and do not use disable_ssl. Touch only utils.py.",
+      "module": "auth",
+      "expected_required_terms": [
+        "sql_quote"
+      ],
+      "expected_forbidden_terms": [
+        "disable_ssl"
+      ],
+      "expected_allowed_files": [
+        "utils.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0100",
+      "instruction": "Update API endpoints for auth. Must contain sql_quote and avoid disable_ssl. Modify only utils.py.",
+      "module": "auth",
+      "expected_required_terms": [
+        "sql_quote"
+      ],
+      "expected_forbidden_terms": [
+        "disable_ssl"
+      ],
+      "expected_allowed_files": [
+        "utils.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0101",
+      "instruction": "Refactor users authentication. Must include OAuth2 and do not use md5. Modify only auth.py.",
+      "module": "users",
+      "expected_required_terms": [
+        "OAuth2"
+      ],
+      "expected_forbidden_terms": [
+        "md5"
+      ],
+      "expected_allowed_files": [
+        "auth.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0102",
+      "instruction": "Implement users data pipeline. Must contain OAuth2 and avoid md5. Modify only auth.py. Run pytest.",
+      "module": "users",
+      "expected_required_terms": [
+        "OAuth2"
+      ],
+      "expected_forbidden_terms": [
+        "md5"
+      ],
+      "expected_allowed_files": [
+        "auth.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0103",
+      "instruction": "Fix security vulnerability in users. Must have OAuth2 and never use md5. Only edit auth.py.",
+      "module": "users",
+      "expected_required_terms": [
+        "OAuth2"
+      ],
+      "expected_forbidden_terms": [
+        "md5"
+      ],
+      "expected_allowed_files": [
+        "auth.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0104",
+      "instruction": "Add caching layer for users. Must include OAuth2 and do not use md5. Touch only auth.py.",
+      "module": "users",
+      "expected_required_terms": [
+        "OAuth2"
+      ],
+      "expected_forbidden_terms": [
+        "md5"
+      ],
+      "expected_allowed_files": [
+        "auth.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0105",
+      "instruction": "Update API endpoints for users. Must contain OAuth2 and avoid md5. Modify only auth.py.",
+      "module": "users",
+      "expected_required_terms": [
+        "OAuth2"
+      ],
+      "expected_forbidden_terms": [
+        "md5"
+      ],
+      "expected_allowed_files": [
+        "auth.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0106",
+      "instruction": "Refactor users authentication. Must include jwt.verify and do not use eval. Modify only service.py.",
+      "module": "users",
+      "expected_required_terms": [
+        "jwt.verify"
+      ],
+      "expected_forbidden_terms": [
+        "eval"
+      ],
+      "expected_allowed_files": [
+        "service.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0107",
+      "instruction": "Implement users data pipeline. Must contain jwt.verify and avoid eval. Modify only service.py. Run pytest.",
+      "module": "users",
+      "expected_required_terms": [
+        "jwt.verify"
+      ],
+      "expected_forbidden_terms": [
+        "eval"
+      ],
+      "expected_allowed_files": [
+        "service.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0108",
+      "instruction": "Fix security vulnerability in users. Must have jwt.verify and never use eval. Only edit service.py.",
+      "module": "users",
+      "expected_required_terms": [
+        "jwt.verify"
+      ],
+      "expected_forbidden_terms": [
+        "eval"
+      ],
+      "expected_allowed_files": [
+        "service.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0109",
+      "instruction": "Add caching layer for users. Must include jwt.verify and do not use eval. Touch only service.py.",
+      "module": "users",
+      "expected_required_terms": [
+        "jwt.verify"
+      ],
+      "expected_forbidden_terms": [
+        "eval"
+      ],
+      "expected_allowed_files": [
+        "service.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0110",
+      "instruction": "Update API endpoints for users. Must contain jwt.verify and avoid eval. Modify only service.py.",
+      "module": "users",
+      "expected_required_terms": [
+        "jwt.verify"
+      ],
+      "expected_forbidden_terms": [
+        "eval"
+      ],
+      "expected_allowed_files": [
+        "service.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0111",
+      "instruction": "Refactor users authentication. Must include bcrypt.hashpw and do not use insecure_transport. Modify only models.py.",
+      "module": "users",
+      "expected_required_terms": [
+        "bcrypt.hashpw"
+      ],
+      "expected_forbidden_terms": [
+        "insecure_transport"
+      ],
+      "expected_allowed_files": [
+        "models.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0112",
+      "instruction": "Implement users data pipeline. Must contain bcrypt.hashpw and avoid insecure_transport. Modify only models.py. Run pytest.",
+      "module": "users",
+      "expected_required_terms": [
+        "bcrypt.hashpw"
+      ],
+      "expected_forbidden_terms": [
+        "insecure_transport"
+      ],
+      "expected_allowed_files": [
+        "models.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0113",
+      "instruction": "Fix security vulnerability in users. Must have bcrypt.hashpw and never use insecure_transport. Only edit models.py.",
+      "module": "users",
+      "expected_required_terms": [
+        "bcrypt.hashpw"
+      ],
+      "expected_forbidden_terms": [
+        "insecure_transport"
+      ],
+      "expected_allowed_files": [
+        "models.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0114",
+      "instruction": "Add caching layer for users. Must include bcrypt.hashpw and do not use insecure_transport. Touch only models.py.",
+      "module": "users",
+      "expected_required_terms": [
+        "bcrypt.hashpw"
+      ],
+      "expected_forbidden_terms": [
+        "insecure_transport"
+      ],
+      "expected_allowed_files": [
+        "models.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0115",
+      "instruction": "Update API endpoints for users. Must contain bcrypt.hashpw and avoid insecure_transport. Modify only models.py.",
+      "module": "users",
+      "expected_required_terms": [
+        "bcrypt.hashpw"
+      ],
+      "expected_forbidden_terms": [
+        "insecure_transport"
+      ],
+      "expected_allowed_files": [
+        "models.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0116",
+      "instruction": "Refactor users authentication. Must include redis_client and do not use plaintext_secret. Modify only routes.py.",
+      "module": "users",
+      "expected_required_terms": [
+        "redis_client"
+      ],
+      "expected_forbidden_terms": [
+        "plaintext_secret"
+      ],
+      "expected_allowed_files": [
+        "routes.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0117",
+      "instruction": "Implement users data pipeline. Must contain redis_client and avoid plaintext_secret. Modify only routes.py. Run pytest.",
+      "module": "users",
+      "expected_required_terms": [
+        "redis_client"
+      ],
+      "expected_forbidden_terms": [
+        "plaintext_secret"
+      ],
+      "expected_allowed_files": [
+        "routes.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0118",
+      "instruction": "Fix security vulnerability in users. Must have redis_client and never use plaintext_secret. Only edit routes.py.",
+      "module": "users",
+      "expected_required_terms": [
+        "redis_client"
+      ],
+      "expected_forbidden_terms": [
+        "plaintext_secret"
+      ],
+      "expected_allowed_files": [
+        "routes.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0119",
+      "instruction": "Add caching layer for users. Must include redis_client and do not use plaintext_secret. Touch only routes.py.",
+      "module": "users",
+      "expected_required_terms": [
+        "redis_client"
+      ],
+      "expected_forbidden_terms": [
+        "plaintext_secret"
+      ],
+      "expected_allowed_files": [
+        "routes.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0120",
+      "instruction": "Update API endpoints for users. Must contain redis_client and avoid plaintext_secret. Modify only routes.py.",
+      "module": "users",
+      "expected_required_terms": [
+        "redis_client"
+      ],
+      "expected_forbidden_terms": [
+        "plaintext_secret"
+      ],
+      "expected_allowed_files": [
+        "routes.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0121",
+      "instruction": "Refactor users authentication. Must include argon2 and do not use global_state. Modify only db.py.",
+      "module": "users",
+      "expected_required_terms": [
+        "argon2"
+      ],
+      "expected_forbidden_terms": [
+        "global_state"
+      ],
+      "expected_allowed_files": [
+        "db.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0122",
+      "instruction": "Implement users data pipeline. Must contain argon2 and avoid global_state. Modify only db.py. Run pytest.",
+      "module": "users",
+      "expected_required_terms": [
+        "argon2"
+      ],
+      "expected_forbidden_terms": [
+        "global_state"
+      ],
+      "expected_allowed_files": [
+        "db.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0123",
+      "instruction": "Fix security vulnerability in users. Must have argon2 and never use global_state. Only edit db.py.",
+      "module": "users",
+      "expected_required_terms": [
+        "argon2"
+      ],
+      "expected_forbidden_terms": [
+        "global_state"
+      ],
+      "expected_allowed_files": [
+        "db.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0124",
+      "instruction": "Add caching layer for users. Must include argon2 and do not use global_state. Touch only db.py.",
+      "module": "users",
+      "expected_required_terms": [
+        "argon2"
+      ],
+      "expected_forbidden_terms": [
+        "global_state"
+      ],
+      "expected_allowed_files": [
+        "db.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0125",
+      "instruction": "Update API endpoints for users. Must contain argon2 and avoid global_state. Modify only db.py.",
+      "module": "users",
+      "expected_required_terms": [
+        "argon2"
+      ],
+      "expected_forbidden_terms": [
+        "global_state"
+      ],
+      "expected_allowed_files": [
+        "db.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0126",
+      "instruction": "Refactor users authentication. Must include rate_limit and do not use hardcoded_token. Modify only security.py.",
+      "module": "users",
+      "expected_required_terms": [
+        "rate_limit"
+      ],
+      "expected_forbidden_terms": [
+        "hardcoded_token"
+      ],
+      "expected_allowed_files": [
+        "security.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0127",
+      "instruction": "Implement users data pipeline. Must contain rate_limit and avoid hardcoded_token. Modify only security.py. Run pytest.",
+      "module": "users",
+      "expected_required_terms": [
+        "rate_limit"
+      ],
+      "expected_forbidden_terms": [
+        "hardcoded_token"
+      ],
+      "expected_allowed_files": [
+        "security.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0128",
+      "instruction": "Fix security vulnerability in users. Must have rate_limit and never use hardcoded_token. Only edit security.py.",
+      "module": "users",
+      "expected_required_terms": [
+        "rate_limit"
+      ],
+      "expected_forbidden_terms": [
+        "hardcoded_token"
+      ],
+      "expected_allowed_files": [
+        "security.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0129",
+      "instruction": "Add caching layer for users. Must include rate_limit and do not use hardcoded_token. Touch only security.py.",
+      "module": "users",
+      "expected_required_terms": [
+        "rate_limit"
+      ],
+      "expected_forbidden_terms": [
+        "hardcoded_token"
+      ],
+      "expected_allowed_files": [
+        "security.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0130",
+      "instruction": "Update API endpoints for users. Must contain rate_limit and avoid hardcoded_token. Modify only security.py.",
+      "module": "users",
+      "expected_required_terms": [
+        "rate_limit"
+      ],
+      "expected_forbidden_terms": [
+        "hardcoded_token"
+      ],
+      "expected_allowed_files": [
+        "security.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0131",
+      "instruction": "Refactor users authentication. Must include aes_gcm and do not use raw_exec. Modify only tokens.py.",
+      "module": "users",
+      "expected_required_terms": [
+        "aes_gcm"
+      ],
+      "expected_forbidden_terms": [
+        "raw_exec"
+      ],
+      "expected_allowed_files": [
+        "tokens.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0132",
+      "instruction": "Implement users data pipeline. Must contain aes_gcm and avoid raw_exec. Modify only tokens.py. Run pytest.",
+      "module": "users",
+      "expected_required_terms": [
+        "aes_gcm"
+      ],
+      "expected_forbidden_terms": [
+        "raw_exec"
+      ],
+      "expected_allowed_files": [
+        "tokens.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0133",
+      "instruction": "Fix security vulnerability in users. Must have aes_gcm and never use raw_exec. Only edit tokens.py.",
+      "module": "users",
+      "expected_required_terms": [
+        "aes_gcm"
+      ],
+      "expected_forbidden_terms": [
+        "raw_exec"
+      ],
+      "expected_allowed_files": [
+        "tokens.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0134",
+      "instruction": "Add caching layer for users. Must include aes_gcm and do not use raw_exec. Touch only tokens.py.",
+      "module": "users",
+      "expected_required_terms": [
+        "aes_gcm"
+      ],
+      "expected_forbidden_terms": [
+        "raw_exec"
+      ],
+      "expected_allowed_files": [
+        "tokens.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0135",
+      "instruction": "Update API endpoints for users. Must contain aes_gcm and avoid raw_exec. Modify only tokens.py.",
+      "module": "users",
+      "expected_required_terms": [
+        "aes_gcm"
+      ],
+      "expected_forbidden_terms": [
+        "raw_exec"
+      ],
+      "expected_allowed_files": [
+        "tokens.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0136",
+      "instruction": "Refactor users authentication. Must include pydantic.BaseModel and do not use pickle.loads. Modify only handler.py.",
+      "module": "users",
+      "expected_required_terms": [
+        "pydantic.BaseModel"
+      ],
+      "expected_forbidden_terms": [
+        "pickle.loads"
+      ],
+      "expected_allowed_files": [
+        "handler.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0137",
+      "instruction": "Implement users data pipeline. Must contain pydantic.BaseModel and avoid pickle.loads. Modify only handler.py. Run pytest.",
+      "module": "users",
+      "expected_required_terms": [
+        "pydantic.BaseModel"
+      ],
+      "expected_forbidden_terms": [
+        "pickle.loads"
+      ],
+      "expected_allowed_files": [
+        "handler.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0138",
+      "instruction": "Fix security vulnerability in users. Must have pydantic.BaseModel and never use pickle.loads. Only edit handler.py.",
+      "module": "users",
+      "expected_required_terms": [
+        "pydantic.BaseModel"
+      ],
+      "expected_forbidden_terms": [
+        "pickle.loads"
+      ],
+      "expected_allowed_files": [
+        "handler.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0139",
+      "instruction": "Add caching layer for users. Must include pydantic.BaseModel and do not use pickle.loads. Touch only handler.py.",
+      "module": "users",
+      "expected_required_terms": [
+        "pydantic.BaseModel"
+      ],
+      "expected_forbidden_terms": [
+        "pickle.loads"
+      ],
+      "expected_allowed_files": [
+        "handler.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0140",
+      "instruction": "Update API endpoints for users. Must contain pydantic.BaseModel and avoid pickle.loads. Modify only handler.py.",
+      "module": "users",
+      "expected_required_terms": [
+        "pydantic.BaseModel"
+      ],
+      "expected_forbidden_terms": [
+        "pickle.loads"
+      ],
+      "expected_allowed_files": [
+        "handler.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0141",
+      "instruction": "Refactor users authentication. Must include httpx.AsyncClient and do not use shell=True. Modify only config.py.",
+      "module": "users",
+      "expected_required_terms": [
+        "httpx.AsyncClient"
+      ],
+      "expected_forbidden_terms": [
+        "shell=True"
+      ],
+      "expected_allowed_files": [
+        "config.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0142",
+      "instruction": "Implement users data pipeline. Must contain httpx.AsyncClient and avoid shell=True. Modify only config.py. Run pytest.",
+      "module": "users",
+      "expected_required_terms": [
+        "httpx.AsyncClient"
+      ],
+      "expected_forbidden_terms": [
+        "shell=True"
+      ],
+      "expected_allowed_files": [
+        "config.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0143",
+      "instruction": "Fix security vulnerability in users. Must have httpx.AsyncClient and never use shell=True. Only edit config.py.",
+      "module": "users",
+      "expected_required_terms": [
+        "httpx.AsyncClient"
+      ],
+      "expected_forbidden_terms": [
+        "shell=True"
+      ],
+      "expected_allowed_files": [
+        "config.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0144",
+      "instruction": "Add caching layer for users. Must include httpx.AsyncClient and do not use shell=True. Touch only config.py.",
+      "module": "users",
+      "expected_required_terms": [
+        "httpx.AsyncClient"
+      ],
+      "expected_forbidden_terms": [
+        "shell=True"
+      ],
+      "expected_allowed_files": [
+        "config.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0145",
+      "instruction": "Update API endpoints for users. Must contain httpx.AsyncClient and avoid shell=True. Modify only config.py.",
+      "module": "users",
+      "expected_required_terms": [
+        "httpx.AsyncClient"
+      ],
+      "expected_forbidden_terms": [
+        "shell=True"
+      ],
+      "expected_allowed_files": [
+        "config.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0146",
+      "instruction": "Refactor users authentication. Must include sql_quote and do not use disable_ssl. Modify only utils.py.",
+      "module": "users",
+      "expected_required_terms": [
+        "sql_quote"
+      ],
+      "expected_forbidden_terms": [
+        "disable_ssl"
+      ],
+      "expected_allowed_files": [
+        "utils.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0147",
+      "instruction": "Implement users data pipeline. Must contain sql_quote and avoid disable_ssl. Modify only utils.py. Run pytest.",
+      "module": "users",
+      "expected_required_terms": [
+        "sql_quote"
+      ],
+      "expected_forbidden_terms": [
+        "disable_ssl"
+      ],
+      "expected_allowed_files": [
+        "utils.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0148",
+      "instruction": "Fix security vulnerability in users. Must have sql_quote and never use disable_ssl. Only edit utils.py.",
+      "module": "users",
+      "expected_required_terms": [
+        "sql_quote"
+      ],
+      "expected_forbidden_terms": [
+        "disable_ssl"
+      ],
+      "expected_allowed_files": [
+        "utils.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0149",
+      "instruction": "Add caching layer for users. Must include sql_quote and do not use disable_ssl. Touch only utils.py.",
+      "module": "users",
+      "expected_required_terms": [
+        "sql_quote"
+      ],
+      "expected_forbidden_terms": [
+        "disable_ssl"
+      ],
+      "expected_allowed_files": [
+        "utils.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0150",
+      "instruction": "Update API endpoints for users. Must contain sql_quote and avoid disable_ssl. Modify only utils.py.",
+      "module": "users",
+      "expected_required_terms": [
+        "sql_quote"
+      ],
+      "expected_forbidden_terms": [
+        "disable_ssl"
+      ],
+      "expected_allowed_files": [
+        "utils.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0151",
+      "instruction": "Refactor payments authentication. Must include OAuth2 and do not use md5. Modify only auth.py.",
+      "module": "payments",
+      "expected_required_terms": [
+        "OAuth2"
+      ],
+      "expected_forbidden_terms": [
+        "md5"
+      ],
+      "expected_allowed_files": [
+        "auth.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0152",
+      "instruction": "Implement payments data pipeline. Must contain OAuth2 and avoid md5. Modify only auth.py. Run pytest.",
+      "module": "payments",
+      "expected_required_terms": [
+        "OAuth2"
+      ],
+      "expected_forbidden_terms": [
+        "md5"
+      ],
+      "expected_allowed_files": [
+        "auth.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0153",
+      "instruction": "Fix security vulnerability in payments. Must have OAuth2 and never use md5. Only edit auth.py.",
+      "module": "payments",
+      "expected_required_terms": [
+        "OAuth2"
+      ],
+      "expected_forbidden_terms": [
+        "md5"
+      ],
+      "expected_allowed_files": [
+        "auth.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0154",
+      "instruction": "Add caching layer for payments. Must include OAuth2 and do not use md5. Touch only auth.py.",
+      "module": "payments",
+      "expected_required_terms": [
+        "OAuth2"
+      ],
+      "expected_forbidden_terms": [
+        "md5"
+      ],
+      "expected_allowed_files": [
+        "auth.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0155",
+      "instruction": "Update API endpoints for payments. Must contain OAuth2 and avoid md5. Modify only auth.py.",
+      "module": "payments",
+      "expected_required_terms": [
+        "OAuth2"
+      ],
+      "expected_forbidden_terms": [
+        "md5"
+      ],
+      "expected_allowed_files": [
+        "auth.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0156",
+      "instruction": "Refactor payments authentication. Must include jwt.verify and do not use eval. Modify only service.py.",
+      "module": "payments",
+      "expected_required_terms": [
+        "jwt.verify"
+      ],
+      "expected_forbidden_terms": [
+        "eval"
+      ],
+      "expected_allowed_files": [
+        "service.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0157",
+      "instruction": "Implement payments data pipeline. Must contain jwt.verify and avoid eval. Modify only service.py. Run pytest.",
+      "module": "payments",
+      "expected_required_terms": [
+        "jwt.verify"
+      ],
+      "expected_forbidden_terms": [
+        "eval"
+      ],
+      "expected_allowed_files": [
+        "service.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0158",
+      "instruction": "Fix security vulnerability in payments. Must have jwt.verify and never use eval. Only edit service.py.",
+      "module": "payments",
+      "expected_required_terms": [
+        "jwt.verify"
+      ],
+      "expected_forbidden_terms": [
+        "eval"
+      ],
+      "expected_allowed_files": [
+        "service.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0159",
+      "instruction": "Add caching layer for payments. Must include jwt.verify and do not use eval. Touch only service.py.",
+      "module": "payments",
+      "expected_required_terms": [
+        "jwt.verify"
+      ],
+      "expected_forbidden_terms": [
+        "eval"
+      ],
+      "expected_allowed_files": [
+        "service.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0160",
+      "instruction": "Update API endpoints for payments. Must contain jwt.verify and avoid eval. Modify only service.py.",
+      "module": "payments",
+      "expected_required_terms": [
+        "jwt.verify"
+      ],
+      "expected_forbidden_terms": [
+        "eval"
+      ],
+      "expected_allowed_files": [
+        "service.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0161",
+      "instruction": "Refactor payments authentication. Must include bcrypt.hashpw and do not use insecure_transport. Modify only models.py.",
+      "module": "payments",
+      "expected_required_terms": [
+        "bcrypt.hashpw"
+      ],
+      "expected_forbidden_terms": [
+        "insecure_transport"
+      ],
+      "expected_allowed_files": [
+        "models.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0162",
+      "instruction": "Implement payments data pipeline. Must contain bcrypt.hashpw and avoid insecure_transport. Modify only models.py. Run pytest.",
+      "module": "payments",
+      "expected_required_terms": [
+        "bcrypt.hashpw"
+      ],
+      "expected_forbidden_terms": [
+        "insecure_transport"
+      ],
+      "expected_allowed_files": [
+        "models.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0163",
+      "instruction": "Fix security vulnerability in payments. Must have bcrypt.hashpw and never use insecure_transport. Only edit models.py.",
+      "module": "payments",
+      "expected_required_terms": [
+        "bcrypt.hashpw"
+      ],
+      "expected_forbidden_terms": [
+        "insecure_transport"
+      ],
+      "expected_allowed_files": [
+        "models.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0164",
+      "instruction": "Add caching layer for payments. Must include bcrypt.hashpw and do not use insecure_transport. Touch only models.py.",
+      "module": "payments",
+      "expected_required_terms": [
+        "bcrypt.hashpw"
+      ],
+      "expected_forbidden_terms": [
+        "insecure_transport"
+      ],
+      "expected_allowed_files": [
+        "models.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0165",
+      "instruction": "Update API endpoints for payments. Must contain bcrypt.hashpw and avoid insecure_transport. Modify only models.py.",
+      "module": "payments",
+      "expected_required_terms": [
+        "bcrypt.hashpw"
+      ],
+      "expected_forbidden_terms": [
+        "insecure_transport"
+      ],
+      "expected_allowed_files": [
+        "models.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0166",
+      "instruction": "Refactor payments authentication. Must include redis_client and do not use plaintext_secret. Modify only routes.py.",
+      "module": "payments",
+      "expected_required_terms": [
+        "redis_client"
+      ],
+      "expected_forbidden_terms": [
+        "plaintext_secret"
+      ],
+      "expected_allowed_files": [
+        "routes.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0167",
+      "instruction": "Implement payments data pipeline. Must contain redis_client and avoid plaintext_secret. Modify only routes.py. Run pytest.",
+      "module": "payments",
+      "expected_required_terms": [
+        "redis_client"
+      ],
+      "expected_forbidden_terms": [
+        "plaintext_secret"
+      ],
+      "expected_allowed_files": [
+        "routes.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0168",
+      "instruction": "Fix security vulnerability in payments. Must have redis_client and never use plaintext_secret. Only edit routes.py.",
+      "module": "payments",
+      "expected_required_terms": [
+        "redis_client"
+      ],
+      "expected_forbidden_terms": [
+        "plaintext_secret"
+      ],
+      "expected_allowed_files": [
+        "routes.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0169",
+      "instruction": "Add caching layer for payments. Must include redis_client and do not use plaintext_secret. Touch only routes.py.",
+      "module": "payments",
+      "expected_required_terms": [
+        "redis_client"
+      ],
+      "expected_forbidden_terms": [
+        "plaintext_secret"
+      ],
+      "expected_allowed_files": [
+        "routes.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0170",
+      "instruction": "Update API endpoints for payments. Must contain redis_client and avoid plaintext_secret. Modify only routes.py.",
+      "module": "payments",
+      "expected_required_terms": [
+        "redis_client"
+      ],
+      "expected_forbidden_terms": [
+        "plaintext_secret"
+      ],
+      "expected_allowed_files": [
+        "routes.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0171",
+      "instruction": "Refactor payments authentication. Must include argon2 and do not use global_state. Modify only db.py.",
+      "module": "payments",
+      "expected_required_terms": [
+        "argon2"
+      ],
+      "expected_forbidden_terms": [
+        "global_state"
+      ],
+      "expected_allowed_files": [
+        "db.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0172",
+      "instruction": "Implement payments data pipeline. Must contain argon2 and avoid global_state. Modify only db.py. Run pytest.",
+      "module": "payments",
+      "expected_required_terms": [
+        "argon2"
+      ],
+      "expected_forbidden_terms": [
+        "global_state"
+      ],
+      "expected_allowed_files": [
+        "db.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0173",
+      "instruction": "Fix security vulnerability in payments. Must have argon2 and never use global_state. Only edit db.py.",
+      "module": "payments",
+      "expected_required_terms": [
+        "argon2"
+      ],
+      "expected_forbidden_terms": [
+        "global_state"
+      ],
+      "expected_allowed_files": [
+        "db.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0174",
+      "instruction": "Add caching layer for payments. Must include argon2 and do not use global_state. Touch only db.py.",
+      "module": "payments",
+      "expected_required_terms": [
+        "argon2"
+      ],
+      "expected_forbidden_terms": [
+        "global_state"
+      ],
+      "expected_allowed_files": [
+        "db.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0175",
+      "instruction": "Update API endpoints for payments. Must contain argon2 and avoid global_state. Modify only db.py.",
+      "module": "payments",
+      "expected_required_terms": [
+        "argon2"
+      ],
+      "expected_forbidden_terms": [
+        "global_state"
+      ],
+      "expected_allowed_files": [
+        "db.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0176",
+      "instruction": "Refactor payments authentication. Must include rate_limit and do not use hardcoded_token. Modify only security.py.",
+      "module": "payments",
+      "expected_required_terms": [
+        "rate_limit"
+      ],
+      "expected_forbidden_terms": [
+        "hardcoded_token"
+      ],
+      "expected_allowed_files": [
+        "security.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0177",
+      "instruction": "Implement payments data pipeline. Must contain rate_limit and avoid hardcoded_token. Modify only security.py. Run pytest.",
+      "module": "payments",
+      "expected_required_terms": [
+        "rate_limit"
+      ],
+      "expected_forbidden_terms": [
+        "hardcoded_token"
+      ],
+      "expected_allowed_files": [
+        "security.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0178",
+      "instruction": "Fix security vulnerability in payments. Must have rate_limit and never use hardcoded_token. Only edit security.py.",
+      "module": "payments",
+      "expected_required_terms": [
+        "rate_limit"
+      ],
+      "expected_forbidden_terms": [
+        "hardcoded_token"
+      ],
+      "expected_allowed_files": [
+        "security.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0179",
+      "instruction": "Add caching layer for payments. Must include rate_limit and do not use hardcoded_token. Touch only security.py.",
+      "module": "payments",
+      "expected_required_terms": [
+        "rate_limit"
+      ],
+      "expected_forbidden_terms": [
+        "hardcoded_token"
+      ],
+      "expected_allowed_files": [
+        "security.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0180",
+      "instruction": "Update API endpoints for payments. Must contain rate_limit and avoid hardcoded_token. Modify only security.py.",
+      "module": "payments",
+      "expected_required_terms": [
+        "rate_limit"
+      ],
+      "expected_forbidden_terms": [
+        "hardcoded_token"
+      ],
+      "expected_allowed_files": [
+        "security.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0181",
+      "instruction": "Refactor payments authentication. Must include aes_gcm and do not use raw_exec. Modify only tokens.py.",
+      "module": "payments",
+      "expected_required_terms": [
+        "aes_gcm"
+      ],
+      "expected_forbidden_terms": [
+        "raw_exec"
+      ],
+      "expected_allowed_files": [
+        "tokens.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0182",
+      "instruction": "Implement payments data pipeline. Must contain aes_gcm and avoid raw_exec. Modify only tokens.py. Run pytest.",
+      "module": "payments",
+      "expected_required_terms": [
+        "aes_gcm"
+      ],
+      "expected_forbidden_terms": [
+        "raw_exec"
+      ],
+      "expected_allowed_files": [
+        "tokens.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0183",
+      "instruction": "Fix security vulnerability in payments. Must have aes_gcm and never use raw_exec. Only edit tokens.py.",
+      "module": "payments",
+      "expected_required_terms": [
+        "aes_gcm"
+      ],
+      "expected_forbidden_terms": [
+        "raw_exec"
+      ],
+      "expected_allowed_files": [
+        "tokens.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0184",
+      "instruction": "Add caching layer for payments. Must include aes_gcm and do not use raw_exec. Touch only tokens.py.",
+      "module": "payments",
+      "expected_required_terms": [
+        "aes_gcm"
+      ],
+      "expected_forbidden_terms": [
+        "raw_exec"
+      ],
+      "expected_allowed_files": [
+        "tokens.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0185",
+      "instruction": "Update API endpoints for payments. Must contain aes_gcm and avoid raw_exec. Modify only tokens.py.",
+      "module": "payments",
+      "expected_required_terms": [
+        "aes_gcm"
+      ],
+      "expected_forbidden_terms": [
+        "raw_exec"
+      ],
+      "expected_allowed_files": [
+        "tokens.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0186",
+      "instruction": "Refactor payments authentication. Must include pydantic.BaseModel and do not use pickle.loads. Modify only handler.py.",
+      "module": "payments",
+      "expected_required_terms": [
+        "pydantic.BaseModel"
+      ],
+      "expected_forbidden_terms": [
+        "pickle.loads"
+      ],
+      "expected_allowed_files": [
+        "handler.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0187",
+      "instruction": "Implement payments data pipeline. Must contain pydantic.BaseModel and avoid pickle.loads. Modify only handler.py. Run pytest.",
+      "module": "payments",
+      "expected_required_terms": [
+        "pydantic.BaseModel"
+      ],
+      "expected_forbidden_terms": [
+        "pickle.loads"
+      ],
+      "expected_allowed_files": [
+        "handler.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0188",
+      "instruction": "Fix security vulnerability in payments. Must have pydantic.BaseModel and never use pickle.loads. Only edit handler.py.",
+      "module": "payments",
+      "expected_required_terms": [
+        "pydantic.BaseModel"
+      ],
+      "expected_forbidden_terms": [
+        "pickle.loads"
+      ],
+      "expected_allowed_files": [
+        "handler.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0189",
+      "instruction": "Add caching layer for payments. Must include pydantic.BaseModel and do not use pickle.loads. Touch only handler.py.",
+      "module": "payments",
+      "expected_required_terms": [
+        "pydantic.BaseModel"
+      ],
+      "expected_forbidden_terms": [
+        "pickle.loads"
+      ],
+      "expected_allowed_files": [
+        "handler.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0190",
+      "instruction": "Update API endpoints for payments. Must contain pydantic.BaseModel and avoid pickle.loads. Modify only handler.py.",
+      "module": "payments",
+      "expected_required_terms": [
+        "pydantic.BaseModel"
+      ],
+      "expected_forbidden_terms": [
+        "pickle.loads"
+      ],
+      "expected_allowed_files": [
+        "handler.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0191",
+      "instruction": "Refactor payments authentication. Must include httpx.AsyncClient and do not use shell=True. Modify only config.py.",
+      "module": "payments",
+      "expected_required_terms": [
+        "httpx.AsyncClient"
+      ],
+      "expected_forbidden_terms": [
+        "shell=True"
+      ],
+      "expected_allowed_files": [
+        "config.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0192",
+      "instruction": "Implement payments data pipeline. Must contain httpx.AsyncClient and avoid shell=True. Modify only config.py. Run pytest.",
+      "module": "payments",
+      "expected_required_terms": [
+        "httpx.AsyncClient"
+      ],
+      "expected_forbidden_terms": [
+        "shell=True"
+      ],
+      "expected_allowed_files": [
+        "config.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0193",
+      "instruction": "Fix security vulnerability in payments. Must have httpx.AsyncClient and never use shell=True. Only edit config.py.",
+      "module": "payments",
+      "expected_required_terms": [
+        "httpx.AsyncClient"
+      ],
+      "expected_forbidden_terms": [
+        "shell=True"
+      ],
+      "expected_allowed_files": [
+        "config.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0194",
+      "instruction": "Add caching layer for payments. Must include httpx.AsyncClient and do not use shell=True. Touch only config.py.",
+      "module": "payments",
+      "expected_required_terms": [
+        "httpx.AsyncClient"
+      ],
+      "expected_forbidden_terms": [
+        "shell=True"
+      ],
+      "expected_allowed_files": [
+        "config.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0195",
+      "instruction": "Update API endpoints for payments. Must contain httpx.AsyncClient and avoid shell=True. Modify only config.py.",
+      "module": "payments",
+      "expected_required_terms": [
+        "httpx.AsyncClient"
+      ],
+      "expected_forbidden_terms": [
+        "shell=True"
+      ],
+      "expected_allowed_files": [
+        "config.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0196",
+      "instruction": "Refactor payments authentication. Must include sql_quote and do not use disable_ssl. Modify only utils.py.",
+      "module": "payments",
+      "expected_required_terms": [
+        "sql_quote"
+      ],
+      "expected_forbidden_terms": [
+        "disable_ssl"
+      ],
+      "expected_allowed_files": [
+        "utils.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0197",
+      "instruction": "Implement payments data pipeline. Must contain sql_quote and avoid disable_ssl. Modify only utils.py. Run pytest.",
+      "module": "payments",
+      "expected_required_terms": [
+        "sql_quote"
+      ],
+      "expected_forbidden_terms": [
+        "disable_ssl"
+      ],
+      "expected_allowed_files": [
+        "utils.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0198",
+      "instruction": "Fix security vulnerability in payments. Must have sql_quote and never use disable_ssl. Only edit utils.py.",
+      "module": "payments",
+      "expected_required_terms": [
+        "sql_quote"
+      ],
+      "expected_forbidden_terms": [
+        "disable_ssl"
+      ],
+      "expected_allowed_files": [
+        "utils.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0199",
+      "instruction": "Add caching layer for payments. Must include sql_quote and do not use disable_ssl. Touch only utils.py.",
+      "module": "payments",
+      "expected_required_terms": [
+        "sql_quote"
+      ],
+      "expected_forbidden_terms": [
+        "disable_ssl"
+      ],
+      "expected_allowed_files": [
+        "utils.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0200",
+      "instruction": "Update API endpoints for payments. Must contain sql_quote and avoid disable_ssl. Modify only utils.py.",
+      "module": "payments",
+      "expected_required_terms": [
+        "sql_quote"
+      ],
+      "expected_forbidden_terms": [
+        "disable_ssl"
+      ],
+      "expected_allowed_files": [
+        "utils.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0201",
+      "instruction": "Refactor analytics authentication. Must include OAuth2 and do not use md5. Modify only auth.py.",
+      "module": "analytics",
+      "expected_required_terms": [
+        "OAuth2"
+      ],
+      "expected_forbidden_terms": [
+        "md5"
+      ],
+      "expected_allowed_files": [
+        "auth.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0202",
+      "instruction": "Implement analytics data pipeline. Must contain OAuth2 and avoid md5. Modify only auth.py. Run pytest.",
+      "module": "analytics",
+      "expected_required_terms": [
+        "OAuth2"
+      ],
+      "expected_forbidden_terms": [
+        "md5"
+      ],
+      "expected_allowed_files": [
+        "auth.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0203",
+      "instruction": "Fix security vulnerability in analytics. Must have OAuth2 and never use md5. Only edit auth.py.",
+      "module": "analytics",
+      "expected_required_terms": [
+        "OAuth2"
+      ],
+      "expected_forbidden_terms": [
+        "md5"
+      ],
+      "expected_allowed_files": [
+        "auth.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0204",
+      "instruction": "Add caching layer for analytics. Must include OAuth2 and do not use md5. Touch only auth.py.",
+      "module": "analytics",
+      "expected_required_terms": [
+        "OAuth2"
+      ],
+      "expected_forbidden_terms": [
+        "md5"
+      ],
+      "expected_allowed_files": [
+        "auth.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0205",
+      "instruction": "Update API endpoints for analytics. Must contain OAuth2 and avoid md5. Modify only auth.py.",
+      "module": "analytics",
+      "expected_required_terms": [
+        "OAuth2"
+      ],
+      "expected_forbidden_terms": [
+        "md5"
+      ],
+      "expected_allowed_files": [
+        "auth.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0206",
+      "instruction": "Refactor analytics authentication. Must include jwt.verify and do not use eval. Modify only service.py.",
+      "module": "analytics",
+      "expected_required_terms": [
+        "jwt.verify"
+      ],
+      "expected_forbidden_terms": [
+        "eval"
+      ],
+      "expected_allowed_files": [
+        "service.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0207",
+      "instruction": "Implement analytics data pipeline. Must contain jwt.verify and avoid eval. Modify only service.py. Run pytest.",
+      "module": "analytics",
+      "expected_required_terms": [
+        "jwt.verify"
+      ],
+      "expected_forbidden_terms": [
+        "eval"
+      ],
+      "expected_allowed_files": [
+        "service.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0208",
+      "instruction": "Fix security vulnerability in analytics. Must have jwt.verify and never use eval. Only edit service.py.",
+      "module": "analytics",
+      "expected_required_terms": [
+        "jwt.verify"
+      ],
+      "expected_forbidden_terms": [
+        "eval"
+      ],
+      "expected_allowed_files": [
+        "service.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0209",
+      "instruction": "Add caching layer for analytics. Must include jwt.verify and do not use eval. Touch only service.py.",
+      "module": "analytics",
+      "expected_required_terms": [
+        "jwt.verify"
+      ],
+      "expected_forbidden_terms": [
+        "eval"
+      ],
+      "expected_allowed_files": [
+        "service.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0210",
+      "instruction": "Update API endpoints for analytics. Must contain jwt.verify and avoid eval. Modify only service.py.",
+      "module": "analytics",
+      "expected_required_terms": [
+        "jwt.verify"
+      ],
+      "expected_forbidden_terms": [
+        "eval"
+      ],
+      "expected_allowed_files": [
+        "service.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0211",
+      "instruction": "Refactor analytics authentication. Must include bcrypt.hashpw and do not use insecure_transport. Modify only models.py.",
+      "module": "analytics",
+      "expected_required_terms": [
+        "bcrypt.hashpw"
+      ],
+      "expected_forbidden_terms": [
+        "insecure_transport"
+      ],
+      "expected_allowed_files": [
+        "models.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0212",
+      "instruction": "Implement analytics data pipeline. Must contain bcrypt.hashpw and avoid insecure_transport. Modify only models.py. Run pytest.",
+      "module": "analytics",
+      "expected_required_terms": [
+        "bcrypt.hashpw"
+      ],
+      "expected_forbidden_terms": [
+        "insecure_transport"
+      ],
+      "expected_allowed_files": [
+        "models.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0213",
+      "instruction": "Fix security vulnerability in analytics. Must have bcrypt.hashpw and never use insecure_transport. Only edit models.py.",
+      "module": "analytics",
+      "expected_required_terms": [
+        "bcrypt.hashpw"
+      ],
+      "expected_forbidden_terms": [
+        "insecure_transport"
+      ],
+      "expected_allowed_files": [
+        "models.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0214",
+      "instruction": "Add caching layer for analytics. Must include bcrypt.hashpw and do not use insecure_transport. Touch only models.py.",
+      "module": "analytics",
+      "expected_required_terms": [
+        "bcrypt.hashpw"
+      ],
+      "expected_forbidden_terms": [
+        "insecure_transport"
+      ],
+      "expected_allowed_files": [
+        "models.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0215",
+      "instruction": "Update API endpoints for analytics. Must contain bcrypt.hashpw and avoid insecure_transport. Modify only models.py.",
+      "module": "analytics",
+      "expected_required_terms": [
+        "bcrypt.hashpw"
+      ],
+      "expected_forbidden_terms": [
+        "insecure_transport"
+      ],
+      "expected_allowed_files": [
+        "models.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0216",
+      "instruction": "Refactor analytics authentication. Must include redis_client and do not use plaintext_secret. Modify only routes.py.",
+      "module": "analytics",
+      "expected_required_terms": [
+        "redis_client"
+      ],
+      "expected_forbidden_terms": [
+        "plaintext_secret"
+      ],
+      "expected_allowed_files": [
+        "routes.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0217",
+      "instruction": "Implement analytics data pipeline. Must contain redis_client and avoid plaintext_secret. Modify only routes.py. Run pytest.",
+      "module": "analytics",
+      "expected_required_terms": [
+        "redis_client"
+      ],
+      "expected_forbidden_terms": [
+        "plaintext_secret"
+      ],
+      "expected_allowed_files": [
+        "routes.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0218",
+      "instruction": "Fix security vulnerability in analytics. Must have redis_client and never use plaintext_secret. Only edit routes.py.",
+      "module": "analytics",
+      "expected_required_terms": [
+        "redis_client"
+      ],
+      "expected_forbidden_terms": [
+        "plaintext_secret"
+      ],
+      "expected_allowed_files": [
+        "routes.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0219",
+      "instruction": "Add caching layer for analytics. Must include redis_client and do not use plaintext_secret. Touch only routes.py.",
+      "module": "analytics",
+      "expected_required_terms": [
+        "redis_client"
+      ],
+      "expected_forbidden_terms": [
+        "plaintext_secret"
+      ],
+      "expected_allowed_files": [
+        "routes.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0220",
+      "instruction": "Update API endpoints for analytics. Must contain redis_client and avoid plaintext_secret. Modify only routes.py.",
+      "module": "analytics",
+      "expected_required_terms": [
+        "redis_client"
+      ],
+      "expected_forbidden_terms": [
+        "plaintext_secret"
+      ],
+      "expected_allowed_files": [
+        "routes.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0221",
+      "instruction": "Refactor analytics authentication. Must include argon2 and do not use global_state. Modify only db.py.",
+      "module": "analytics",
+      "expected_required_terms": [
+        "argon2"
+      ],
+      "expected_forbidden_terms": [
+        "global_state"
+      ],
+      "expected_allowed_files": [
+        "db.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0222",
+      "instruction": "Implement analytics data pipeline. Must contain argon2 and avoid global_state. Modify only db.py. Run pytest.",
+      "module": "analytics",
+      "expected_required_terms": [
+        "argon2"
+      ],
+      "expected_forbidden_terms": [
+        "global_state"
+      ],
+      "expected_allowed_files": [
+        "db.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0223",
+      "instruction": "Fix security vulnerability in analytics. Must have argon2 and never use global_state. Only edit db.py.",
+      "module": "analytics",
+      "expected_required_terms": [
+        "argon2"
+      ],
+      "expected_forbidden_terms": [
+        "global_state"
+      ],
+      "expected_allowed_files": [
+        "db.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0224",
+      "instruction": "Add caching layer for analytics. Must include argon2 and do not use global_state. Touch only db.py.",
+      "module": "analytics",
+      "expected_required_terms": [
+        "argon2"
+      ],
+      "expected_forbidden_terms": [
+        "global_state"
+      ],
+      "expected_allowed_files": [
+        "db.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0225",
+      "instruction": "Update API endpoints for analytics. Must contain argon2 and avoid global_state. Modify only db.py.",
+      "module": "analytics",
+      "expected_required_terms": [
+        "argon2"
+      ],
+      "expected_forbidden_terms": [
+        "global_state"
+      ],
+      "expected_allowed_files": [
+        "db.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0226",
+      "instruction": "Refactor analytics authentication. Must include rate_limit and do not use hardcoded_token. Modify only security.py.",
+      "module": "analytics",
+      "expected_required_terms": [
+        "rate_limit"
+      ],
+      "expected_forbidden_terms": [
+        "hardcoded_token"
+      ],
+      "expected_allowed_files": [
+        "security.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0227",
+      "instruction": "Implement analytics data pipeline. Must contain rate_limit and avoid hardcoded_token. Modify only security.py. Run pytest.",
+      "module": "analytics",
+      "expected_required_terms": [
+        "rate_limit"
+      ],
+      "expected_forbidden_terms": [
+        "hardcoded_token"
+      ],
+      "expected_allowed_files": [
+        "security.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0228",
+      "instruction": "Fix security vulnerability in analytics. Must have rate_limit and never use hardcoded_token. Only edit security.py.",
+      "module": "analytics",
+      "expected_required_terms": [
+        "rate_limit"
+      ],
+      "expected_forbidden_terms": [
+        "hardcoded_token"
+      ],
+      "expected_allowed_files": [
+        "security.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0229",
+      "instruction": "Add caching layer for analytics. Must include rate_limit and do not use hardcoded_token. Touch only security.py.",
+      "module": "analytics",
+      "expected_required_terms": [
+        "rate_limit"
+      ],
+      "expected_forbidden_terms": [
+        "hardcoded_token"
+      ],
+      "expected_allowed_files": [
+        "security.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0230",
+      "instruction": "Update API endpoints for analytics. Must contain rate_limit and avoid hardcoded_token. Modify only security.py.",
+      "module": "analytics",
+      "expected_required_terms": [
+        "rate_limit"
+      ],
+      "expected_forbidden_terms": [
+        "hardcoded_token"
+      ],
+      "expected_allowed_files": [
+        "security.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0231",
+      "instruction": "Refactor analytics authentication. Must include aes_gcm and do not use raw_exec. Modify only tokens.py.",
+      "module": "analytics",
+      "expected_required_terms": [
+        "aes_gcm"
+      ],
+      "expected_forbidden_terms": [
+        "raw_exec"
+      ],
+      "expected_allowed_files": [
+        "tokens.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0232",
+      "instruction": "Implement analytics data pipeline. Must contain aes_gcm and avoid raw_exec. Modify only tokens.py. Run pytest.",
+      "module": "analytics",
+      "expected_required_terms": [
+        "aes_gcm"
+      ],
+      "expected_forbidden_terms": [
+        "raw_exec"
+      ],
+      "expected_allowed_files": [
+        "tokens.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0233",
+      "instruction": "Fix security vulnerability in analytics. Must have aes_gcm and never use raw_exec. Only edit tokens.py.",
+      "module": "analytics",
+      "expected_required_terms": [
+        "aes_gcm"
+      ],
+      "expected_forbidden_terms": [
+        "raw_exec"
+      ],
+      "expected_allowed_files": [
+        "tokens.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0234",
+      "instruction": "Add caching layer for analytics. Must include aes_gcm and do not use raw_exec. Touch only tokens.py.",
+      "module": "analytics",
+      "expected_required_terms": [
+        "aes_gcm"
+      ],
+      "expected_forbidden_terms": [
+        "raw_exec"
+      ],
+      "expected_allowed_files": [
+        "tokens.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0235",
+      "instruction": "Update API endpoints for analytics. Must contain aes_gcm and avoid raw_exec. Modify only tokens.py.",
+      "module": "analytics",
+      "expected_required_terms": [
+        "aes_gcm"
+      ],
+      "expected_forbidden_terms": [
+        "raw_exec"
+      ],
+      "expected_allowed_files": [
+        "tokens.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0236",
+      "instruction": "Refactor analytics authentication. Must include pydantic.BaseModel and do not use pickle.loads. Modify only handler.py.",
+      "module": "analytics",
+      "expected_required_terms": [
+        "pydantic.BaseModel"
+      ],
+      "expected_forbidden_terms": [
+        "pickle.loads"
+      ],
+      "expected_allowed_files": [
+        "handler.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0237",
+      "instruction": "Implement analytics data pipeline. Must contain pydantic.BaseModel and avoid pickle.loads. Modify only handler.py. Run pytest.",
+      "module": "analytics",
+      "expected_required_terms": [
+        "pydantic.BaseModel"
+      ],
+      "expected_forbidden_terms": [
+        "pickle.loads"
+      ],
+      "expected_allowed_files": [
+        "handler.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0238",
+      "instruction": "Fix security vulnerability in analytics. Must have pydantic.BaseModel and never use pickle.loads. Only edit handler.py.",
+      "module": "analytics",
+      "expected_required_terms": [
+        "pydantic.BaseModel"
+      ],
+      "expected_forbidden_terms": [
+        "pickle.loads"
+      ],
+      "expected_allowed_files": [
+        "handler.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0239",
+      "instruction": "Add caching layer for analytics. Must include pydantic.BaseModel and do not use pickle.loads. Touch only handler.py.",
+      "module": "analytics",
+      "expected_required_terms": [
+        "pydantic.BaseModel"
+      ],
+      "expected_forbidden_terms": [
+        "pickle.loads"
+      ],
+      "expected_allowed_files": [
+        "handler.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0240",
+      "instruction": "Update API endpoints for analytics. Must contain pydantic.BaseModel and avoid pickle.loads. Modify only handler.py.",
+      "module": "analytics",
+      "expected_required_terms": [
+        "pydantic.BaseModel"
+      ],
+      "expected_forbidden_terms": [
+        "pickle.loads"
+      ],
+      "expected_allowed_files": [
+        "handler.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0241",
+      "instruction": "Refactor analytics authentication. Must include httpx.AsyncClient and do not use shell=True. Modify only config.py.",
+      "module": "analytics",
+      "expected_required_terms": [
+        "httpx.AsyncClient"
+      ],
+      "expected_forbidden_terms": [
+        "shell=True"
+      ],
+      "expected_allowed_files": [
+        "config.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0242",
+      "instruction": "Implement analytics data pipeline. Must contain httpx.AsyncClient and avoid shell=True. Modify only config.py. Run pytest.",
+      "module": "analytics",
+      "expected_required_terms": [
+        "httpx.AsyncClient"
+      ],
+      "expected_forbidden_terms": [
+        "shell=True"
+      ],
+      "expected_allowed_files": [
+        "config.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0243",
+      "instruction": "Fix security vulnerability in analytics. Must have httpx.AsyncClient and never use shell=True. Only edit config.py.",
+      "module": "analytics",
+      "expected_required_terms": [
+        "httpx.AsyncClient"
+      ],
+      "expected_forbidden_terms": [
+        "shell=True"
+      ],
+      "expected_allowed_files": [
+        "config.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0244",
+      "instruction": "Add caching layer for analytics. Must include httpx.AsyncClient and do not use shell=True. Touch only config.py.",
+      "module": "analytics",
+      "expected_required_terms": [
+        "httpx.AsyncClient"
+      ],
+      "expected_forbidden_terms": [
+        "shell=True"
+      ],
+      "expected_allowed_files": [
+        "config.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0245",
+      "instruction": "Update API endpoints for analytics. Must contain httpx.AsyncClient and avoid shell=True. Modify only config.py.",
+      "module": "analytics",
+      "expected_required_terms": [
+        "httpx.AsyncClient"
+      ],
+      "expected_forbidden_terms": [
+        "shell=True"
+      ],
+      "expected_allowed_files": [
+        "config.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0246",
+      "instruction": "Refactor analytics authentication. Must include sql_quote and do not use disable_ssl. Modify only utils.py.",
+      "module": "analytics",
+      "expected_required_terms": [
+        "sql_quote"
+      ],
+      "expected_forbidden_terms": [
+        "disable_ssl"
+      ],
+      "expected_allowed_files": [
+        "utils.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0247",
+      "instruction": "Implement analytics data pipeline. Must contain sql_quote and avoid disable_ssl. Modify only utils.py. Run pytest.",
+      "module": "analytics",
+      "expected_required_terms": [
+        "sql_quote"
+      ],
+      "expected_forbidden_terms": [
+        "disable_ssl"
+      ],
+      "expected_allowed_files": [
+        "utils.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0248",
+      "instruction": "Fix security vulnerability in analytics. Must have sql_quote and never use disable_ssl. Only edit utils.py.",
+      "module": "analytics",
+      "expected_required_terms": [
+        "sql_quote"
+      ],
+      "expected_forbidden_terms": [
+        "disable_ssl"
+      ],
+      "expected_allowed_files": [
+        "utils.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0249",
+      "instruction": "Add caching layer for analytics. Must include sql_quote and do not use disable_ssl. Touch only utils.py.",
+      "module": "analytics",
+      "expected_required_terms": [
+        "sql_quote"
+      ],
+      "expected_forbidden_terms": [
+        "disable_ssl"
+      ],
+      "expected_allowed_files": [
+        "utils.py"
+      ]
+    },
+    {
+      "task_id": "TASK-CORPUS-0250",
+      "instruction": "Update API endpoints for analytics. Must contain sql_quote and avoid disable_ssl. Modify only utils.py.",
+      "module": "analytics",
+      "expected_required_terms": [
+        "sql_quote"
+      ],
+      "expected_forbidden_terms": [
+        "disable_ssl"
+      ],
+      "expected_allowed_files": [
+        "utils.py"
+      ]
+    }
+  ]
+}
