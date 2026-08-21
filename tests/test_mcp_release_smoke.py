@@ -30,6 +30,7 @@ def test_default_server_exposes_a_compact_typed_surface(tmp_path):
         "remember",
         "approve",
         "forget",
+        "associative",
     ]
     assert memory_schema["properties"]["content"]["maxLength"] == 5000
     assert memory_schema["properties"]["trust_score"]["minimum"] == 0.0

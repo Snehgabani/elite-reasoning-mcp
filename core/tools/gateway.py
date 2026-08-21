@@ -413,13 +413,29 @@ def register(mcp, store, profile) -> None:
             )
             v_res = TypeInvariantVerifier().verify(dummy_req, target)
             return VerifyResult(check="types", data=v_res.model_dump())
+        if normalized_check == "outline":
+            from core.search.symbol_indexer import extract_symbol_outline
+
+            target = code or draft
+            if not target.strip():
+                raise validation_error("code or draft is required for check=outline.")
+            res = extract_symbol_outline(target, filename=query or "snippet.py")
+            return VerifyResult(check="outline", data=res.model_dump())
+        if normalized_check == "callgraph":
+            from core.search.symbol_indexer import extract_call_graph
+
+            target = code or draft
+            if not target.strip():
+                raise validation_error("code or draft is required for check=callgraph.")
+            res = extract_call_graph(target, filename=query or "snippet.py")
+            return VerifyResult(check="callgraph", data=res.model_dump())
         raise validation_error(
-            "check must be doctor, capabilities, constraints, evidence, syntax, tests, grounding, cegis, diagnostics, or types."
+            "check must be doctor, capabilities, constraints, evidence, syntax, tests, grounding, cegis, diagnostics, types, outline, or callgraph."
         )
 
     @mcp.tool(name="elite_memory", annotations=_MEMORY_ANNOTATIONS)
     def elite_memory(
-        action: Literal["search", "remember", "approve", "forget"] = "search",
+        action: Literal["search", "remember", "approve", "forget", "associative"] = "search",
         query: Annotated[str, Field(max_length=2000)] = "",
         content: Annotated[str, Field(max_length=5000)] = "",
         memory_type: Annotated[str, Field(min_length=1, max_length=80)] = "fact",
@@ -475,7 +491,27 @@ def register(mcp, store, profile) -> None:
             if not store.delete_memory_item(memory_id):
                 raise validation_error(f"Memory item `{memory_id}` was not found.")
             return MemoryResult(action="forget", memory_id=memory_id, deleted=True)
-        raise validation_error("action must be search, remember, approve, or forget.")
+        if normalized_action == "associative":
+            from core.memory.hipporag import HippoRAGAssociativeEngine
+
+            engine = HippoRAGAssociativeEngine()
+            # If the store has an SQLite connection, load graph edges
+            if hasattr(store, "_conn") and store._conn:
+                engine.load_from_sqlite(store._conn)
+            # Add existing items as nodes if empty
+            items = store.search_memory_items(query=query, scope=scope, limit=20, min_trust=0.3)
+            for it in items:
+                engine.add_node(
+                    str(it.get("id", "")),
+                    label=str(it.get("memory_type", "fact")),
+                    properties=it,
+                )
+            res = engine.associative_recall(query=query or content, top_k=8)
+            return MemoryResult(
+                action="associative",
+                items=[m.model_dump() for m in res.ranked_memories],
+            )
+        raise validation_error("action must be search, remember, approve, forget, or associative.")
 
     @mcp.tool(name="elite_admin", annotations=_ADMIN_ANNOTATIONS)
     def elite_admin(action: Literal["status", "privacy", "monitoring"] = "status") -> AdminResult:
