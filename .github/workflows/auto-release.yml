@@ -32,14 +32,22 @@ jobs:
           TAG="v$VERSION"
           echo "Package version: $VERSION (Target tag: $TAG)"
 
-          if git rev-parse "$TAG" >/dev/null 2>&1; then
-            echo "Tag $TAG already exists. No new release needed."
+          git fetch --tags --force || true
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "✅ GitHub Release $TAG already exists. No new release needed."
+          elif git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG exists. Creating automated GitHub Release from tag."
+            gh release create "$TAG" \
+              --title "Elite Reasoning MCP $TAG" \
+              --generate-notes || true
+            echo "✅ Created release $TAG"
           else
             echo "Creating automated GitHub Release for $TAG"
             gh release create "$TAG" \
               --title "Elite Reasoning MCP $TAG" \
               --generate-notes \
-              --target main
+              --target main || true
             echo "✅ Created release $TAG"
           fi
         env:
