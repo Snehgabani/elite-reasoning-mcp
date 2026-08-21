@@ -20,7 +20,7 @@ jobs:
           persist-credentials: false
 
       - name: Install uv
-        uses: astral-sh/setup-uv@169da61f67f22dd2a20b72a6b2fa47f52cae3bf7 # v5.3.1
+        uses: astral-sh/setup-uv@f94ec6bedd8674c4426838e6b50417d36b6ab231 # v5.3.1
 
       - name: Set up Python
         run: uv python install 3.11
@@ -70,7 +70,7 @@ jobs:
           path: dist/
 
       - name: Attest distributions
-        uses: actions/attest-build-provenance@c074443f1a5fb4aee839347d4e23810ea71f2179 # v2.2.3
+        uses: actions/attest-build-provenance@c074443f1aee8d4aeeae555aebba3282517141b2 # v2.2.3
         with:
           subject-path: dist/*
 
@@ -91,7 +91,7 @@ jobs:
           path: dist/
 
       - name: Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@76f52bc8842c8f445814e27797700a12b69d8b99 # v1.12.4
+        uses: pypa/gh-action-pypi-publish@76f52bc884231f62b9a034ebfe128415bbaabdfc # v1.12.4
         with:
           packages-dir: dist/
           attestations: true
