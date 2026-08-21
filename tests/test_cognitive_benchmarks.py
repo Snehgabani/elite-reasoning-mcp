@@ -3,7 +3,6 @@ Empirical Cognitive Benchmark & Invariant Suite for Elite Reasoning MCP.
 Tests accuracy, AST gating integrity, PRM scoring, sub-50ms latency, and Apple Silicon M2 memory budget.
 """
 
-import asyncio
 import time
 import pytest
 from core.cognitive.engine import _COGNITIVE_ENGINE
@@ -70,6 +69,18 @@ def test_hmac_diff_integrity():
     expected_token = generate_diff_hmac(file_path, replacement, secret)
     assert token == expected_token
     assert token != generate_diff_hmac(file_path, "tampered_code", secret)
+
+    # Verify validate_diff_integrity rejects invalid HMAC
+    val_res = validate_diff_integrity(
+        file_path=file_path,
+        original=original,
+        replacement=replacement,
+        token="invalid-token",
+        secret_key=secret,
+        verify_spliced_ast=False,
+    )
+    assert val_res.passed is False
+    assert any("Authorization Error" in issue for issue in val_res.issues)
 
 
 @pytest.mark.asyncio

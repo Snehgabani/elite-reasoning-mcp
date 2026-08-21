@@ -7,7 +7,6 @@ Distills generalized patterns into permanent, reusable skills and memory lessons
 import hashlib
 import json
 import os
-import time
 from typing import Any, Dict, List, Optional
 
 
@@ -111,7 +110,8 @@ class SkillDistiller:
         try:
             with open(target_file, "w", encoding="utf-8") as f:
                 json.dump(card.to_dict(), f, indent=2)
-        except Exception:
+        except OSError:
+            # Best-effort disk persistence; disk failure should not abort reasoning flow
             pass
 
         return card
@@ -127,6 +127,7 @@ class SkillDistiller:
                 try:
                     with open(fpath, "r", encoding="utf-8") as f:
                         skills.append(json.load(f))
-                except Exception:
+                except OSError:
+                    # Ignore unreadable or corrupted skill files
                     pass
         return skills

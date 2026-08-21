@@ -96,23 +96,27 @@ def _txt(resp) -> str:
 import asyncio
 import time
 
-_CIRCUIT_OPEN = False
-_LAST_CHECK_TIME = 0.0
+
+class _CircuitBreaker:
+    is_open: bool = False
+    last_check_time: float = 0.0
+
+
+_CIRCUIT = _CircuitBreaker()
 
 
 async def _llm(messages, timeout_seconds: float = 0.35):
-    global _CIRCUIT_OPEN, _LAST_CHECK_TIME
     now = time.time()
-    if _CIRCUIT_OPEN and (now - _LAST_CHECK_TIME < 60.0):
+    if _CIRCUIT.is_open and (now - _CIRCUIT.last_check_time < 60.0):
         return None
     try:
         res = await asyncio.wait_for(SOLVER_LLM.ainvoke(messages), timeout=timeout_seconds)
-        _CIRCUIT_OPEN = False
-        _LAST_CHECK_TIME = now
+        _CIRCUIT.is_open = False
+        _CIRCUIT.last_check_time = now
         return res
     except Exception:
-        _CIRCUIT_OPEN = True
-        _LAST_CHECK_TIME = now
+        _CIRCUIT.is_open = True
+        _CIRCUIT.last_check_time = now
         return None
 
 

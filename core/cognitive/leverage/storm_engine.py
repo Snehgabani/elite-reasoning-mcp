@@ -4,11 +4,8 @@ Implements Synthesis of Topic Outlines through Repeated Multiperspective Questio
 Generates expert persona-driven dialogues, explores hidden edge cases, and produces rigorous research syntheses.
 """
 
-import asyncio
-import json
-import re
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 
 class StormPerspective:
@@ -123,7 +120,6 @@ class StormResearchEngine:
         perspectives = self.discover_perspectives(topic)
         dialogue_rounds = []
         key_claims = []
-        divergences = []
 
         for p in perspectives:
             questions = [

@@ -6,8 +6,6 @@ synthesizes minimal AST-preserving candidate patches, and verifies zero-regressi
 
 import ast
 import os
-import subprocess
-import tempfile
 import time
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
@@ -71,8 +69,8 @@ class CEGISRepairEngine:
         return f"""
 import pytest
 
-def test_reproduction_harness():
-    # Automated CEGIS invariant reproduction harness
+def test_reproduction_{target_fn}():
+    # Automated CEGIS invariant reproduction harness for {target_fn}
     # Targeted failure: {error_trace[:80]}
     pass
 """

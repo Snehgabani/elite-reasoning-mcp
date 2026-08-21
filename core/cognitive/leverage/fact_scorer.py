@@ -7,7 +7,7 @@ evaluates cross-source domain corroboration, and computes empirical FActScore me
 import re
 import time
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Set
+from typing import Any, Dict, List
 
 
 @dataclass
