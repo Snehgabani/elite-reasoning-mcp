@@ -6,7 +6,6 @@ record anti-patterns, record decisions. Trust-gated and privacy-aware.
 
 from __future__ import annotations
 
-import time
 from typing import Annotated, Any
 
 from mcp.types import ToolAnnotations
