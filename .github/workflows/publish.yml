@@ -10,15 +10,17 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Checkout release tag
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           ref: ${{ github.event.release.tag_name }}
           persist-credentials: false
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@169da61f67f22dd2a20b72a6b2fa47f52cae3bf7 # v5.3.1
 
       - name: Set up Python
         run: uv python install 3.11
@@ -45,7 +47,7 @@ jobs:
         run: uv build --clear
 
       - name: Upload distributions
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
         with:
           name: python-package-distributions
           path: dist/
@@ -56,18 +58,19 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     permissions:
+      contents: read
       artifact-metadata: write
       attestations: write
       id-token: write
     steps:
       - name: Download distributions
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
         with:
           name: python-package-distributions
           path: dist/
 
       - name: Attest distributions
-        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
+        uses: actions/attest-build-provenance@c074443f1a5fb4aee839347d4e23810ea71f2179 # v2.2.3
         with:
           subject-path: dist/*
 
@@ -78,16 +81,17 @@ jobs:
       name: release
       url: https://pypi.org/p/elite-reasoning-mcp
     permissions:
+      contents: read
       id-token: write
     steps:
       - name: Download distributions
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
         with:
           name: python-package-distributions
           path: dist/
 
       - name: Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # release/v1
+        uses: pypa/gh-action-pypi-publish@76f52bc8842c8f445814e27797700a12b69d8b99 # v1.12.4
         with:
           packages-dir: dist/
           attestations: true
