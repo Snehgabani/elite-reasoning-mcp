@@ -10,8 +10,8 @@ from pathlib import Path
 from typing import Literal
 
 PACKAGE_NAME = "elite-reasoning-mcp"
-ToolProfile = Literal["core", "legacy"]
-SUPPORTED_TOOL_PROFILES: frozenset[str] = frozenset({"core", "legacy"})
+ToolProfile = Literal["core", "legacy", "unified"]
+SUPPORTED_TOOL_PROFILES: frozenset[str] = frozenset({"core", "legacy", "unified"})
 
 
 def package_version() -> str:
@@ -32,7 +32,7 @@ def package_version() -> str:
 
 def resolve_tool_profile(value: str | None = None) -> ToolProfile:
     """Resolve the public tool surface without silently accepting typos."""
-    profile = (value or os.environ.get("ELITE_TOOL_PROFILE") or "core").strip().lower()
+    profile = (value or os.environ.get("ELITE_TOOL_PROFILE") or "unified").strip().lower()
     if profile not in SUPPORTED_TOOL_PROFILES:
         choices = ", ".join(sorted(SUPPORTED_TOOL_PROFILES))
         raise ValueError(f"Invalid ELITE_TOOL_PROFILE `{profile}`. Choose one of: {choices}.")
