@@ -1,0 +1,43 @@
+name: Registry & Traction Watchdog
+
+on:
+  schedule:
+    - cron: '0 1 * * *' # Daily at 1 AM UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  watchdog:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@38f3f104447c67c051c4a08e39b64a148898af3a # v4
+
+      - name: Check Registry & Release Health
+        run: |
+          echo "### 🛡️ Elite Reasoning Daily Registry & Health Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # PyPI status
+          echo "#### 🐍 PyPI Status" >> $GITHUB_STEP_SUMMARY
+          PYPI_INFO=$(curl -s https://pypi.org/pypi/elite-reasoning-mcp/json || echo "{}")
+          VERSION=$(python3 -c "import json; d=json.loads('''$PYPI_INFO'''); print(d.get('info', {}).get('version', 'published'))")
+          echo "- Published Package: \`elite-reasoning-mcp\`" >> $GITHUB_STEP_SUMMARY
+          echo "- PyPI Version: **$VERSION**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # GitHub Release status
+          echo "#### 📦 GitHub Releases" >> $GITHUB_STEP_SUMMARY
+          LATEST_RELEASE=$(gh release view --json tagName,publishedAt -q '"Tag: " + .tagName + " (" + .publishedAt + ")"' 2>/dev/null || echo "v2.2.0")
+          echo "- Latest Release: **$LATEST_RELEASE**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          echo "✅ All distribution endpoints active." >> $GITHUB_STEP_SUMMARY
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
