@@ -120,10 +120,9 @@ def register(mcp, store: SingularityStore):
         for p in PERSPECTIVES[:num_perspectives]:
             matched_flags = [f for f in p["focus"] if f in combined]
             if matched_flags:
-                risk = min(1.0, 0.3 + len(matched_flags) * 0.15)
-                risk_level = "high" if risk > 0.6 else "medium" if risk > 0.3 else "low"
+                r_val = min(1.0, 0.3 + len(matched_flags) * 0.15)
+                risk_level = "high" if r_val > 0.6 else "medium" if r_val > 0.3 else "low"
             else:
-                risk = 0.15
                 risk_level = "low"
 
             flags = [f"{p['name']}: {f}" for f in matched_flags]

@@ -216,8 +216,6 @@ def register(mcp, store: SingularityStore):
                     branch_factor=2,
                 )
                 answer = lats["best_summary"] or ""
-                synthesis_model = _LLM_MODEL
-                synthesis_duration_ms = lats["search_duration_ms"]
                 warnings.append(
                     f"LATS tree search: {lats['nodes_explored']} nodes, depth "
                     f"{lats['max_depth_reached']}, best score {lats['best_score']:.2f}."

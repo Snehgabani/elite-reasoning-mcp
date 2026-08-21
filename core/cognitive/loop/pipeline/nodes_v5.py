@@ -510,9 +510,4 @@ class ConfidenceCalibrator(NodeV5):
     
     def _get_calibration_history(self, store) -> list[float]:
         """Retrieve historical calibration errors."""
-        try:
-            # In a real implementation, query the store for calibration_pair metrics
-            # For now, return empty
-            return []
-        except Exception:
-            return []
+        return []
