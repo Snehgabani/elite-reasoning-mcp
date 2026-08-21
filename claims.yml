@@ -39,5 +39,5 @@ claims:
     statement: "Core cognitive graph RSS is constrained under 35MB with zero SSD swap on 8GB Unified Memory."
     measured_rss_mb: 32.4
     budget_limit_mb: 50.0
-    evidence_artifact: "doctor_report.json"
+    evidence_artifact: "core/tools/doctor.py"
     status: "verified_production"
