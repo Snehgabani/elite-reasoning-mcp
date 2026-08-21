@@ -124,11 +124,20 @@ class EliteCognitiveEngine:
 
         contract = compile_task_contract(task, int(complexity) if isinstance(complexity, int) else 0)
         quality_score = 1.0 if (prm_passed and logic_valid) else 0.5
+        mandatory_chaining_directive = (
+            "🚨 MANDATORY STEP-LOCKED LIFECYCLE DIRECTIVE (DO NOT BYPASS):\n"
+            "1. Checkpoint 1 [PRE-EDIT]  : Active constraints compiled in task_contract below.\n"
+            "2. Checkpoint 2 [DURING-EDIT]: After modifying any file/code, you MUST call `elite_verify(check='syntax', code=...)` and `elite_verify(check='cegis', code=...)`.\n"
+            "3. Checkpoint 3 [POST-EDIT]  : You MUST call `elite_verify(check='tests', command='pytest ...')` before replying.\n"
+            "4. HARD INVARIANT: You are strictly forbidden from delivering final text to the user without a passing `elite_verify` receipt."
+        )
+
         result = {
             "task_id": task_id,
             "task_type": task_type,
             "status": "SUCCESS",
             "scaffold_status": "scaffolded",
+            "mandatory_chaining_directive": mandatory_chaining_directive,
             "note": "This MCP enforces invariants and compiles checkable task contracts. Verify execution evidence with elite_verify.",
             "complexity": complexity,
             "intent": intent,

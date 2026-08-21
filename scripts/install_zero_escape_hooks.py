@@ -10,9 +10,12 @@ from __future__ import annotations
 import stat
 from pathlib import Path
 
-ZERO_ESCAPE_RULE_TEXT = """# ⚡ MANDATORY RULE #0 — ZERO-ESCAPE ELITE REASONING PRE-HOOK
+ZERO_ESCAPE_RULE_TEXT = """# ⚡ MANDATORY RULE #0 — ZERO-ESCAPE CONTINUOUS ELITE REASONING LIFECYCLE
 
-On EVERY user message and on EVERY substantive coding step, your FIRST tool call MUST ALWAYS BE:
+## 🔒 3-Checkpoint Step-Locked Invariant (Mandatory on EVERY coding task):
+
+### 🚩 Checkpoint 1 (Start of Turn — PRE-EDIT):
+Your VERY FIRST tool call on every message MUST be:
 ```json
 call_mcp_tool(
   ServerName="elite-reasoning-mcp",
@@ -26,10 +29,17 @@ call_mcp_tool(
 )
 ```
 
-🔒 Physical Verification Invariant:
-1. You cannot mark tasks DONE or commit code without calling `elite_verify`.
-2. Local AST syntax, CEGIS boundary invariants, and git diff scopes are deterministically checked.
-3. Any attempt to bypass this hook will cause Git pre-commit barriers to reject your changes.
+### 🚩 Checkpoint 2 (Mid-Turn — DURING EDITING):
+After writing or editing ANY source code or test file, you MUST immediately call:
+- `elite_verify(check="syntax", code="...")` to verify AST integrity.
+- `elite_verify(check="cegis", code="...")` to verify boundary edge-case robustness.
+
+### 🚩 Checkpoint 3 (End of Turn — POST-EDIT):
+Before delivering your final text response to the user, you MUST:
+- Run test commands via `elite_verify(check="tests", command="pytest ...")`.
+- Include a structured verification receipt in your response.
+
+🚫 FORBIDDEN: Generating code and replying directly without Checkpoint 2 and Checkpoint 3 verification. Physical Git pre-commit barriers will reject unverified commits.
 """
 
 GIT_PRE_COMMIT_HOOK = """#!/usr/bin/env bash
