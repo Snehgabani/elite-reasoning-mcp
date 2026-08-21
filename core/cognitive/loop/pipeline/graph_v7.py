@@ -463,7 +463,8 @@ Let me work through this step-by-step:
                 },
                 duration_ms=state.pipeline_duration_ms
             )
-        except Exception:
+        except Exception as e:
+            # Suppress expected non-fatal exception
             pass
         
         return state

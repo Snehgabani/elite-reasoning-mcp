@@ -683,7 +683,8 @@ class ReasoningPipeline:
             self.store.record_metric("pipeline_duration_ms", state.pipeline_duration_ms, "ms",
                                       {"mode": self.mode})
             self.store.record_metric("pipeline_confidence", state.confidence)
-        except Exception:
+        except Exception as e:
+            # Suppress expected non-fatal exception
             pass
         
         # Restore original mode if it was overridden

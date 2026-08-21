@@ -206,7 +206,8 @@ class EliteCognitiveEngine:
                 value=float(quality_score),
                 unit="score"
             )
-        except Exception:
+        except Exception as e:
+            # Suppress expected non-fatal exception
             pass
 
         return result

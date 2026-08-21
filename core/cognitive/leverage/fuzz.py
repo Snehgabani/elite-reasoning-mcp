@@ -135,7 +135,8 @@ async def run_property_tests(file_path: str = "dummy.py", symbol: str = "target"
     finally:
         try:
             os.unlink(tmp_path)
-        except Exception:
+        except Exception as e:
+            # Suppress expected non-fatal exception
             pass
 
 

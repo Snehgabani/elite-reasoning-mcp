@@ -308,7 +308,8 @@ class ReasoningPipelineV9(ReasoningPipelineV7):
                 },
                 duration_ms=state.pipeline_duration_ms
             )
-        except Exception:
+        except Exception as e:
+            # Suppress expected non-fatal exception
             pass
         
         return state

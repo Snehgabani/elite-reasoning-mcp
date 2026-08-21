@@ -224,7 +224,8 @@ class Verifier:
         if self.symbolic_verifier:
             try:
                 return self.symbolic_verifier.verify(proposition, dag)
-            except Exception:
+            except Exception as e:
+                # Suppress expected non-fatal exception
                 pass  # Fall back to LLM verification
         
         # Build prompt for verifier

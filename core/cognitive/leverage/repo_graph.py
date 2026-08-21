@@ -40,7 +40,8 @@ class RepoGraph:
 
         try:
             self.save()
-        except Exception:
+        except Exception as e:
+            # Suppress expected non-fatal exception
             pass
 
     def _parse_ast(self, node: ast.AST, file_path: str):

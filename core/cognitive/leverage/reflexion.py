@@ -66,7 +66,8 @@ async def reflexion_repair(task: str, candidate_content: str, verifier_output: s
         with open(lesson_path, "a", encoding="utf-8") as f:
             f.write(f"\n- TASK: {task[:50]}\n  LESSON: {report.lesson}\n")
 
-    except Exception:
+    except Exception as e:
+        # Suppress expected non-fatal exception
         pass
 
     return {

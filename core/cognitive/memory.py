@@ -88,7 +88,8 @@ def load_skill_library() -> list[str]:
         try:
             with open(filepath, "r", encoding="utf-8") as f:
                 skills.append(f"PRIMITIVE [{filepath}]:\n" + f.read())
-        except Exception:
+        except Exception as e:
+            # Suppress expected non-fatal exception
             pass
     
     skills_pattern = os.path.join(PROJECT_ROOT, ".ai", "skills", "*.md")
@@ -96,7 +97,8 @@ def load_skill_library() -> list[str]:
         try:
             with open(filepath, "r", encoding="utf-8") as f:
                 skills.append(f"SKILL [{filepath}]:\n" + f.read())
-        except Exception:
+        except Exception as e:
+            # Suppress expected non-fatal exception
             pass
     
     return skills

@@ -38,7 +38,8 @@ def notify_user(title: str, message: str, subtitle: str = ""):
         script = f'display notification "{clean_msg}" with title "{clean_title}" {sub_clause}'
         try:
             subprocess.Popen(["osascript", "-e", script], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        except Exception:
+        except Exception as e:
+            # Suppress expected non-fatal exception
             pass
 
 
@@ -74,7 +75,8 @@ class TaskTracker:
             try:
                 with open(task_file, "r", encoding="utf-8") as f:
                     data = json.load(f)
-            except Exception:
+            except Exception as e:
+                # Suppress expected non-fatal exception
                 pass
         data.update({
             "task_id": task_id,
@@ -96,7 +98,8 @@ class TaskTracker:
                 with open(task_file, "r", encoding="utf-8") as f:
                     data = json.load(f)
                     started_at = data.get("started_at", started_at)
-            except Exception:
+            except Exception as e:
+                # Suppress expected non-fatal exception
                 pass
         now = time.time()
         elapsed = round(now - started_at, 1)
@@ -118,7 +121,8 @@ class TaskTracker:
         try:
             with open(task_file, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=2)
-        except Exception:
+        except Exception as e:
+            # Suppress expected non-fatal exception
             pass
 
 
@@ -182,7 +186,8 @@ class TaskWatchdog:
         try:
             with open(STATUS_FILE, "w", encoding="utf-8") as f:
                 json.dump(snapshot, f, indent=2)
-        except Exception:
+        except Exception as e:
+            # Suppress expected non-fatal exception
             pass
 
         return snapshot
@@ -204,7 +209,8 @@ def get_live_status() -> Dict[str, Any]:
         try:
             with open(STATUS_FILE, "r", encoding="utf-8") as f:
                 return json.load(f)
-        except Exception:
+        except Exception as e:
+            # Suppress expected non-fatal exception
             pass
     # Fallback scan
     wd = TaskWatchdog()

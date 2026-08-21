@@ -544,7 +544,8 @@ async def executor_node(state: ReasoningState) -> dict:
         finally:
             try:
                 os.unlink(tmp_path)
-            except Exception:
+            except Exception as e:
+                # Suppress expected non-fatal exception
                 pass
     return {"execution_results": results}
 

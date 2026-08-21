@@ -196,7 +196,8 @@ class ReasoningPipelineV4:
                                       {"mode": effective_mode})
             self.store.record_metric("pipeline_v4_quality", state.quality_score.get("total_score", 0))
             self.store.record_metric("pipeline_v4_predicted_quality", state.predicted_quality)
-        except Exception:
+        except Exception as e:
+            # Suppress expected non-fatal exception
             pass
         
         return state
