@@ -2,7 +2,7 @@
 # DeepMind SELF-DISCOVER Framework (Dynamic Reasoning Topologies)
 
 import json
-from typing import Dict, List, Any
+from typing import Any, Dict
 
 ATOMIC_REASONING_MODULES = [
     "Critical Thinking (Question premises)",

@@ -1,9 +1,9 @@
 # src/leverage/skeleton_of_thought.py
 # Skeleton-of-Thought (SoT) — Parallel Epistemic Decoding Engine
 
-import json
 import asyncio
-from typing import Dict, List, Any
+from typing import Any, Dict
+
 
 class SkeletonOfThoughtEngine:
     def __init__(self):

@@ -5,13 +5,13 @@ This validates the entire pipeline from prompt to structured output,
 simulating how a real user would interact with the MCP.
 """
 
-import time
 import tempfile
-from typing import Dict, List
+import time
 from dataclasses import dataclass
+from typing import Dict, List
 
-from core.cognitive.loop.pipeline.complete_pipeline import CompletePipeline, verify_local_first
 from core.cognitive.loop.core.store import SingularityStore
+from core.cognitive.loop.pipeline.complete_pipeline import CompletePipeline, verify_local_first
 
 
 @dataclass
@@ -115,10 +115,10 @@ class E2EValidator:
             
             if validation["all_checks_passed"]:
                 passed += 1
-                print(f"  ✅ PASSED")
+                print("  ✅ PASSED")
             else:
                 failed += 1
-                print(f"  ❌ FAILED")
+                print("  ❌ FAILED")
                 for check, passed_check in validation["checks"].items():
                     if not passed_check:
                         print(f"     - {check}: FAILED")

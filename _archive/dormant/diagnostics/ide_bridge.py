@@ -1,6 +1,7 @@
-import os
 import json
+import os
 import sqlite3
+
 
 class IDEBridge:
     """Provides a safe integration boundary for external IDEs to inspect the running Elite System."""

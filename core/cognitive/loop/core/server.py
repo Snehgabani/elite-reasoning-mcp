@@ -29,7 +29,6 @@ except ImportError:
         from fastmcp import FastMCP
     except ImportError:
         from mcp.server.mcpserver import MCPServer as FastMCP
-from mcp.types import ToolAnnotations
 
 
 from core.cognitive.loop.core.store import SingularityStore
@@ -134,12 +133,12 @@ def _register_tools_safely(mcp: FastMCP, store: SingularityStore):
     """Register all tools with comprehensive error handling."""
     try:
         from core.cognitive.loop.tools import (
-            reasoning,
-            memory_tools,
-            calibration,
             benchmark,
-            diagnostics,
             bias_tool,
+            calibration,
+            diagnostics,
+            memory_tools,
+            reasoning,
         )
         
         reasoning.register(mcp, store)
@@ -172,7 +171,6 @@ def _register_resources(mcp: FastMCP, store: SingularityStore):
     def health_resource() -> str:
         """System health check."""
         try:
-            import importlib
             checks = []
             
             # Check MCP SDK
@@ -237,7 +235,7 @@ def _install_metrics_middleware(mcp: FastMCP, store: SingularityStore, session_i
                 logger.error(f"Tool {name} timed out after {duration_ms}ms")
                 return {
                     "error": True,
-                    "message": f"Tool execution timed out after 5 minutes",
+                    "message": "Tool execution timed out after 5 minutes",
                     "suggestion": "Try simplifying your request or using a different tool."
                 }
             
@@ -352,8 +350,9 @@ def main(argv: list[str] | None = None) -> int:
     
     if args.command == "benchmark":
         try:
-            from core.cognitive.loop.eval.harness import run_smoke_benchmark
             import json as _json
+
+            from core.cognitive.loop.eval.harness import run_smoke_benchmark
             
             report = run_smoke_benchmark(brain_dir)
             print(_json.dumps(report, indent=2, sort_keys=True))

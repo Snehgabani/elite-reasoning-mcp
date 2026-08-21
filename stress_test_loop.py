@@ -1,7 +1,9 @@
 import concurrent.futures
-import time
 import os
+import time
+
 from autonomous_loop import EliteLooper
+
 
 def run_single_loop(loop_idx):
     brain_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "brain"))

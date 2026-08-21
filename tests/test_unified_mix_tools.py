@@ -1,19 +1,21 @@
-import pytest
 import asyncio
 import json
 import os
 import sys
 
+import pytest
+
 sys.path.insert(0, ".")
 from core.cognitive.engine import _COGNITIVE_ENGINE
 from core.cognitive.leverage.deterministic_gates import (
-    validate_syntax,
-    validate_security_invariants,
+    validate_diff_integrity,
     validate_math_invariants,
-    validate_diff_integrity
+    validate_security_invariants,
+    validate_syntax,
 )
 from core.cognitive.leverage.prm_verifier import ProcessRewardModel
 from core.integration.mcp_server import create_mcp_server
+
 
 def test_prm_verification_math():
     prm = ProcessRewardModel()

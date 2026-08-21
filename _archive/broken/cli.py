@@ -1,9 +1,8 @@
 import argparse
-import sys
 import os
 
-from core.persistence.recovery import RecoveryManager
 from scripts.stress_test import run_stress_test
+
 
 def main():
     parser = argparse.ArgumentParser(description="Elite System CLI")

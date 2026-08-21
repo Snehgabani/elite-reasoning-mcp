@@ -14,11 +14,11 @@ This is the final, production-ready pipeline.
 
 from __future__ import annotations
 
+import re
 import time
 import uuid
-import re
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from dataclasses import dataclass
+from typing import Any, List
 
 # Pre-existing tools integration
 try:
@@ -33,8 +33,8 @@ try:
 except ImportError:
     HAS_SCIPY = False
 
-from core.cognitive.loop.core.store import SingularityStore
 from core.cognitive.loop.core.classifier import classify_prompt
+from core.cognitive.loop.core.store import SingularityStore
 from core.cognitive.loop.pipeline.graph_v2 import TECHNIQUES
 from core.cognitive.loop.pipeline.graph_v9 import ReasoningPipelineV9
 
@@ -402,7 +402,7 @@ class CompletePipeline:
                 },
                 duration_ms=result.duration_ms
             )
-        except Exception as e:
+        except Exception:
             # Don't fail if recording fails
             pass
 

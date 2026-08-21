@@ -5,7 +5,6 @@ Boots the Elite Reasoning Framework as a lightweight MCP server.
 No API keys. No LLM clients. No UI. Just data, memory, and reasoning frameworks.
 """
 import argparse
-import sys
 import os
 
 from core.integration.mcp_server import create_mcp_server

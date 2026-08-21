@@ -6,16 +6,14 @@ Fuses AST invariant parsing, OWASP security auditing, and mathematical constrain
 
 from __future__ import annotations
 
-import ast
 import json
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from core.cognitive.leverage.deterministic_gates import (
-    validate_syntax,
-    validate_security_invariants,
     validate_math_invariants,
-    ValidationResult
+    validate_security_invariants,
+    validate_syntax,
 )
 
 

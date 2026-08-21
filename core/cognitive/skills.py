@@ -2,12 +2,13 @@
 # After every successful task, this mines the trace for reusable patterns.
 # This is what makes the system get smarter over time.
 
-import os
 import json
+import os
 from datetime import datetime
-from langchain_openai import ChatOpenAI
-from langchain_core.messages import SystemMessage, HumanMessage
+
 from dotenv import load_dotenv
+from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_openai import ChatOpenAI
 
 load_dotenv()
 

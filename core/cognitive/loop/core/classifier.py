@@ -7,7 +7,6 @@ with structural analysis for more accurate routing.
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
 
 

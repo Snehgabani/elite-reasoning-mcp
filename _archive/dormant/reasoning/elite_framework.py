@@ -1,5 +1,7 @@
+from typing import Any, Dict
+
 import dspy
-from typing import Dict, Any
+
 
 class FirstPrinciplesSignature(dspy.Signature):
     """

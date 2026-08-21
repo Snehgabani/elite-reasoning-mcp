@@ -2,8 +2,10 @@
 # Think-on-Graph (ToG) Interactive Knowledge Graph Beam Search Engine
 
 import json
-from typing import Dict, List, Any
+from typing import Any, Dict
+
 from core.cognitive.leverage.repo_graph import RepoGraph
+
 
 class ThinkOnGraphEngine:
     def __init__(self):

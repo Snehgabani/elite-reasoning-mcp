@@ -7,9 +7,9 @@ by comparing outputs with and without MCP assistance.
 
 import json
 import time
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Dict, List, Optional
-from dataclasses import dataclass, asdict
 
 try:
     import anthropic
@@ -187,9 +187,10 @@ class RealBenchmarkSuite:
         
         if mode == "with_mcp":
             # Get MCP structure
-            from core.cognitive.loop.pipeline.graph_v7 import ReasoningPipelineV7
-            from core.cognitive.loop.core.store import SingularityStore
             import tempfile
+
+            from core.cognitive.loop.core.store import SingularityStore
+            from core.cognitive.loop.pipeline.graph_v7 import ReasoningPipelineV7
             
             store = SingularityStore(tempfile.mkdtemp())
             pipeline = ReasoningPipelineV7(store, mode="amplified")
@@ -350,12 +351,12 @@ Respond in JSON format:
             print(f"Running benchmark: {benchmark.id}")
             
             # Run without MCP
-            print(f"  - Without MCP...")
+            print("  - Without MCP...")
             result_without = self.run_benchmark(benchmark, mode="without_mcp")
             results.append(result_without)
             
             # Run with MCP
-            print(f"  - With MCP...")
+            print("  - With MCP...")
             result_with = self.run_benchmark(benchmark, mode="with_mcp")
             results.append(result_with)
         

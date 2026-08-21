@@ -1,6 +1,5 @@
-import pytest
-from pathlib import Path
 from core.skills.auto_creator import WorkflowSkillCreator
+
 
 def test_workflow_skill_creator(tmp_path):
     brain_dir = tmp_path / "brain"

@@ -20,9 +20,8 @@ import uuid
 from dataclasses import dataclass, field
 from typing import Any
 
-from core.cognitive.loop.core.store import SingularityStore
 from core.cognitive.loop.core.classifier import classify_prompt
-from core.cognitive.loop.pipeline.graph_v6 import ReasoningPipelineV6
+from core.cognitive.loop.core.store import SingularityStore
 
 
 @dataclass
@@ -463,7 +462,7 @@ Let me work through this step-by-step:
                 },
                 duration_ms=state.pipeline_duration_ms
             )
-        except Exception as e:
+        except Exception:
             # Suppress expected non-fatal exception
             pass
         

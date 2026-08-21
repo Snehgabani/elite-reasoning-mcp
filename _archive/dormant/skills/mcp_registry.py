@@ -1,8 +1,9 @@
+import asyncio
 import json
 import logging
-import asyncio
 from pathlib import Path
-from typing import Dict, Any, List
+from typing import List
+
 from langchain_core.tools import BaseTool
 
 logger = logging.getLogger(__name__)
@@ -29,10 +30,11 @@ class MCPRegistry:
             logger.error(f"Failed to load MCP config: {e}")
             return
 
+        from contextlib import AsyncExitStack
+
+        from langchain_mcp_adapters.tools import load_mcp_tools
         from mcp import ClientSession, StdioServerParameters
         from mcp.client.stdio import stdio_client
-        from langchain_mcp_adapters.tools import load_mcp_tools
-        from contextlib import AsyncExitStack
 
         servers = config.get("mcpServers", {})
         

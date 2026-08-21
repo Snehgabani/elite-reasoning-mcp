@@ -1,9 +1,11 @@
-from typing import List, Dict, Any, Optional
-import uuid
 import logging
-from sentence_transformers import SentenceTransformer
+import uuid
+from typing import Any, Dict, List, Optional
+
 from qdrant_client import QdrantClient
-from qdrant_client.models import Distance, VectorParams, PointStruct
+from qdrant_client.models import Distance, PointStruct, VectorParams
+from sentence_transformers import SentenceTransformer
+
 try:
     from neo4j import GraphDatabase
 except ImportError:
@@ -112,7 +114,6 @@ class HybridGraphStore:
         Hybrid search for similar texts.
         Queries Qdrant for semantic similarity, then optionally augments with Graph traversal.
         """
-        from qdrant_client.models import Filter, FieldCondition, MatchValue
         
         # 1. Vector Search
         query_vector = self.encoder.encode(query).tolist()

@@ -1,43 +1,36 @@
 # src/agent_nodes.py
 # Phase 14 Closed-Loop Node Engine with Zero-Escape Invariant Gating
 
-import os
-import sys
 import ast
-import json
-import re
-import time
-import hashlib
-import subprocess
-import tempfile
 import asyncio
-from typing import Literal, Dict, Any, List, Optional
+import json
+import os
+import re
+import subprocess
+import sys
+import tempfile
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from dotenv import load_dotenv
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
-from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 
-from core.cognitive.nodes import ReasoningState
-from core.cognitive.memory import load_reasoning_protocol, load_skill_library, get_memory_tools
-from core.cognitive.leverage.web_research import LiveWebResearcher
-from core.cognitive.leverage.red_team import DialecticalRedTeamer
-from core.cognitive.leverage.epistemic_verifier import EpistemicVerifier
-from core.cognitive.leverage.self_discover import SelfDiscoverEngine
-from core.cognitive.leverage.think_on_graph import ThinkOnGraphEngine
-from core.cognitive.leverage.prm_verifier import ProcessRewardModel
-from core.cognitive.leverage.dual_process_router import DualProcessRouter
-from core.cognitive.leverage.self_rag import SelfRAGEngine
 from core.cognitive.leverage.deterministic_gates import (
-    validate_syntax,
-    validate_security_invariants,
-    validate_math_invariants,
-    validate_diff_integrity,
-    generate_diff_hmac,
     apply_verified_diff,
-    ValidationResult
+    generate_diff_hmac,
+    validate_diff_integrity,
 )
+from core.cognitive.leverage.dual_process_router import DualProcessRouter
+from core.cognitive.leverage.epistemic_verifier import EpistemicVerifier
+from core.cognitive.leverage.prm_verifier import ProcessRewardModel
+from core.cognitive.leverage.red_team import DialecticalRedTeamer
+from core.cognitive.leverage.self_discover import SelfDiscoverEngine
+from core.cognitive.leverage.self_rag import SelfRAGEngine
+from core.cognitive.leverage.think_on_graph import ThinkOnGraphEngine
+from core.cognitive.leverage.web_research import LiveWebResearcher
+from core.cognitive.memory import load_reasoning_protocol, load_skill_library
+from core.cognitive.nodes import ReasoningState
 
 load_dotenv()
 
@@ -544,7 +537,7 @@ async def executor_node(state: ReasoningState) -> dict:
         finally:
             try:
                 os.unlink(tmp_path)
-            except Exception as e:
+            except Exception:
                 # Suppress expected non-fatal exception
                 pass
     return {"execution_results": results}

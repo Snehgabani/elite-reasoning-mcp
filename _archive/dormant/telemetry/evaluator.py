@@ -1,6 +1,8 @@
 import logging
-from deepeval.metrics import AnswerRelevancyMetric, FaithfulnessMetric, ContextualRelevancyMetric, GEval
+
+from deepeval.metrics import GEval
 from deepeval.test_case import LLMTestCase, LLMTestCaseParams
+
 from app.config import ConfigLoader
 
 logger = logging.getLogger(__name__)
@@ -38,7 +40,7 @@ class EliteEvaluator:
         
         scores = {}
         try:
-            from deepeval.metrics import AnswerRelevancyMetric, FaithfulnessMetric, ContextualRelevancyMetric
+            from deepeval.metrics import AnswerRelevancyMetric, ContextualRelevancyMetric, FaithfulnessMetric
             
             if self._answer_relevancy is None:
                 self._answer_relevancy = AnswerRelevancyMetric(threshold=0.5, strict_mode=False)

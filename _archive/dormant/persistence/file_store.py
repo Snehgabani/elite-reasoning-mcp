@@ -1,8 +1,8 @@
 import os
-import shutil
 import tempfile
 from pathlib import Path
 from typing import Optional
+
 
 class FileStore:
     """

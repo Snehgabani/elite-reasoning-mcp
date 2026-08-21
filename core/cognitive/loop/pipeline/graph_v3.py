@@ -17,26 +17,24 @@ import uuid
 from typing import Any
 
 from core.cognitive.loop.core.store import SingularityStore
-from core.cognitive.loop.core.classifier import classify_prompt
 from core.cognitive.loop.pipeline.graph_v2 import (
-    PipelineStateV2,
+    AdversarialVerifyNode,
+    CalibrationNode,
     ClassifyAndRouteNode,
-    StepBackNode,
     DecomposeNode,
+    QualityScoreNode,
     SelfConsistencyNode,
     SelfRefineCritiqueNode,
     SelfRefineResolutionNode,
-    AdversarialVerifyNode,
-    CalibrationNode,
-    QualityScoreNode,
+    StepBackNode,
 )
 from core.cognitive.loop.pipeline.nodes_v3 import (
+    AdversarialSelfPlayNode,
+    MetaReasoningNode,
+    OutputStructuringNode,
     PipelineStateV3,
     SynthesisNode,
-    AdversarialSelfPlayNode,
     VerificationNode,
-    OutputStructuringNode,
-    MetaReasoningNode,
 )
 
 
@@ -172,7 +170,7 @@ class ReasoningPipelineV3:
             self.store.record_metric("pipeline_v3_confidence", state.confidence)
             self.store.record_metric("pipeline_v3_quality", state.quality_score.get("total_score", 0))
             self.store.record_metric("pipeline_v3_refinement_rounds", state.refinement_round)
-        except Exception as e:
+        except Exception:
             # Suppress expected non-fatal exception
             pass
         

@@ -18,41 +18,38 @@ import uuid
 from typing import Any
 
 from core.cognitive.loop.core.store import SingularityStore
-from core.cognitive.loop.core.classifier import classify_prompt
-from core.cognitive.loop.pipeline.graph_v4 import ReasoningPipelineV4
-from core.cognitive.loop.pipeline.nodes_v4 import (
-    PipelineStateV4,
-    ReasoningPromptGenerator,
-    PathEnsembleNode,
-    ProgressiveComplexityNode,
-    OutcomePredictorNode,
-    TaskAdaptiveTechniqueSelector,
-)
-from core.cognitive.loop.pipeline.nodes_v3 import (
-    SynthesisNode,
-    AdversarialSelfPlayNode,
-    VerificationNode,
-    OutputStructuringNode,
-    MetaReasoningNode,
-)
 from core.cognitive.loop.pipeline.graph_v2 import (
+    AdversarialVerifyNode,
+    CalibrationNode,
     ClassifyAndRouteNode,
-    StepBackNode,
     DecomposeNode,
+    QualityScoreNode,
     SelfConsistencyNode,
     SelfRefineCritiqueNode,
     SelfRefineResolutionNode,
-    AdversarialVerifyNode,
-    CalibrationNode,
-    QualityScoreNode,
+    StepBackNode,
+)
+from core.cognitive.loop.pipeline.nodes_v3 import (
+    AdversarialSelfPlayNode,
+    MetaReasoningNode,
+    OutputStructuringNode,
+    SynthesisNode,
+    VerificationNode,
+)
+from core.cognitive.loop.pipeline.nodes_v4 import (
+    OutcomePredictorNode,
+    PathEnsembleNode,
+    ProgressiveComplexityNode,
+    ReasoningPromptGenerator,
+    TaskAdaptiveTechniqueSelector,
 )
 from core.cognitive.loop.pipeline.nodes_v5 import (
-    PipelineStateV5,
-    MultiTurnRefinementLoop,
-    ExecutableVerificationNode,
     AdaptivePromptRefiner,
-    CrossTaskLearner,
     ConfidenceCalibrator,
+    CrossTaskLearner,
+    ExecutableVerificationNode,
+    MultiTurnRefinementLoop,
+    PipelineStateV5,
 )
 
 
@@ -214,7 +211,7 @@ class ReasoningPipelineV5:
                                       {"mode": effective_mode})
             self.store.record_metric("pipeline_v5_quality", state.quality_score.get("total_score", 0))
             self.store.record_metric("pipeline_v5_multi_turn", state.multi_turn_iterations)
-        except Exception as e:
+        except Exception:
             # Suppress expected non-fatal exception
             pass
         

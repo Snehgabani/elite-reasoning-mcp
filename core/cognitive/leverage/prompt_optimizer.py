@@ -5,11 +5,11 @@
 # filed as results. v2 (2026-08-09, audit fix) reads .ai/metrics/runs/*/<task>.json
 # and writes truthful per-category exemplars; categories with no real traces get
 # an explicit EMPTY marker, never invented content.
-import json
 import glob
+import json
 import os
 from collections import defaultdict
-from typing import Dict, List, Any
+from typing import Any, Dict, List
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 

@@ -6,13 +6,13 @@ This pipeline provides state-of-the-art reasoning capabilities backed by
 published research from 2024-2026.
 """
 
-from typing import Dict, Any, List, Optional
-from dataclasses import dataclass
 import time
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional
 
+from core.cognitive.loop.frameworks.causal_reasoning import CausalReasoningModule
 from core.cognitive.loop.frameworks.cumulative_reasoning import CumulativeReasoningFramework
 from core.cognitive.loop.frameworks.selection_inference import SelectionInferenceFramework
-from core.cognitive.loop.frameworks.causal_reasoning import CausalReasoningModule
 
 
 @dataclass

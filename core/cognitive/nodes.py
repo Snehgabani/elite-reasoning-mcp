@@ -2,7 +2,8 @@
 # Phase 14 Ironclad Closed-Loop ReasoningState Schema
 # Enforces strict typing, zero-escape control flags, and bounded recursion.
 
-from typing import TypedDict, Annotated, List, Optional, Dict, Any
+from typing import Annotated, Any, Dict, List, Optional, TypedDict
+
 from langgraph.graph.message import add_messages
 
 

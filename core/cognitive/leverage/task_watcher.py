@@ -5,17 +5,14 @@ Includes Auto-Pop Visual Window & Native macOS Notifications for Non-Coder Users
 Zero-RAM overhead (<15MB RSS) compliant with 8GB Apple Silicon M2 budget.
 """
 
-import os
-import sys
-import json
-import time
 import glob
-import sqlite3
-import signal
-import asyncio
+import json
+import os
 import subprocess
+import sys
+import time
 from datetime import datetime
-from typing import Dict, Any, List, Optional
+from typing import Any, Dict
 
 MIX_DIR = os.path.expanduser("~/.mix-mcp")
 TASKS_DIR = os.path.join(MIX_DIR, "tasks")
@@ -38,7 +35,7 @@ def notify_user(title: str, message: str, subtitle: str = ""):
         script = f'display notification "{clean_msg}" with title "{clean_title}" {sub_clause}'
         try:
             subprocess.Popen(["osascript", "-e", script], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        except Exception as e:
+        except Exception:
             # Suppress expected non-fatal exception
             pass
 
@@ -75,7 +72,7 @@ class TaskTracker:
             try:
                 with open(task_file, "r", encoding="utf-8") as f:
                     data = json.load(f)
-            except Exception as e:
+            except Exception:
                 # Suppress expected non-fatal exception
                 pass
         data.update({
@@ -98,7 +95,7 @@ class TaskTracker:
                 with open(task_file, "r", encoding="utf-8") as f:
                     data = json.load(f)
                     started_at = data.get("started_at", started_at)
-            except Exception as e:
+            except Exception:
                 # Suppress expected non-fatal exception
                 pass
         now = time.time()
@@ -121,7 +118,7 @@ class TaskTracker:
         try:
             with open(task_file, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=2)
-        except Exception as e:
+        except Exception:
             # Suppress expected non-fatal exception
             pass
 
@@ -186,7 +183,7 @@ class TaskWatchdog:
         try:
             with open(STATUS_FILE, "w", encoding="utf-8") as f:
                 json.dump(snapshot, f, indent=2)
-        except Exception as e:
+        except Exception:
             # Suppress expected non-fatal exception
             pass
 
@@ -209,7 +206,7 @@ def get_live_status() -> Dict[str, Any]:
         try:
             with open(STATUS_FILE, "r", encoding="utf-8") as f:
                 return json.load(f)
-        except Exception as e:
+        except Exception:
             # Suppress expected non-fatal exception
             pass
     # Fallback scan

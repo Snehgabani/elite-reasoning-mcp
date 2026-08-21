@@ -22,10 +22,11 @@ import uuid
 from pathlib import Path
 
 from mcp.server.fastmcp import FastMCP
-from mcp.types import ToolAnnotations
 
+from core.cognitive.loop.core.server import (
+    _register_resources,
+)
 from core.cognitive.loop.core.store import SingularityStore
-from core.cognitive.loop.core.server import create_server, _register_tools_safely, _register_resources, _install_metrics_middleware
 
 PACKAGE_NAME = "loop-by-sg-mcp"
 VERSION = "11.0.0"
@@ -189,7 +190,7 @@ def create_hardened_server(brain_dir: str | None = None) -> FastMCP:
         _install_hardened_middleware(mcp, store, _session_id, health_monitor)
         
         logger.info("Hardened server created successfully")
-        logger.info(f"Health monitoring enabled")
+        logger.info("Health monitoring enabled")
         logger.info(f"Session ID: {_session_id}")
         
         return mcp
@@ -203,12 +204,12 @@ def _register_tools_hardened(mcp: FastMCP, store: SingularityStore, health_monit
     """Register tools with enhanced error handling and health tracking."""
     try:
         from core.cognitive.loop.tools import (
-            reasoning,
-            memory_tools,
-            calibration,
             benchmark,
-            diagnostics,
             bias_tool,
+            calibration,
+            diagnostics,
+            memory_tools,
+            reasoning,
         )
         
         # Register each tool group with error handling
@@ -259,7 +260,7 @@ def _install_hardened_middleware(mcp: FastMCP, store: SingularityStore, session_
                 health_monitor.record_error()
                 return {
                     "error": True,
-                    "message": f"Tool execution timed out after 5 minutes",
+                    "message": "Tool execution timed out after 5 minutes",
                     "suggestion": "Try simplifying your request or using a different tool."
                 }
             
@@ -412,8 +413,9 @@ def main(argv: list[str] | None = None) -> int:
     
     if args.command == "benchmark":
         try:
-            from core.cognitive.loop.eval.harness import run_smoke_benchmark
             import json as _json
+
+            from core.cognitive.loop.eval.harness import run_smoke_benchmark
             
             report = run_smoke_benchmark(brain_dir)
             print(_json.dumps(report, indent=2, sort_keys=True))
@@ -430,7 +432,7 @@ def main(argv: list[str] | None = None) -> int:
         setup_signal_handlers()
         
         logger.info("Starting hardened LOOP BY SG MCP server...")
-        logger.info(f"Logs will be written to: ~/.loop-by-sg/loop.log")
+        logger.info("Logs will be written to: ~/.loop-by-sg/loop.log")
         
         server = create_hardened_server(brain_dir)
         server.run()
@@ -444,7 +446,7 @@ def main(argv: list[str] | None = None) -> int:
     except Exception as e:
         logger.error(f"Server failed: {e}", exc_info=True)
         print(f"Error: {e}", file=sys.stderr)
-        print(f"Check logs at: ~/.loop-by-sg/loop.log", file=sys.stderr)
+        print("Check logs at: ~/.loop-by-sg/loop.log", file=sys.stderr)
         return 1
 
 

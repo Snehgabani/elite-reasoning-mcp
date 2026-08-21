@@ -2,8 +2,10 @@
 # Self-RAG & Corrective RAG (CRAG) — Mid-Generation Epistemic Reflection
 
 import json
-from typing import Dict, List, Any
+from typing import Any, Dict, List
+
 from core.cognitive.leverage.web_research import LiveWebResearcher
+
 
 class SelfRAGEngine:
     def __init__(self):

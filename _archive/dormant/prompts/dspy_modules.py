@@ -1,6 +1,7 @@
 import dspy
 from pydantic import BaseModel, Field
 
+
 class PreflightOutput(BaseModel):
     intent_class: str = Field(description="One of: Q-paste, Correction, Routine, Decision, Infrastructure, External-AI, Clarification")
     framework_stack: list[str] = Field(description="List of reasoning frameworks to apply (e.g., 'elite-reasoning-framework')")

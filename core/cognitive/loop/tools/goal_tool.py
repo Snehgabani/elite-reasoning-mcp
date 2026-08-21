@@ -13,7 +13,7 @@ from __future__ import annotations
 import json
 import time
 import urllib.request
-from typing import Annotated, Any, List
+from typing import Annotated, List
 
 from mcp.types import ToolAnnotations
 from pydantic import BaseModel, Field

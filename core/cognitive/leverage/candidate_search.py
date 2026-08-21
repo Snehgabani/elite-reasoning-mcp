@@ -1,7 +1,8 @@
 # src/leverage/candidate_search.py
-import asyncio
-from typing import List, Optional, Dict, Any
-from core.cognitive.leverage.verifier import verify_code_candidate, verify_non_code_candidate, VerificationResult
+from typing import List, Optional
+
+from core.cognitive.leverage.verifier import VerificationResult, verify_code_candidate, verify_non_code_candidate
+
 
 class Candidate:
     def __init__(self, candidate_id: str, strategy: str, reasoning_summary: str, content: str, code_blocks: List[str], assumptions: List[str]):

@@ -1,12 +1,10 @@
 # src/leverage/fuzz.py
 import ast
-import inspect
-import json
 import os
 import subprocess
 import sys
 import tempfile
-from typing import Dict, Any, Optional, List
+from typing import Any, Dict, Optional
 
 
 def _find_symbol_ast(symbol_name: str, file_path: Optional[str] = None) -> Optional[tuple[ast.AST, str]]:
@@ -135,7 +133,7 @@ async def run_property_tests(file_path: str = "dummy.py", symbol: str = "target"
     finally:
         try:
             os.unlink(tmp_path)
-        except Exception as e:
+        except Exception:
             # Suppress expected non-fatal exception
             pass
 

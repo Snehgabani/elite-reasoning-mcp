@@ -8,9 +8,8 @@ Provides structural analysis of code for better reasoning.
 from __future__ import annotations
 
 import ast
-import re
-from typing import List, Dict, Optional
 from dataclasses import dataclass
+from typing import Dict, List
 
 
 @dataclass

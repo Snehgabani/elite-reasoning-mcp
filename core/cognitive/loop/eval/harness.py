@@ -9,11 +9,10 @@ For real model comparisons, use benchmark_run with actual model outputs.
 
 from __future__ import annotations
 
-import json
 import time
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 
-from core.cognitive.loop.core.metrics import SCORECARD_DIMENSIONS, compute_weighted_score, score_output_quality
+from core.cognitive.loop.core.metrics import SCORECARD_DIMENSIONS, score_output_quality
 from core.cognitive.loop.core.store import SingularityStore
 
 

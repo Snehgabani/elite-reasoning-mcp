@@ -21,7 +21,7 @@ from typing import Any
 from core.cognitive.loop.core.classifier import PromptClassification, classify_prompt
 from core.cognitive.loop.core.metrics import score_output_quality
 from core.cognitive.loop.core.store import SingularityStore
-from core.cognitive.loop.research.techniques import TECHNIQUES, get_applicable_techniques
+from core.cognitive.loop.research.techniques import TECHNIQUES
 
 
 @dataclass
@@ -252,7 +252,7 @@ class DecomposeNode(PipelineNode):
         subproblems.append({
             "index": idx,
             "name": "understand",
-            "description": f"Parse the task requirements. Identify inputs, outputs, constraints, and edge cases.",
+            "description": "Parse the task requirements. Identify inputs, outputs, constraints, and edge cases.",
             "depends_on": [],
             "validation": "All requirements enumerated. No ambiguity remains.",
         })
@@ -262,7 +262,7 @@ class DecomposeNode(PipelineNode):
         subproblems.append({
             "index": idx,
             "name": "research",
-            "description": f"Identify relevant prior decisions, patterns, and domain knowledge.",
+            "description": "Identify relevant prior decisions, patterns, and domain knowledge.",
             "depends_on": [1],
             "validation": "Relevant context gathered. Past decisions reviewed.",
         })
@@ -683,7 +683,7 @@ class ReasoningPipeline:
             self.store.record_metric("pipeline_duration_ms", state.pipeline_duration_ms, "ms",
                                       {"mode": self.mode})
             self.store.record_metric("pipeline_confidence", state.confidence)
-        except Exception as e:
+        except Exception:
             # Suppress expected non-fatal exception
             pass
         

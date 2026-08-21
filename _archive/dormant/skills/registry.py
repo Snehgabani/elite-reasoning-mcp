@@ -1,9 +1,10 @@
-import yaml
-from pathlib import Path
-from typing import Dict, Any, List, Optional
-from langchain_core.tools import BaseTool, tool
-from pydantic import BaseModel, Field
 import logging
+from pathlib import Path
+from typing import Any, Dict, List
+
+import yaml
+from langchain_core.tools import BaseTool
+from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 

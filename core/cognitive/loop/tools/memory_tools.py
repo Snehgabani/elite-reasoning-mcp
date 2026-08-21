@@ -6,9 +6,8 @@ record anti-patterns, record decisions. Trust-gated and privacy-aware.
 
 from __future__ import annotations
 
-import json
 import time
-from typing import Annotated, Any, Literal, Optional
+from typing import Annotated, Any
 
 from mcp.types import ToolAnnotations
 from pydantic import BaseModel, Field
@@ -108,7 +107,7 @@ def register(mcp, store: SingularityStore):
                 effective_content = root_cause or fix or "Identified systemic anti-pattern"
             item_id = store.record_anti_pattern(effective_content, root_cause, fix, "medium", "")
             return MemoryResult(action="mistake", id=item_id,
-                                 warnings=[f"Recorded. Will surface when similar tasks appear."])
+                                 warnings=["Recorded. Will surface when similar tasks appear."])
 
         elif act in ("decision", "record_decision"):
             if not effective_content:

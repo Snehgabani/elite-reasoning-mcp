@@ -196,7 +196,7 @@ def register(mcp, store: SingularityStore):
             store.record_metric("verify_tool_calls", tool_calls)
 
             metrics_recorded = True
-        except Exception as e:
+        except Exception:
             # Suppress expected non-fatal exception
             pass
 

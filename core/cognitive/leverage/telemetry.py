@@ -1,7 +1,7 @@
 # src/leverage/telemetry.py
 import json
-import time
 import os
+import time
 from datetime import datetime
 from pathlib import Path
 from typing import Optional

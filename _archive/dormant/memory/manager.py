@@ -1,8 +1,10 @@
-from pathlib import Path
-from typing import Dict, Any, List, Optional
 import datetime
+from pathlib import Path
+from typing import Any, Dict, List
+
 from core.persistence.file_store import FileStore
 from core.persistence.vector_store import HybridGraphStore
+
 
 class MemoryManager:
     """

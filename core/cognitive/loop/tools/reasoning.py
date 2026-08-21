@@ -18,11 +18,13 @@ from mcp.types import ToolAnnotations
 from pydantic import BaseModel, Field
 
 from core.cognitive.loop.core.store import SingularityStore
-from core.cognitive.loop.pipeline.complete_pipeline import CompletePipeline as ReasoningPipelineV2  # v10 complete pipeline
-from core.cognitive.loop.frameworks.adaptive_consistency import run_adaptive_consensus, faithfulness_score
-from core.cognitive.loop.frameworks.step_verifier import verify_steps
 from core.cognitive.loop.frameworks.abstention import calibrated_abstention
+from core.cognitive.loop.frameworks.adaptive_consistency import faithfulness_score, run_adaptive_consensus
 from core.cognitive.loop.frameworks.calibration_accumulator import accumulate_calibration
+from core.cognitive.loop.frameworks.step_verifier import verify_steps
+from core.cognitive.loop.pipeline.complete_pipeline import (
+    CompletePipeline as ReasoningPipelineV2,  # v10 complete pipeline
+)
 
 _RUN_ANNOTATIONS = ToolAnnotations(
     title="Run reasoning pipeline",

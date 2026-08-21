@@ -1,7 +1,7 @@
+import argparse
 import os
 import sys
 import time
-import argparse
 import traceback
 import uuid
 from pathlib import Path
@@ -9,32 +9,32 @@ from pathlib import Path
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from langchain_core.messages import HumanMessage
-from tenacity import retry, wait_exponential, stop_after_attempt
 import sqlite3
 
-from langgraph.checkpoint.sqlite import SqliteSaver
-
-from app.cli import get_executive_llm, get_reasoning_llm
-from core.persistence.store import StateStore
-from core.persistence.file_store import FileStore
-from core.persistence.vector_store import HybridGraphStore
-from core.identity.soul import SoulParser
+from app.graph import build_app_graph
 from core.identity.preflight import PreflightChecklist
+from core.identity.soul import SoulParser
 from core.memory.manager import MemoryManager
 from core.memory.retrieval import MemoryRetrieval
-from core.skills.registry import SkillRegistry
+from core.persistence.file_store import FileStore
+from core.persistence.recovery import RecoveryManager
+from core.persistence.store import StateStore
+from core.persistence.vector_store import HybridGraphStore
+from core.privacy.vault import VaultManager
+from core.reasoning.elite_framework import EliteReasoningFramework
+from core.skills.auto_creator import WorkflowSkillCreator
 from core.skills.executor import SkillExecutor
 from core.skills.mcp_registry import MCPRegistry
-from core.skills.auto_creator import WorkflowSkillCreator
+from core.skills.registry import SkillRegistry
 from core.tools.native_tools import NativeTools
-from core.reasoning.elite_framework import EliteReasoningFramework
 from core.ui.notifier import SystemNotifier
-from core.privacy.vault import VaultManager
-from core.persistence.recovery import RecoveryManager
+from langchain_core.messages import HumanMessage
+from langgraph.checkpoint.sqlite import SqliteSaver
+from tenacity import retry, stop_after_attempt, wait_exponential
+
+from app.cli import get_executive_llm, get_reasoning_llm
 from app.config import ConfigLoader
 from scripts.bootstrap import bootstrap
-from app.graph import build_app_graph
 
 
 def generate_test_prompts() -> list[str]:
@@ -91,8 +91,9 @@ def run_stress_test(brain_dir: str, use_mock: bool = False, step_idx: int = None
         llm_executive = MockLLM(responses=["[MOCK_RESPONSE] Elite reasoning simulated successfully."] * 100)
         llm_reasoning = llm_executive
         
-        import dspy
         import json
+
+        import dspy
         class MockDSPyLM(dspy.LM):
             def __init__(self, **kwargs):
                 super().__init__(model="mock-model", **kwargs)
@@ -151,14 +152,15 @@ def run_stress_test(brain_dir: str, use_mock: bool = False, step_idx: int = None
     skills.load_all()
     
     mcp_registry = MCPRegistry(brain_dir)
-    import threading, asyncio
+    import asyncio
+    import threading
     def init_mcp_bg():
         try:
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
             loop.run_until_complete(mcp_registry.initialize())
             loop.close()
-        except Exception as e:
+        except Exception:
             pass
     threading.Thread(target=init_mcp_bg, daemon=True).start()
     
@@ -220,14 +222,14 @@ def run_stress_test(brain_dir: str, use_mock: bool = False, step_idx: int = None
         invoke_config = {"configurable": {"thread_id": "stress_test_session"}}
         start_time = time.time()
         
-        print(f"      [OODA: Observe] Analyzing raw intent...")
+        print("      [OODA: Observe] Analyzing raw intent...")
         
         # Orient (Red Team evaluation via DSPy EliteFramework)
-        print(f"      [OODA: Orient] Applying Elite Red Team evaluation...")
+        print("      [OODA: Orient] Applying Elite Red Team evaluation...")
         orient_result = reasoning.red_team(f"Evaluate this user prompt as input to the LangGraph system: {user_input}")
         diagnostic_text = orient_result.get("result", "")
         
-        print(f"      [OODA: Decide] Executing with diagnostic context...")
+        print("      [OODA: Decide] Executing with diagnostic context...")
         
         # Act
         for update in app.stream({"messages": [HumanMessage(content=user_input)]}, invoke_config, stream_mode="updates"):

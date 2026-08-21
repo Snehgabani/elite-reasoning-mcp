@@ -1,10 +1,9 @@
-import os
 import json
-import time
-import requests
 import traceback
 
+import requests
 from core.diagnostics.ide_bridge import IDEBridge
+
 
 class EliteLocalGuide:
     """
@@ -106,6 +105,6 @@ class EliteLocalGuide:
             except KeyboardInterrupt:
                 print("\n🤖 Guide terminating due to interrupt.")
                 break
-            except Exception as e:
+            except Exception:
                 print(f"\n❌ Unexpected error: {traceback.format_exc()}")
                 break

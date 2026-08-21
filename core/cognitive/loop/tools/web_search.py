@@ -9,8 +9,8 @@ Uses DuckDuckGo (no API key required) for privacy.
 
 from __future__ import annotations
 
-from typing import List, Dict, Optional
 from dataclasses import dataclass
+from typing import Dict, List, Optional
 
 try:
     from duckduckgo_search import DDGS
@@ -82,7 +82,7 @@ class WebSearchTool:
                         source='duckduckgo'
                     ))
                 return results
-        except Exception as e:
+        except Exception:
             # Don't fail if search fails
             return []
     
@@ -163,7 +163,7 @@ if __name__ == "__main__":
     search = WebSearchTool(enabled=False)
     results = search.search("test query")
     print(f"   Results: {len(results)} (expected: 0)")
-    print(f"   ✅ Disabled mode works")
+    print("   ✅ Disabled mode works")
     print()
     
     # Test enabled (if available)
@@ -175,7 +175,7 @@ if __name__ == "__main__":
         for r in results[:2]:
             print(f"   - {r.title}")
             print(f"     {r.url}")
-        print(f"   ✅ Enabled mode works")
+        print("   ✅ Enabled mode works")
     else:
         print("2. Skipping enabled mode (duckduckgo-search not installed)")
         print("   Install with: pip install duckduckgo-search")

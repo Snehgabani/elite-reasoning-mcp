@@ -18,33 +18,30 @@ import uuid
 from typing import Any
 
 from core.cognitive.loop.core.store import SingularityStore
-from core.cognitive.loop.core.classifier import classify_prompt
-from core.cognitive.loop.pipeline.graph_v3 import ReasoningPipelineV3
-from core.cognitive.loop.pipeline.nodes_v3 import (
-    PipelineStateV3,
-    SynthesisNode,
-    AdversarialSelfPlayNode,
-    VerificationNode,
-    OutputStructuringNode,
-    MetaReasoningNode,
-)
 from core.cognitive.loop.pipeline.graph_v2 import (
+    AdversarialVerifyNode,
+    CalibrationNode,
     ClassifyAndRouteNode,
-    StepBackNode,
     DecomposeNode,
+    QualityScoreNode,
     SelfConsistencyNode,
     SelfRefineCritiqueNode,
     SelfRefineResolutionNode,
-    AdversarialVerifyNode,
-    CalibrationNode,
-    QualityScoreNode,
+    StepBackNode,
+)
+from core.cognitive.loop.pipeline.nodes_v3 import (
+    AdversarialSelfPlayNode,
+    MetaReasoningNode,
+    OutputStructuringNode,
+    SynthesisNode,
+    VerificationNode,
 )
 from core.cognitive.loop.pipeline.nodes_v4 import (
-    PipelineStateV4,
-    ReasoningPromptGenerator,
-    PathEnsembleNode,
-    ProgressiveComplexityNode,
     OutcomePredictorNode,
+    PathEnsembleNode,
+    PipelineStateV4,
+    ProgressiveComplexityNode,
+    ReasoningPromptGenerator,
     TaskAdaptiveTechniqueSelector,
 )
 
@@ -196,7 +193,7 @@ class ReasoningPipelineV4:
                                       {"mode": effective_mode})
             self.store.record_metric("pipeline_v4_quality", state.quality_score.get("total_score", 0))
             self.store.record_metric("pipeline_v4_predicted_quality", state.predicted_quality)
-        except Exception as e:
+        except Exception:
             # Suppress expected non-fatal exception
             pass
         

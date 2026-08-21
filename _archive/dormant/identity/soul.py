@@ -1,7 +1,9 @@
 import re
 from pathlib import Path
-from typing import Dict, List, Any
+from typing import List
+
 from core.persistence.file_store import FileStore
+
 
 class SoulParser:
     """

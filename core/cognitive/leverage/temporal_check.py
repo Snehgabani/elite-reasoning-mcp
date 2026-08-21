@@ -41,7 +41,6 @@ async def temporal_verify(claim: str, sources: Optional[List[Union[str, Dict[str
 
     dated_pages: list of {"url", "published_date"} — lets temporal date pages
     whose URL itself carries no date (the v1 UNKNOWN case is now resolvable)."""
-    from datetime import date as _date
     now = datetime.now()
     dated, undated = [], 0
     for s in sources:

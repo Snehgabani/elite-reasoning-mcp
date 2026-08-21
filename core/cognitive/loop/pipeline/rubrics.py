@@ -10,7 +10,7 @@ HELM multi-metric evaluation (Liang et al., 2023).
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 
 @dataclass(frozen=True)

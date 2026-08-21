@@ -5,8 +5,7 @@
 # Jina Reader fallback (free, keyless) for pages that block bots. Returns the
 # extracted text so downstream tools (consensus, temporal) can reason on the
 # FULL article, not a 200-char snippet.
-import json
-from typing import Dict, Any
+from typing import Any, Dict
 
 import httpx
 
@@ -34,8 +33,9 @@ def _extract_pub_date(html: str) -> str | None:
     og:published_time, JSON-LD datePublished, <time datetime>) — returns ISO
     date (YYYY-MM-DD) or None. This is what lets temporal_verify date real
     pages whose URL carries no date."""
-    from bs4 import BeautifulSoup
     import re
+
+    from bs4 import BeautifulSoup
     try:
         soup = BeautifulSoup(html, "html.parser")
         for attr in ("article:published_time", "og:published_time", "article:modified_time"):
@@ -50,7 +50,7 @@ def _extract_pub_date(html: str) -> str | None:
             iso = re.match(r"(\d{4}-\d{2}-\d{2})", t["datetime"])
             if iso:
                 return iso.group(1)
-    except Exception as e:
+    except Exception:
         # Suppress expected non-fatal exception
         pass
     return None
@@ -78,7 +78,7 @@ async def deep_read_url(url: str, question: str = "", query: str = "") -> Dict[s
                     out["published_date"] = pub
                     out["date_source"] = "page-metadata"
                 return out
-    except Exception as e:
+    except Exception:
         # Suppress expected non-fatal exception
         pass
 
@@ -94,7 +94,7 @@ async def deep_read_url(url: str, question: str = "", query: str = "") -> Dict[s
                 "full_text_length": len(t), "text": t[:MAX_TEXT],
                 "extracted": True,
             }
-    except Exception as e:
+    except Exception:
         # Suppress expected non-fatal exception
         pass
 

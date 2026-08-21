@@ -1,5 +1,7 @@
+from typing import List
+
 from pydantic import BaseModel
-from typing import List, Optional
+
 
 class PreflightResult(BaseModel):
     intent_class: str          # Q-paste / Correction / Routine / Decision / Infrastructure / External-AI
@@ -32,7 +34,7 @@ class PreflightChecklist:
             cap = output.confidence_cap
             recall = output.recall_needed
             hard_stop = output.hard_stop
-        except Exception as e:
+        except Exception:
             # Fallback to heuristics if DSPy is unconfigured or errors out
             prompt_lower = user_prompt.lower()
             if "paste" in prompt_lower or "uworld" in prompt_lower or "nbme" in prompt_lower:

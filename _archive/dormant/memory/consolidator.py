@@ -1,5 +1,6 @@
-import time
 import logging
+import time
+
 from core.memory.manager import MemoryManager
 
 logger = logging.getLogger(__name__)

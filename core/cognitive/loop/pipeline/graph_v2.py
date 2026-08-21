@@ -26,8 +26,8 @@ from typing import Any
 from core.cognitive.loop.core.classifier import PromptClassification, classify_prompt
 from core.cognitive.loop.core.metrics import score_output_quality
 from core.cognitive.loop.core.store import SingularityStore
-from core.cognitive.loop.pipeline.rubrics import get_rubric_for_intent, score_with_rubric
 from core.cognitive.loop.pipeline.bias_scanner import run_bias_scan
+from core.cognitive.loop.pipeline.rubrics import get_rubric_for_intent, score_with_rubric
 from core.cognitive.loop.research.techniques import TECHNIQUES
 
 
@@ -823,7 +823,7 @@ class ReasoningPipelineV2:
             self.store.record_metric("pipeline_v2_confidence", state.confidence)
             self.store.record_metric("pipeline_v2_quality", state.quality_score.get("total_score", 0))
             self.store.record_metric("pipeline_v2_refinement_rounds", state.refinement_round)
-        except Exception as e:
+        except Exception:
             # Suppress expected non-fatal exception
             pass
 

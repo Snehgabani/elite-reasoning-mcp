@@ -1,7 +1,9 @@
 # src/leverage/epistemic_verifier.py
 import json
-from typing import Dict, List, Any
+from typing import Any, Dict, List
+
 from core.cognitive.leverage.web_research import LiveWebResearcher
+
 
 class EpistemicVerifier:
     def __init__(self):

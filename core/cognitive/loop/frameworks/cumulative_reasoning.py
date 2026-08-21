@@ -8,10 +8,10 @@ Research: "Cumulative Reasoning with Large Language Models" (ICLR 2024)
 Results: +24% on Game of 24, +43% on MATH Level 5, 98% on FOLIO
 """
 
-from typing import List, Dict, Any, Optional
-from dataclasses import dataclass, field
 import uuid
+from dataclasses import dataclass, field
 from enum import Enum
+from typing import Any, Dict, List, Optional
 
 
 class PropositionStatus(Enum):
@@ -224,7 +224,7 @@ class Verifier:
         if self.symbolic_verifier:
             try:
                 return self.symbolic_verifier.verify(proposition, dag)
-            except Exception as e:
+            except Exception:
                 # Suppress expected non-fatal exception
                 pass  # Fall back to LLM verification
         

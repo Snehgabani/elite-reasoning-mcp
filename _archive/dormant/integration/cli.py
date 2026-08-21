@@ -1,7 +1,9 @@
+import argparse
 import os
 import sys
-import argparse
+
 from core.memory.persistent_store import EliteStore
+
 
 def get_store() -> EliteStore:
     brain_dir = os.environ.get("ELITE_BRAIN_DIR", os.path.expanduser("~/.elite-reasoning/brain"))

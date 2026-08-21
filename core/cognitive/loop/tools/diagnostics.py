@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import json
-import time
 from typing import Annotated, Any
 
 from mcp.types import ToolAnnotations
@@ -47,7 +45,6 @@ def register(mcp, store: SingularityStore):
         Returns structured data for monitoring reasoning enhancement effectiveness.
         """
         if action == "health":
-            import importlib
             checks = []
             try:
                 import mcp as _mcp  # noqa

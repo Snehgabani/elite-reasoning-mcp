@@ -1,16 +1,16 @@
 import os
 import sys
 import time
-import httpx
-import threading
-import uvicorn
 from contextlib import contextmanager
+
+import httpx
 
 # Add project root to path
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
-from core.integration.sync_server import app, store
-
 import subprocess
+
+from core.integration.sync_server import store
+
 
 @contextmanager
 def server_context():

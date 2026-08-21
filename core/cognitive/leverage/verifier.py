@@ -1,9 +1,10 @@
 # src/leverage/verifier.py
-import subprocess
-import tempfile
 import ast
 import os
-from typing import Optional, List, Dict, Any
+import subprocess
+import tempfile
+from typing import Any, Dict, List, Optional
+
 
 class VerificationResult:
     def __init__(self, passed: bool, score: float, output: str, failure_type: Optional[str] = None, evidence: Optional[Dict[str, Any]] = None):
@@ -90,7 +91,7 @@ async def verify_code_candidate(
     finally:
         try:
             os.unlink(tmp_path)
-        except Exception as e:
+        except Exception:
             # Suppress expected non-fatal exception
             pass
 

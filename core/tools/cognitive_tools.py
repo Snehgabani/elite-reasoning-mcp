@@ -3,42 +3,37 @@ Cognitive Tools Registration Module for Elite Reasoning MCP.
 Registers all 42 unified tools (MIX Supreme God-Tools, Invariant Gates, PRMs, Dialectical Debate Panels,
 AST Code Property Graphs, Stanford STORM Research, and Longitudinal Calibration).
 """
-import os
-import sys
 import json
-import time
-import hashlib
-import asyncio
-from typing import Dict, Any, List, Optional, Literal
+from typing import List, Optional
 
 from core.cognitive.engine import _COGNITIVE_ENGINE
-from core.cognitive.leverage.self_discover import compose_reasoning_topology as _compose_topology
-from core.cognitive.leverage.think_on_graph import ThinkOnGraphEngine
-from core.cognitive.leverage.repo_graph import RepoGraph
-from core.cognitive.leverage.expert_panel import expert_panel as _run_expert_panel
-from core.cognitive.leverage.logic_verifier import verify_argument as _verify_argument
-from core.cognitive.leverage.fuzz import run_property_tests as _run_property_tests
 from core.cognitive.leverage.candidate_search import generate_candidates, score_candidates, select_best_candidate
-from core.cognitive.leverage.verifier import verify_code_candidate, verify_non_code_candidate
-from core.cognitive.leverage.reflexion import reflexion_repair
-from core.cognitive.leverage.prompt_optimizer import SkillCompiler
-from core.cognitive.leverage.lats import hard_reason as _run_hard_reason
-from core.cognitive.leverage.web_research import live_web_search as _run_live_web_search, LiveWebResearcher as _Triangulator
-from core.cognitive.leverage.red_team import red_team_attack as _run_red_team_attack
-from core.cognitive.leverage.epistemic_verifier import epistemic_verify as _run_epistemic_verify
-from core.cognitive.leverage.storm_research import deep_research_report as _run_deep_research_report
-from core.cognitive.leverage.prm_verifier import prm_verify_step as _run_prm_verify
+from core.cognitive.leverage.claim_verify import verify_claims as _run_verify_claims
+from core.cognitive.leverage.constitutional_judge import generate_and_judge as _run_god_tier_judge
+from core.cognitive.leverage.deep_read import deep_read_url as _run_deep_read
+from core.cognitive.leverage.devils_advocate import revision_loop as _run_devils_advocate
 from core.cognitive.leverage.dual_process_router import dual_process_route as _run_dual_route
+from core.cognitive.leverage.epistemic_orchestrator import epistemic_research as _run_epistemic_research
+from core.cognitive.leverage.epistemic_verifier import epistemic_verify as _run_epistemic_verify
+from core.cognitive.leverage.expert_panel import expert_panel as _run_expert_panel
+from core.cognitive.leverage.fuzz import run_property_tests as _run_property_tests
+from core.cognitive.leverage.lats import hard_reason as _run_hard_reason
+from core.cognitive.leverage.logic_verifier import verify_argument as _verify_argument
+from core.cognitive.leverage.prompt_optimizer import SkillCompiler
+from core.cognitive.leverage.red_team import red_team_attack as _run_red_team_attack
+from core.cognitive.leverage.reflexion import reflexion_repair
+from core.cognitive.leverage.repo_graph import RepoGraph
+from core.cognitive.leverage.research_agent import autonomous_research as _run_autonomous_research
+from core.cognitive.leverage.self_discover import compose_reasoning_topology as _compose_topology
 from core.cognitive.leverage.self_rag import self_rag_evaluate as _run_self_rag_evaluate
 from core.cognitive.leverage.skeleton_of_thought import skeleton_of_thought_generate as _run_sot_generate
-from core.cognitive.leverage.deep_read import deep_read_url as _run_deep_read
-from core.cognitive.leverage.temporal_check import temporal_verify as _run_temporal_verify
-from core.cognitive.leverage.devils_advocate import revision_loop as _run_devils_advocate
-from core.cognitive.leverage.epistemic_orchestrator import epistemic_research as _run_epistemic_research
-from core.cognitive.leverage.claim_verify import verify_claims as _run_verify_claims
-from core.cognitive.leverage.research_agent import autonomous_research as _run_autonomous_research
-from core.cognitive.leverage.constitutional_judge import generate_and_judge as _run_god_tier_judge
+from core.cognitive.leverage.storm_research import deep_research_report as _run_deep_research_report
 from core.cognitive.leverage.task_watcher import get_live_status as _get_live_status
+from core.cognitive.leverage.temporal_check import temporal_verify as _run_temporal_verify
+from core.cognitive.leverage.think_on_graph import ThinkOnGraphEngine
+from core.cognitive.leverage.verifier import verify_code_candidate, verify_non_code_candidate
+from core.cognitive.leverage.web_research import LiveWebResearcher as _Triangulator
+from core.cognitive.leverage.web_research import live_web_search as _run_live_web_search
 
 
 def register(mcp, store=None, profile=None) -> None:

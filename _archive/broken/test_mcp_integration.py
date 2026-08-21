@@ -1,8 +1,8 @@
-import pytest
-import asyncio
 import json
-from pathlib import Path
+
+import pytest
 from core.skills.mcp_registry import MCPRegistry
+
 
 @pytest.mark.asyncio
 async def test_mcp_registry_empty(tmp_path):

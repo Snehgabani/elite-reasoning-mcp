@@ -18,12 +18,11 @@ import uuid
 from dataclasses import dataclass, field
 from typing import Any
 
-from core.cognitive.loop.core.store import SingularityStore
 from core.cognitive.loop.core.classifier import classify_prompt
-from core.cognitive.loop.pipeline.graph_v5 import ReasoningPipelineV5
+from core.cognitive.loop.core.store import SingularityStore
+from core.cognitive.loop.integrations.llm_client import LLMClient
+from core.cognitive.loop.integrations.mcp_client import MCPIntegrator
 from core.cognitive.loop.pipeline.nodes_v5 import PipelineStateV5
-from core.cognitive.loop.integrations.mcp_client import MCPIntegrator, MCPToolResult
-from core.cognitive.loop.integrations.llm_client import LLMClient, LLMResponse
 
 
 @dataclass
@@ -176,7 +175,7 @@ class ReasoningPipelineV6:
                 },
                 duration_ms=state.pipeline_duration_ms
             )
-        except Exception as e:
+        except Exception:
             # Suppress expected non-fatal exception
             pass
         

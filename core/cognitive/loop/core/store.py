@@ -7,7 +7,6 @@ and evaluation results. Thread-safe with connection pooling.
 from __future__ import annotations
 
 import json
-import os
 import sqlite3
 import threading
 import time

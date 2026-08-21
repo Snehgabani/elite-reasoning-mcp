@@ -9,11 +9,11 @@ No API keys required - uses deterministic mock responses.
 
 import random
 import re
-from typing import Dict, List
 from dataclasses import dataclass
+from typing import Dict, List
 
-from core.cognitive.loop.pipeline.graph_v9 import ReasoningPipelineV9
 from core.cognitive.loop.core.store import SingularityStore
+from core.cognitive.loop.pipeline.graph_v9 import ReasoningPipelineV9
 
 
 @dataclass
@@ -148,22 +148,22 @@ class MockLLMResponseGenerator:
             return f"This is a detailed reasoning step for: {prompt[:50]}...\n\nLet me work through this systematically."
         
         elif "action" in section_lower:
-            return f"Based on my analysis, I should take the following action to address the question."
+            return "Based on my analysis, I should take the following action to address the question."
         
         elif "observation" in section_lower:
-            return f"After taking action, I observe that the key factors are now clearer."
+            return "After taking action, I observe that the key factors are now clearer."
         
         elif "question" in section_lower or "ask" in section_lower:
-            return f"To better understand this, I need to ask: What are the core requirements?"
+            return "To better understand this, I need to ask: What are the core requirements?"
         
         elif "answer" in section_lower or "final" in section_lower:
-            return f"Based on my analysis, the answer is: This requires a systematic approach considering multiple factors."
+            return "Based on my analysis, the answer is: This requires a systematic approach considering multiple factors."
         
         elif "reflection" in section_lower:
-            return f"Reflecting on my approach, I could improve by being more specific about the constraints."
+            return "Reflecting on my approach, I could improve by being more specific about the constraints."
         
         elif "verification" in section_lower or "check" in section_lower:
-            return f"Verifying my reasoning: The logic is sound and addresses the main points."
+            return "Verifying my reasoning: The logic is sound and addresses the main points."
         
         else:
             return f"This section addresses: {section}\n\nThe key considerations are important for a complete answer."

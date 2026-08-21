@@ -2,18 +2,14 @@
 # Phase 14 Ironclad Enforcement Protocol (HMAC Token & Invariant Gating)
 
 import os
-import json
-from pathlib import Path
-from typing import Dict, List, Optional, Any
+import secrets
+from typing import Any, Dict, Optional
 
 from core.cognitive.leverage.deterministic_gates import (
-    validate_diff_integrity,
-    generate_diff_hmac,
     apply_verified_diff,
-    ValidationResult
+    generate_diff_hmac,
+    validate_diff_integrity,
 )
-
-import secrets
 
 _HMAC_SECRET = os.getenv("ELITE_HMAC_SECRET", "").encode("utf-8") or secrets.token_bytes(32)
 

@@ -1,9 +1,10 @@
 # src/leverage/repo_graph.py
-import os
 import ast
 import json
+import os
+from typing import Any, Dict, List
+
 import networkx as nx
-from typing import List, Dict, Any, Optional
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
@@ -40,7 +41,7 @@ class RepoGraph:
 
         try:
             self.save()
-        except Exception as e:
+        except Exception:
             # Suppress expected non-fatal exception
             pass
 

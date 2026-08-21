@@ -1,5 +1,7 @@
-from langgraph.graph import StateGraph, START, END
-from typing import Dict, Any, TypedDict
+from typing import Any, TypedDict
+
+from langgraph.graph import END, START, StateGraph
+
 
 class WorkerState(TypedDict):
     input_data: Any

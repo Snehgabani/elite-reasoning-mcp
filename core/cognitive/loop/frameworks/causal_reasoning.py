@@ -10,9 +10,9 @@ Research:
 - "Making Reasoning Matter" (2024)
 """
 
-from typing import List, Dict, Any, Callable, Optional
-from dataclasses import dataclass, field
 import random
+from dataclasses import dataclass
+from typing import Any, Callable, Dict, List
 
 
 @dataclass

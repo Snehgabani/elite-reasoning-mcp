@@ -1,8 +1,8 @@
-import os
-import getpass
 import logging
+import os
 from pathlib import Path
-from dotenv import load_dotenv, set_key
+
+from dotenv import load_dotenv
 
 logger = logging.getLogger(__name__)
 

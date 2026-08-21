@@ -1,7 +1,8 @@
 # src/leverage/lats.py
-import asyncio
-from typing import Dict, Any, List
+from typing import Any, Dict, List
+
 from core.cognitive.leverage.verifier import verify_code_candidate
+
 
 class LATSNode:
     def __init__(self, state: str, parent=None, depth: int = 0):
@@ -50,7 +51,7 @@ class LATSSearchEngine:
                 best_score = reward
                 best_node = child1
 
-        summary = f"LATS started\nbranches expanded\nbest branch selected\nverifier evidence present\ntotal budget not exceeded"
+        summary = "LATS started\nbranches expanded\nbest branch selected\nverifier evidence present\ntotal budget not exceeded"
         return {
             "task": task,
             "simulations": simulations,

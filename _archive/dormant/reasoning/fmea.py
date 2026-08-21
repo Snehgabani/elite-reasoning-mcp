@@ -1,5 +1,6 @@
 from typing import Tuple
 
+
 class FMEAGate:
     """
     Action Pre-Flight FMEA (Failure Mode and Effects Analysis).

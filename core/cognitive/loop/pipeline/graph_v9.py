@@ -13,14 +13,14 @@ Total frameworks: 15 (was 10 in v7)
 
 from __future__ import annotations
 
+import re
 import time
 import uuid
-import re
 from dataclasses import dataclass, field
-from typing import Any, Dict, List
+from typing import Any
 
-from core.cognitive.loop.core.store import SingularityStore
 from core.cognitive.loop.core.classifier import classify_prompt
+from core.cognitive.loop.core.store import SingularityStore
 from core.cognitive.loop.pipeline.graph_v7 import ReasoningPipelineV7
 
 
@@ -308,7 +308,7 @@ class ReasoningPipelineV9(ReasoningPipelineV7):
                 },
                 duration_ms=state.pipeline_duration_ms
             )
-        except Exception as e:
+        except Exception:
             # Suppress expected non-fatal exception
             pass
         

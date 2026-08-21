@@ -1,6 +1,5 @@
-import pytest
-from pathlib import Path
 from core.skills.registry import SkillRegistry
+
 
 class DummyExecutor:
     def execute(self, name, instructions, query):

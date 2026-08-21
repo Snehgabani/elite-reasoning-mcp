@@ -2,7 +2,8 @@
 # Dual-Process Cognitive Router (Kahneman System 1 / System 2 Theory)
 
 import json
-from typing import Dict, Any
+from typing import Any, Dict
+
 
 class DualProcessRouter:
     def __init__(self):

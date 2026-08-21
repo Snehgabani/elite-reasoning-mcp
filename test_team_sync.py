@@ -1,13 +1,11 @@
 import os
 import subprocess
 import sys
-import threading
 import time
 
 import httpx
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), ".")))
-from core.integration.mcp_server import create_mcp_server
 from core.memory.persistent_store import EliteStore
 
 

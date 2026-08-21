@@ -1,7 +1,7 @@
 import json
 import os
 import time
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
 
 RECOVERY_FILE = ".elite_recovery.json"
 

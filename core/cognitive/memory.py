@@ -3,11 +3,13 @@
 # Cognee provides: permanent graph memory + fast session cache.
 
 import warnings
+
 warnings.filterwarnings("ignore")
 
-import asyncio
 import os
+
 from dotenv import load_dotenv
+
 load_dotenv()
 
 # ─────────────────────────────────────────────
@@ -88,7 +90,7 @@ def load_skill_library() -> list[str]:
         try:
             with open(filepath, "r", encoding="utf-8") as f:
                 skills.append(f"PRIMITIVE [{filepath}]:\n" + f.read())
-        except Exception as e:
+        except Exception:
             # Suppress expected non-fatal exception
             pass
     
@@ -97,7 +99,7 @@ def load_skill_library() -> list[str]:
         try:
             with open(filepath, "r", encoding="utf-8") as f:
                 skills.append(f"SKILL [{filepath}]:\n" + f.read())
-        except Exception as e:
+        except Exception:
             # Suppress expected non-fatal exception
             pass
     

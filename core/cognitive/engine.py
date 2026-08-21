@@ -4,29 +4,24 @@ Fuses Loop MCP (Meta-Cognitive Routing, Calibration, Bias Scan, Benchmarking)
 with Elite Singularity MCP (Closed-Loop StateGraph, AST Gating, Cryptographic Diffs).
 Includes Real-Time Task Tracker & Watchdog Telemetry.
 """
-import os
-import sys
-import json
-import time
 import hashlib
-import asyncio
-from typing import Dict, Any, List, Optional
+import json
+import os
+import time
+from typing import Any, Dict, Optional
 
-from core.cognitive.leverage.prm_verifier import ProcessRewardModel
+from core.cognitive.agent import build_reasoning_graph
+from core.cognitive.leverage.enforcer import GatedEnforcer
 from core.cognitive.leverage.lessons import LessonStore
 from core.cognitive.leverage.logic_verifier import LogicVerifier
-from core.cognitive.leverage.expert_panel import expert_panel as run_expert_panel
+from core.cognitive.leverage.prm_verifier import ProcessRewardModel
 from core.cognitive.leverage.self_discover import compose_reasoning_topology as _compose_topology
-from core.cognitive.leverage.think_on_graph import think_on_graph_search as _tog_search
-from core.cognitive.leverage.repo_graph import search_repo as _repo_search, impact_map as _repo_impact
-from core.cognitive.leverage.enforcer import GatedEnforcer
 from core.cognitive.leverage.task_watcher import TaskTracker
-from core.cognitive.agent import build_reasoning_graph
 
 # Loop imports
 from core.cognitive.loop.core.classifier import classify_prompt
-from core.cognitive.loop.pipeline.bias_scanner import run_bias_scan
 from core.cognitive.loop.core.store import SingularityStore
+from core.cognitive.loop.pipeline.bias_scanner import run_bias_scan
 
 
 class EliteCognitiveEngine:
@@ -206,7 +201,7 @@ class EliteCognitiveEngine:
                 value=float(quality_score),
                 unit="score"
             )
-        except Exception as e:
+        except Exception:
             # Suppress expected non-fatal exception
             pass
 

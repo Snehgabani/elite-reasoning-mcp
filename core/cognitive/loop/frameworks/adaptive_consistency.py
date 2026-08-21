@@ -131,6 +131,7 @@ def _greedy_clusters(answers: list[dict[str, Any]], sim_threshold: float = 0.5) 
 
 from concurrent.futures import ThreadPoolExecutor
 
+
 def run_adaptive_consensus(
     prompt: str,
     template: str,

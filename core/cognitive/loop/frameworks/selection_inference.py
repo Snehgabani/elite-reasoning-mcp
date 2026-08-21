@@ -9,8 +9,8 @@ Interpretable Logical Reasoning" (ICLR 2023)
 Results: +100% improvement over vanilla baseline, 7B outperforms 280B
 """
 
-from typing import List, Dict, Any, Optional
-from dataclasses import dataclass, field
+from dataclasses import dataclass
+from typing import Any, Dict, List
 
 
 @dataclass
@@ -233,7 +233,7 @@ class SelectionInferenceFramework:
         
         for step in result["reasoning_steps"]:
             trace += f"Step {step['step']}:\n"
-            trace += f"  Selection:\n"
+            trace += "  Selection:\n"
             for fact in step['selection']:
                 trace += f"    - {fact}\n"
             trace += f"  Inference: {step['inference']}\n"

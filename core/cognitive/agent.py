@@ -5,33 +5,33 @@
 import os
 import sys
 import warnings
+
 warnings.filterwarnings("ignore")
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from langgraph.graph import StateGraph, START, END
 from langgraph.checkpoint.memory import MemorySaver
-from core.cognitive.nodes import ReasoningState
+from langgraph.graph import END, START, StateGraph
+
 from core.cognitive.agent_nodes import (
     cognitive_router_node,
-    self_discover_node,
-    planner_node,
-    think_on_graph_node,
-    research_node,
-    fact_node,
-    epistemic_verifier_node,
-    self_rag_node,
-    reason_node,
-    prm_gate_node,
-    reflexion_node,
+    conclude_node,
     deterministic_executor_node,
+    epistemic_verifier_node,
     escalation_node,
+    fact_node,
+    planner_node,
+    prm_gate_node,
+    reason_node,
     red_team_node,
     reflect_node,
-    executor_node,
-    conclude_node,
-    backtrack_node,
+    reflexion_node,
+    research_node,
+    self_discover_node,
+    self_rag_node,
+    think_on_graph_node,
 )
+from core.cognitive.nodes import ReasoningState
 
 
 def route_after_prm_gate(state: ReasoningState) -> str:

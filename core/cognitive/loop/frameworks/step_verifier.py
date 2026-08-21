@@ -27,7 +27,7 @@ import json
 import re
 import time
 import urllib.request
-from typing import Any, Callable, Optional
+from typing import Any, Callable
 
 _LLM_PROXY_URL = "http://127.0.0.1:4096/v1/chat/completions"
 _LLM_MODEL = "gpt-oss:20b"
@@ -108,6 +108,7 @@ def _parse_verdict(text: str) -> dict[str, Any]:
 
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
+
 
 def verify_steps(
     prompt: str,

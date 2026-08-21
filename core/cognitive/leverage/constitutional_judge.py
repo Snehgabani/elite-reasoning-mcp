@@ -3,15 +3,13 @@
 
 import asyncio
 import os
-import re
-from typing import Dict, List, Tuple, Any
+from typing import Any, Dict, Tuple
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 CONSTITUTION_FILE = os.path.join(BASE_DIR, ".ai", "system", "constitution.xml")
 
-from core.cognitive.leverage.prm_verifier import ProcessRewardModel
 from core.cognitive.leverage.logic_verifier import LogicVerifier
-
+from core.cognitive.leverage.prm_verifier import ProcessRewardModel
 
 STRATEGY_TEMPLATES = [
     (

@@ -224,7 +224,7 @@ class ExecutableVerificationNode(NodeV5):
         tests.append({
             "name": "test_happy_path",
             "type": "code",
-            "code": f"""
+            "code": """
 def test_happy_path():
     # Test standard use case
     # TODO: Implement based on subproblems
@@ -238,7 +238,7 @@ def test_happy_path():
             tests.append({
                 "name": "test_edge_cases",
                 "type": "code",
-                "code": f"""
+                "code": """
 def test_edge_cases():
     # Test boundary conditions
     # TODO: Implement edge cases from subproblems
@@ -251,7 +251,7 @@ def test_edge_cases():
         tests.append({
             "name": "test_error_handling",
             "type": "code",
-            "code": f"""
+            "code": """
 def test_error_handling():
     # Test invalid inputs
     # TODO: Implement error cases
@@ -424,7 +424,7 @@ class CrossTaskLearner(NodeV5):
                 "intent": intent,
                 "techniques": ",".join(state.techniques_applied)
             })
-        except Exception as e:
+        except Exception:
             # Suppress expected non-fatal exception
             pass
         
@@ -490,7 +490,7 @@ class ConfidenceCalibrator(NodeV5):
                 "predicted": state.predicted_quality,
                 "actual": actual_quality
             })
-        except Exception as e:
+        except Exception:
             # Suppress expected non-fatal exception
             pass
         

@@ -1,7 +1,9 @@
+import random
 import time
 import uuid
-import random
+
 from core.memory.persistent_store import EliteStore
+
 
 class MockMCP:
     def __init__(self):
@@ -24,7 +26,7 @@ class EliteLooper:
         self.mcp = MockMCP()
         
         # Register tools to capture them
-        from core.tools import planning, auditing, analysis, graph_tools
+        from core.tools import analysis, auditing, graph_tools, planning
         planning.register(self.mcp, self.store)
         auditing.register(self.mcp, self.store)
         analysis.register(self.mcp, self.store)

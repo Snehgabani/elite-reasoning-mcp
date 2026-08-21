@@ -1,7 +1,10 @@
-from core.telemetry.evaluator import EliteEvaluator
-from app.config import ConfigLoader
 import os
+
 import pytest
+from core.telemetry.evaluator import EliteEvaluator
+
+from app.config import ConfigLoader
+
 
 # Skip actual deepeval execution in basic unit test as it requires LLM keys
 @pytest.mark.skipif(not os.getenv("OPENAI_API_KEY"), reason="DeepEval requires OPENAI_API_KEY to act as an LLM judge")

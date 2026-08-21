@@ -95,6 +95,7 @@ def _txt(resp) -> str:
 
 import asyncio
 
+
 async def _llm(messages, timeout_seconds: float = 1.0):
     try:
         return await asyncio.wait_for(SOLVER_LLM.ainvoke(messages), timeout=timeout_seconds)

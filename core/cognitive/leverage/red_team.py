@@ -1,6 +1,7 @@
 # src/leverage/red_team.py
 import json
-from typing import Dict, Any, List
+from typing import Any, Dict
+
 
 class DialecticalRedTeamer:
     def __init__(self):
@@ -27,7 +28,7 @@ class DialecticalRedTeamer:
             biases_flagged.append("Confirmation Bias: Premise assumes default operating state.")
             vulnerabilities.append("Fails under network partitioning or resource contention.")
 
-        antithesis = f"HOSTILE RED TEAM ATTACK:\n" + "\n".join([f"- {b}" for b in biases_flagged]) + "\nVulnerabilities:\n" + "\n".join([f"- {v}" for v in vulnerabilities])
+        antithesis = "HOSTILE RED TEAM ATTACK:\n" + "\n".join([f"- {b}" for b in biases_flagged]) + "\nVulnerabilities:\n" + "\n".join([f"- {v}" for v in vulnerabilities])
 
         return {
             "thesis": thesis,
@@ -37,7 +38,7 @@ class DialecticalRedTeamer:
         }
 
     async def synthesize(self, thesis: str, antithesis: str) -> Dict[str, Any]:
-        synthesis = f"HEGELIAN SYNTHESIS:\nReconciled Thesis and Antithesis. Addressed cognitive biases and hardened premises against counter-evidence.\nFinal Hardened Posture: Validated across boundary conditions with defensive guards."
+        synthesis = "HEGELIAN SYNTHESIS:\nReconciled Thesis and Antithesis. Addressed cognitive biases and hardened premises against counter-evidence.\nFinal Hardened Posture: Validated across boundary conditions with defensive guards."
         return {
             "thesis": thesis,
             "antithesis": antithesis,
