@@ -7,6 +7,25 @@
 
 ---
 
+## Implementation progress
+
+Last updated: 2026-08-22
+
+- [x] Add a machine-validated claims registry and generated README evidence block.
+- [x] Correct pilot/RCT wording and primary-endpoint significance handling.
+- [x] Add source spans, explicit/inferred provenance, verifier hints, and confidence to task constraints.
+- [x] Add four-state verification results and content-addressed evidence bound to subject digests.
+- [x] Stop the core profile from loading the legacy cognitive catalog during startup.
+- [x] Make deterministic cognitive exports lazy so syntax checks do not load the graph engine.
+- [ ] Require independent command/diff evidence before code-workflow outcomes can return `DONE`.
+- [ ] Add a Git-diff scope verifier and verifier registry.
+- [ ] Split the gateway and server composition modules along the target architecture.
+- [ ] Decompose persistence and add migration backup/rollback fixtures.
+- [ ] Reduce default dependencies and test a minimal installed wheel across operating systems.
+- [ ] Build the manifest-driven multi-arm evaluation harness and frozen task corpus.
+- [ ] Complete adversarial security, memory-poisoning, and corruption suites.
+- [ ] Run the design-partner and external-replication program.
+
 ## 1. Executive decision
 
 The project should stop expanding its catalog of reasoning methods and concentrate engineering effort on three production capabilities:

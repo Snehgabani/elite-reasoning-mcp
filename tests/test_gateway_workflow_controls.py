@@ -62,8 +62,19 @@ async def test_gateway_constraint_and_syntax_verification(tmp_path):
     mcp = create_mcp_server(str(tmp_path / "brain"))
     tools = mcp._tool_manager._tools
 
-    syntax = await tools["elite_verify"].fn(check="syntax", code="def add(a, b):\n    return a + b\n")
+    code = "def add(a, b):\n    return a + b\n"
+    syntax = await tools["elite_verify"].fn(check="syntax", code=code)
     assert syntax.data["passed"] is True
+    assert syntax.verification_status.value == "PASS"
+    assert syntax.subject_digest.startswith("sha256:")
+    assert syntax.data["subject_digest"] == syntax.subject_digest
+    assert syntax.data["evidence_ids"] == [syntax.evidence[0].id]
+    assert syntax.evidence[0].subject_digest == syntax.subject_digest
+
+    repeated = await tools["elite_verify"].fn(check="syntax", code=code)
+    changed = await tools["elite_verify"].fn(check="syntax", code=code + "\n# changed")
+    assert repeated.evidence[0].id == syntax.evidence[0].id
+    assert changed.subject_digest != syntax.subject_digest
 
     constraints = await tools["elite_verify"].fn(
         check="constraints",
@@ -90,6 +101,13 @@ async def test_gateway_constraint_and_syntax_verification(tmp_path):
     )
     assert outcomes.data["action"] in {"DONE", "REPEAT"}
     assert "passed" in outcomes.data
+    assert outcomes.verification_status.value in {"PASS", "FAIL"}
+    assert outcomes.schema_version == "1.1"
+
+    not_executed = await tools["elite_verify"].fn(check="tests", command="pytest -q")
+    assert not_executed.verification_status.value == "NOT_CHECKED"
+    assert not_executed.data["executed"] is False
+    assert not_executed.data["verification_status"] == "NOT_CHECKED"
 
 
 @pytest.mark.asyncio

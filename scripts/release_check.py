@@ -42,6 +42,7 @@ FOCUSED_PYRIGHT = [
     "core/reasoning/task_contract.py",
     "core/reasoning/constraint_check.py",
     "core/reasoning/playbook.py",
+    "core/verification/models.py",
     "core/evidence/grounded_search.py",
     "core/eval/blind_protocol.py",
     "core/tools/errors.py",

@@ -1,3 +1,7 @@
+import json
+import subprocess
+import sys
+
 import pytest
 
 from core.integration.mcp_server import create_mcp_server
@@ -55,6 +59,39 @@ async def test_core_tools_run_through_middleware_with_structured_results(tmp_pat
 
     with pytest.raises(EliteToolError, match="validation_error"):
         await tools["elite_progress"].fn(run_id="missing")
+
+
+def test_default_startup_does_not_import_legacy_cognitive_runtime(tmp_path):
+    script = """
+import json
+import sys
+from core.integration.mcp_server import create_mcp_server
+server = create_mcp_server(sys.argv[1], tool_profile="core")
+forbidden = sorted(name for name in sys.modules if name == "core.cognitive" or name.startswith("core.cognitive."))
+print(json.dumps({"tools": sorted(server._tool_manager._tools), "forbidden": forbidden}))
+"""
+    completed = subprocess.run(
+        [sys.executable, "-c", script, str(tmp_path / "isolated-brain")],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    payload = json.loads(completed.stdout.strip().splitlines()[-1])
+    assert set(payload["tools"]) == CORE_TOOLS
+    assert payload["forbidden"] == []
+
+
+def test_deterministic_gate_import_does_not_load_graph_engine():
+    script = """
+import json
+import sys
+from core.cognitive.leverage.deterministic_gates import validate_syntax
+assert validate_syntax("x = 1", "python").passed
+forbidden = sorted(name for name in sys.modules if name == "core.cognitive.engine" or name.startswith("langgraph"))
+print(json.dumps(forbidden))
+"""
+    completed = subprocess.run([sys.executable, "-c", script], check=True, capture_output=True, text=True)
+    assert json.loads(completed.stdout.strip()) == []
 
 
 def test_legacy_profile_retains_explicit_compatibility_surface(tmp_path):

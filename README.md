@@ -173,7 +173,7 @@ Skip tool calls for trivial acknowledgements like "ok", "thanks", "yes", "no".
 ## 🚀 Features
 
 ### 🧠 Evidence-Gated Workflow
-When the IDE calls `elite_prepare`, the server creates a durable plan with risk-aware validation gates, trusted memory context, and a compact typed response. `elite_progress` rejects out-of-order completion and terminal claims without evidence.
+When the IDE calls `elite_prepare`, the server creates a durable plan with risk-aware validation gates, trusted memory context, and a compact typed response. `elite_progress` rejects out-of-order completion and terminal claims without evidence. Verification calls distinguish `PASS`, `FAIL`, `UNKNOWN`, and `NOT_CHECKED`; evidence IDs are bound to a SHA-256 digest of the exact draft, code, query, or command checked so stale evidence is visible.
 
 ### 🛡️ Anti-Pattern Memory
 Past mistakes are recorded with root-cause analysis and automatically surfaced when similar patterns appear. Your AI literally learns from its errors.

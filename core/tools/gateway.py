@@ -20,6 +20,7 @@ from core.orchestration.workflow_run import build_workflow_run
 from core.runtime import runtime_identity
 from core.tools.doctor import build_doctor_report
 from core.tools.errors import validation_error
+from core.verification.models import EvidenceRecord, VerificationStatus, evidence_record, status_from_bool, subject_digest
 
 _ALLOWED_TEST_PREFIXES = (
     "pytest",
@@ -115,8 +116,19 @@ class ProgressResult(BaseModel):
 
 
 class VerifyResult(BaseModel):
+    """Transport result plus an explicit evidence outcome.
+
+    `status=ok` means the MCP call returned normally. `verification_status`
+    describes what the check established and must be used for completion gates.
+    """
+
     status: Literal["ok"] = "ok"
+    schema_version: str = "1.1"
     check: str
+    verification_status: VerificationStatus = VerificationStatus.NOT_CHECKED
+    subject_digest: str = ""
+    evidence: list[EvidenceRecord] = Field(default_factory=list)
+    limitations: list[str] = Field(default_factory=list)
     data: dict[str, Any]
     warnings: list[str] = Field(default_factory=list)
 
@@ -188,6 +200,40 @@ def _workflow_steps(run: dict[str, Any]) -> list[WorkflowStep]:
         )
         for index, step in enumerate(run.get("steps", []), 1)
     ]
+
+
+def _checked_result(
+    *,
+    check: str,
+    status: VerificationStatus,
+    data: dict[str, Any],
+    subject_kind: str,
+    subject: str,
+    producer: str,
+    evidence_payload: dict[str, Any] | None = None,
+    limitations: list[str] | None = None,
+) -> VerifyResult:
+    digest = subject_digest(subject_kind, subject)
+    limits = list(limitations or [])
+    record = evidence_record(
+        kind=check,
+        producer=producer,
+        subject_digest_value=digest,
+        payload=evidence_payload if evidence_payload is not None else data,
+        limitations=limits,
+    )
+    enriched = dict(data)
+    enriched.setdefault("verification_status", status.value)
+    enriched.setdefault("subject_digest", digest)
+    enriched.setdefault("evidence_ids", [record.id])
+    return VerifyResult(
+        check=check,
+        verification_status=status,
+        subject_digest=digest,
+        evidence=[record],
+        limitations=limits,
+        data=enriched,
+    )
 
 
 def register(mcp, store, profile) -> None:
@@ -339,16 +385,63 @@ def register(mcp, store, profile) -> None:
             if normalized_check == "outcomes":
                 if not draft.strip():
                     raise validation_error("outcomes check needs draft.")
-                return VerifyResult(check="outcomes", data=verify_outcomes(draft, contract))
+                data = verify_outcomes(draft, contract)
+                return _checked_result(
+                    check="outcomes",
+                    status=status_from_bool(bool(data["passed"])),
+                    data=data,
+                    subject_kind="draft",
+                    subject=draft,
+                    producer="core.reasoning.playbook.verify_outcomes",
+                    evidence_payload={
+                        "passed": bool(data["passed"]),
+                        "action": str(data["action"]),
+                        "unmet": list(data["unmet"]),
+                    },
+                    limitations=[
+                        "Draft checks do not prove repository state, command execution, or runtime behavior."
+                    ],
+                )
             report = check_draft(draft, contract)
-            return VerifyResult(check="constraints", data=report.to_dict())
+            return _checked_result(
+                check="constraints",
+                status=status_from_bool(report.passed),
+                data=report.to_dict(),
+                subject_kind="draft",
+                subject=draft,
+                producer="core.reasoning.constraint_check.check_draft",
+                evidence_payload={"passed": report.passed, "unmet": list(report.unmet)},
+                limitations=["Lexical and format constraints inspect only the supplied draft."],
+            )
         if normalized_check == "evidence":
             from core.evidence.grounded_search import grounded_evidence
 
             if not query.strip():
                 raise validation_error("query is required for check=evidence.")
             evidence = await grounded_evidence(query.strip())
-            return VerifyResult(check="evidence", data=evidence.to_dict())
+            data = evidence.to_dict()
+            evidence_status = (
+                VerificationStatus.PASS if evidence.quotes and not evidence.degraded else VerificationStatus.UNKNOWN
+            )
+            limitations = list(evidence.uncertain)
+            if evidence.degraded:
+                limitations.append("Retrieval is degraded; evidence coverage is incomplete.")
+            return _checked_result(
+                check="evidence",
+                status=evidence_status,
+                data=data,
+                subject_kind="query",
+                subject=query.strip(),
+                producer="core.evidence.grounded_search.grounded_evidence",
+                evidence_payload={
+                    "sources_fetched": evidence.sources_fetched,
+                    "sources_readable": evidence.sources_readable,
+                    "quote_count": len(evidence.quotes),
+                    "degraded": evidence.degraded,
+                    "retrieved_at": evidence.retrieved_at,
+                },
+                limitations=list(dict.fromkeys(limitations)),
+            )
         if normalized_check == "syntax":
             from core.cognitive.leverage.deterministic_gates import validate_syntax
 
@@ -356,10 +449,42 @@ def register(mcp, store, profile) -> None:
             if not target.strip():
                 raise validation_error("code or draft is required for check=syntax.")
             result = validate_syntax(target, language or "python")
-            return VerifyResult(check="syntax", data=result.to_dict())
+            data = result.to_dict()
+            return _checked_result(
+                check="syntax",
+                status=status_from_bool(bool(data.get("passed"))),
+                data=data,
+                subject_kind=f"source:{language or 'python'}",
+                subject=target,
+                producer="core.cognitive.leverage.deterministic_gates.validate_syntax",
+                limitations=["Syntax and selected static rules do not prove runtime correctness or security."],
+            )
         if normalized_check == "tests":
             data = _run_allowlisted_command(command)
-            return VerifyResult(check="tests", data=data)
+            if data.get("executed"):
+                test_status = status_from_bool(bool(data.get("passed")))
+            elif str(data.get("reason", "")).startswith("set ELITE_ALLOW_TEST_COMMAND") or "allowlist" in str(
+                data.get("reason", "")
+            ):
+                test_status = VerificationStatus.NOT_CHECKED
+            else:
+                test_status = VerificationStatus.UNKNOWN
+            return _checked_result(
+                check="tests",
+                status=test_status,
+                data=data,
+                subject_kind="test_command",
+                subject=command.strip(),
+                producer="core.tools.gateway._run_allowlisted_command",
+                evidence_payload={
+                    "command": data.get("command", command.strip()),
+                    "executed": bool(data.get("executed")),
+                    "returncode": data.get("returncode"),
+                    "passed": bool(data.get("passed")),
+                    "reason": data.get("reason", ""),
+                },
+                limitations=([] if data.get("executed") else [str(data.get("reason") or "Command was not executed.")]),
+            )
         if normalized_check == "grounding":
             from core.evidence.grounded_search import grounded_evidence, grounding_check
 
@@ -369,9 +494,34 @@ def register(mcp, store, profile) -> None:
             evidence = await grounded_evidence(query.strip())
             report = grounding_check(draft, evidence)
             report["evidence"] = evidence.to_dict()
-            return VerifyResult(check="grounding", data=report)
+            definitive_failure = bool(report.get("hallucinated_urls") or report.get("unsupported_quotes"))
+            if definitive_failure:
+                grounding_status = VerificationStatus.FAIL
+            elif evidence.degraded:
+                grounding_status = VerificationStatus.UNKNOWN
+            else:
+                grounding_status = status_from_bool(bool(report.get("passed")))
+            limitations = list(evidence.uncertain)
+            if evidence.degraded:
+                limitations.append("Grounding coverage is incomplete because retrieval is degraded.")
+            return _checked_result(
+                check="grounding",
+                status=grounding_status,
+                data=report,
+                subject_kind="grounding_draft",
+                subject=f"{query.strip()}\0{draft}",
+                producer="core.evidence.grounded_search.grounding_check",
+                evidence_payload={
+                    "passed": bool(report.get("passed")),
+                    "hallucinated_urls": list(report.get("hallucinated_urls") or []),
+                    "unsupported_quotes": list(report.get("unsupported_quotes") or []),
+                    "degraded": evidence.degraded,
+                    "quote_count": len(evidence.quotes),
+                },
+                limitations=list(dict.fromkeys(limitations)),
+            )
         raise validation_error(
-            "check must be doctor, capabilities, constraints, evidence, syntax, tests, or grounding."
+            "check must be doctor, capabilities, constraints, evidence, syntax, tests, grounding, or outcomes."
         )
 
     @mcp.tool(name="elite_memory", annotations=_MEMORY_ANNOTATIONS)

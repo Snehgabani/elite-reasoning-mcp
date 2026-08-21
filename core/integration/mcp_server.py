@@ -139,14 +139,13 @@ def create_mcp_server(brain_dir: str, tool_profile: str | None = None) -> FastMC
         _register_tools_safely(mcp, store)
         logger.info("Cognitive singularity tools registered (MIX MCP drop-in)")
     else:
+        # The default runtime must not import the legacy cognitive catalog only
+        # to register and immediately discard it. Besides wasting startup time,
+        # that path made optional graph/model dependencies mandatory in practice.
         from core.tools import gateway
 
         gateway.register(mcp, store, profile)
-
-        from core.tools import cognitive_tools
-
-        cognitive_tools.register(mcp, store, profile)
-        logger.info("Core gateway and cognitive tools registered", extra={"action": "core_tools_registered"})
+        logger.info("Core gateway tools registered", extra={"action": "core_tools_registered"})
 
     # ── Build Middleware Chain (Blueprint #3: replaces monkey-patch) ──
     # Opus R2: Correct order matters critically:

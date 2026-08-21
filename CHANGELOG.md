@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Machine-validated public claims registry with a generated README evidence summary and release gate.
 - Source text, character spans, inferred/explicit provenance, verifier hints, and extraction confidence on compiled constraints.
 - Versioned task-contract payloads (`schema_version=1.1`) with backward-compatible persisted-contract loading.
+- Four-state verification results (`PASS`, `FAIL`, `UNKNOWN`, `NOT_CHECKED`) with subject digests and content-addressed evidence IDs.
 - Product hardening roadmap covering the evidence-first core, architecture, evaluation, security, and adoption milestones.
 
 ### Changed
@@ -18,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Made the paired binary McNemar endpoint control significance instead of allowing a secondary Wilcoxon score to override it.
 - Replaced unsupported performance and security language with scoped implementation claims and explicit limitations.
 - Isolated the legacy cognitive smoke script from the registered `BENCHMARK_REPORT.md` artifact.
+- Stopped the core profile from importing and registering the legacy cognitive catalog before discarding it.
+- Made `core.cognitive` compatibility exports lazy so deterministic checks do not load the graph engine.
 
 ## [2.8.0] - 2026-08-21
 
