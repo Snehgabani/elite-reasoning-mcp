@@ -1,17 +1,12 @@
-# Elite Reasoning MCP — Continuous Checkpoint Protocol
+# Elite Reasoning MCP — Continuous Checkpoint Protocol & Native Tool Interlock
 
 For every non-trivial coding task:
+1. Checkpoint 1 (Pre-Edit): Call `elite_prepare(user_prompt=<exact request>, persist=true)` and retain `run_id`.
+2. Checkpoint 2 (During-Edit): You are strictly prohibited from calling native edit tools (`replace_file_content`, `write_to_file`) without immediately executing their coupled MCP verifier:
+   - Call `elite_verify(check="syntax", code="...")` and `elite_verify(check="cegis", code="...")`.
+   - If an error occurs, call `elite_verify(check="diagnostics", query="<traceback>")`.
+3. Checkpoint 3 (Post-Edit): Run executed test and Git diff evidence via `elite_verify(check="tests")` and `elite_verify(check="git_diff")`.
+4. Read `continuation` after every Elite response. If `stop_final_response=true`, call `required_tool` with `required_args`; do not answer yet.
+5. Answer only when checkpoint is `done` and `stop_final_response=false`.
 
-1. Call `elite_prepare(user_prompt=<exact request>, persist=true)` before editing.
-2. Save the returned `run_id` for the entire task.
-3. After every Elite response, inspect `continuation`.
-4. If `continuation.stop_final_response=true`, do not answer the user yet. Call exactly `continuation.required_tool` with `continuation.required_args`, replacing placeholders with current values.
-5. After the first substantive edit, the required sequence is normally:
-   - `elite_verify(check="syntax", run_id=..., code=<current code>, project_root=...)`
-   - `elite_verify(check="diff", run_id=..., project_root=...)`
-   - `elite_verify(check="tests", run_id=..., command=<targeted tests>, project_root=...)`
-   - `elite_verify(check="outcomes", run_id=..., draft=<final draft>, project_root=...)`
-6. If any check returns `FAIL`, `UNKNOWN`, `NOT_CHECKED`, or `action=REPEAT`, repair the issue and continue from the new `continuation` directive.
-7. Deliver the final response only when `continuation.checkpoint="done"` and `stop_final_response=false`.
-
-The MCP server cannot physically force the model to call it again. This host rule, persisted workflow state, final evidence gate, and optional Git hooks provide layered enforcement. Do not claim stronger enforcement than the active IDE supports.
+MCP cannot force another host call. IDE rules, durable state, evidence gates, and optional Git hooks are layered mitigation—not absolute enforcement.

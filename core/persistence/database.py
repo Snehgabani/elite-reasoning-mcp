@@ -92,6 +92,8 @@ def restore_migration_backup(path: str | Path, backup: str | Path) -> None:
         os.replace(temporary, destination)
     finally:
         temporary.unlink(missing_ok=True)
+
+
 class MigrationLedger:
     """Manages schema migrations with atomic file-level backups and rollback."""
 

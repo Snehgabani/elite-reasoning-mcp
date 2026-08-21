@@ -32,7 +32,9 @@ class MultiIDEInstaller:
             self.binary_path = binary_path
         else:
             default_path = str(self.home / ".local/share/uv/tools/elite-reasoning-mcp/bin/elite-reasoning-mcp")
-            self.binary_path = default_path if os.path.exists(default_path) else shutil.which("elite-reasoning-mcp") or default_path
+            self.binary_path = (
+                default_path if os.path.exists(default_path) else shutil.which("elite-reasoning-mcp") or default_path
+            )
 
     def get_ide_targets(self) -> List[IDEConfigTarget]:
         return [
@@ -121,7 +123,9 @@ class MultiIDEInstaller:
     def install_to_target(self, target: IDEConfigTarget) -> Dict[str, Any]:
         rendered = self.render_target(target)
         target.config_path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-        fd, temporary_name = tempfile.mkstemp(prefix=target.config_path.name + ".", suffix=".tmp", dir=target.config_path.parent)
+        fd, temporary_name = tempfile.mkstemp(
+            prefix=target.config_path.name + ".", suffix=".tmp", dir=target.config_path.parent
+        )
         temporary = Path(temporary_name)
         try:
             with os.fdopen(fd, "w", encoding="utf-8") as handle:

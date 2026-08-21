@@ -104,7 +104,9 @@ class VerifierRegistry:
         if name in self._verifiers and not allow_replace:
             raise ValueError(f"verifier already registered: {name}")
         self._verifiers[name] = verifier
-        kinds = default_for_kinds if default_for_kinds is not None else getattr(verifier, "supported_requirement_kinds", ())
+        kinds = (
+            default_for_kinds if default_for_kinds is not None else getattr(verifier, "supported_requirement_kinds", ())
+        )
         for kind in kinds:
             self._kind_mapping.setdefault(kind, name)
 
@@ -240,7 +242,9 @@ def _gate_outcomes(
             if not expected_snapshot:
                 unmet.append("run_tests: passing test evidence is not bound to a repository snapshot")
             elif not project_root.strip():
-                unmet.append("run_tests: project_root is required to prove the tested repository state is still current")
+                unmet.append(
+                    "run_tests: project_root is required to prove the tested repository state is still current"
+                )
             else:
                 _, current_snapshot_digest, limitation = _repository_snapshot(project_root)
                 if limitation:
@@ -587,7 +591,10 @@ class DiagnosticVerifier:
             subject_kind="diagnostic_input",
             subject=f"{request.query}\0{request.code}",
             producer="core.verification.diagnostics.extract_diagnostic_slice",
-            evidence_payload={"error_type": diagnostic.error_type, "failing_line_number": diagnostic.failing_line_number},
+            evidence_payload={
+                "error_type": diagnostic.error_type,
+                "failing_line_number": diagnostic.failing_line_number,
+            },
             limitations=("Diagnostic slicing structures an error; it does not verify a repair.",),
         )
 

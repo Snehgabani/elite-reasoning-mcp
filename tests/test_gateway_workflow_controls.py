@@ -151,7 +151,9 @@ async def test_outcomes_require_fresh_persisted_test_and_repository_evidence(tmp
     subprocess.run(["git", "-C", str(repo), "config", "user.name", "Elite Tests"], check=True)
     (repo / ".gitignore").write_text(".pytest_cache/\n__pycache__/\n", encoding="utf-8")
     (repo / "app.py").write_text("def value():\n    return 1\n", encoding="utf-8")
-    (repo / "test_app.py").write_text("from app import value\n\ndef test_value():\n    assert value() == 2\n", encoding="utf-8")
+    (repo / "test_app.py").write_text(
+        "from app import value\n\ndef test_value():\n    assert value() == 2\n", encoding="utf-8"
+    )
     subprocess.run(["git", "-C", str(repo), "add", "."], check=True)
     subprocess.run(["git", "-C", str(repo), "commit", "-qm", "fixture"], check=True)
     (repo / "app.py").write_text("def value():\n    return 2\n", encoding="utf-8")
@@ -166,9 +168,7 @@ async def test_outcomes_require_fresh_persisted_test_and_repository_evidence(tmp
     )
     draft = "Updated app.py and ran pytest; 1 test passed."
 
-    missing = await verify(
-        check="outcomes", run_id=prepared.run_id, draft=draft, project_root=str(repo)
-    )
+    missing = await verify(check="outcomes", run_id=prepared.run_id, draft=draft, project_root=str(repo))
     assert missing.data["action"] == "REPEAT"
     assert any("no independently executed" in item for item in missing.data["unmet"])
     assert any("syntax" in item for item in missing.data["unmet"])
@@ -201,24 +201,18 @@ async def test_outcomes_require_fresh_persisted_test_and_repository_evidence(tmp
     second_run = await mcp._tool_manager._tools["elite_prepare"].fn(
         user_prompt="Fix code only app.py. Must run pytest.", persist=True
     )
-    replay_attempt = await verify(
-        check="outcomes", run_id=second_run.run_id, draft=draft, project_root=str(repo)
-    )
+    replay_attempt = await verify(check="outcomes", run_id=second_run.run_id, draft=draft, project_root=str(repo))
     assert replay_attempt.data["action"] == "REPEAT"
     assert replay_attempt.data["evidence_gate"]["accepted_evidence_ids"] == []
 
-    complete = await verify(
-        check="outcomes", run_id=prepared.run_id, draft=draft, project_root=str(repo)
-    )
+    complete = await verify(check="outcomes", run_id=prepared.run_id, draft=draft, project_root=str(repo))
     assert complete.data["action"] == "DONE"
     assert complete.data["evidence_gate"]["accepted_evidence_ids"] == [tests.evidence[0].id]
     assert complete.continuation["checkpoint"] == "done"
     assert complete.continuation["stop_final_response"] is False
 
     (repo / "app.py").write_text("def value():\n    return 3\n", encoding="utf-8")
-    stale = await verify(
-        check="outcomes", run_id=prepared.run_id, draft=draft, project_root=str(repo)
-    )
+    stale = await verify(check="outcomes", run_id=prepared.run_id, draft=draft, project_root=str(repo))
     assert stale.data["action"] == "REPEAT"
     assert any("changed after" in item for item in stale.data["unmet"])
 

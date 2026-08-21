@@ -138,7 +138,9 @@ class DoubleBlindRCTRunner:
         """Generate an explicitly limited internal-fixture pilot report."""
         sc = results["scorecard"]
         trials = results["trials"]
-        primary_label = "significant at alpha=0.05" if sc["statistically_significant"] else "not significant at alpha=0.05"
+        primary_label = (
+            "significant at alpha=0.05" if sc["statistically_significant"] else "not significant at alpha=0.05"
+        )
 
         lines = [
             "# Internal Fixture Pilot Report",

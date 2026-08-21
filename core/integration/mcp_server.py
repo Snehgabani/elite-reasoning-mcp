@@ -1271,7 +1271,9 @@ async def _run_demo(server) -> dict[str, Any]:
     passing_draft = '{"ok":true,"reason":"requirements satisfied"}'
     passing = await tools["elite_verify"].fn(check="constraints", query=prompt, draft=passing_draft)
     return {
-        "status": "ok" if failing.verification_status.value == "FAIL" and passing.verification_status.value == "PASS" else "failed",
+        "status": "ok"
+        if failing.verification_status.value == "FAIL" and passing.verification_status.value == "PASS"
+        else "failed",
         "offline": True,
         "persisted": prepared.persisted,
         "tool_count": len(tools),
@@ -1379,7 +1381,11 @@ def main(argv: list[str] | None = None) -> int:
         except IDEConfigError as exc:
             print(str(exc), file=sys.stderr)
             return 2
-        print(json.dumps(result, indent=2, sort_keys=True) if args.json or args.dry_run else f"Installed {result['ide']}: {result['path']}")
+        print(
+            json.dumps(result, indent=2, sort_keys=True)
+            if args.json or args.dry_run
+            else f"Installed {result['ide']}: {result['path']}"
+        )
         return 0
 
     server = create_mcp_server(args.brain_dir, tool_profile=args.tool_profile)
@@ -1402,7 +1408,9 @@ def main(argv: list[str] | None = None) -> int:
         if args.json:
             print(json.dumps(report, indent=2, sort_keys=True))
         else:
-            print(f"# Workflow Evidence: {args.run_id}\n\nStatus: `{report['workflow_status']}`\n\nEvidence records: {len(evidence)}")
+            print(
+                f"# Workflow Evidence: {args.run_id}\n\nStatus: `{report['workflow_status']}`\n\nEvidence records: {len(evidence)}"
+            )
             for item in evidence:
                 print(f"- `{item['verification_status']}` {item['check_kind']} — `{item['id']}`")
         return 0

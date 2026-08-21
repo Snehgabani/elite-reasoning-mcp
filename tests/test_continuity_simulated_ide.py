@@ -17,7 +17,9 @@ def _repo(tmp_path: Path) -> Path:
     subprocess.run(["git", "-C", str(repo), "config", "user.name", "Simulated IDE"], check=True)
     (repo / ".gitignore").write_text(".pytest_cache/\n__pycache__/\n", encoding="utf-8")
     (repo / "app.py").write_text("def value():\n    return 1\n", encoding="utf-8")
-    (repo / "test_app.py").write_text("from app import value\n\ndef test_value():\n    assert value() == 2\n", encoding="utf-8")
+    (repo / "test_app.py").write_text(
+        "from app import value\n\ndef test_value():\n    assert value() == 2\n", encoding="utf-8"
+    )
     subprocess.run(["git", "-C", str(repo), "add", "."], check=True)
     subprocess.run(["git", "-C", str(repo), "commit", "-qm", "fixture"], check=True)
     (repo / "app.py").write_text("def value():\n    return 2\n", encoding="utf-8")
@@ -37,9 +39,7 @@ def simulated_ide(tmp_path, monkeypatch):
 @pytest.mark.asyncio
 async def test_prepare_only_amnesiac_is_left_at_a_blocking_mid_work_checkpoint(simulated_ide):
     _, tools = simulated_ide
-    prepared = await tools["elite_prepare"].fn(
-        user_prompt="Fix code only app.py. Must run pytest.", persist=True
-    )
+    prepared = await tools["elite_prepare"].fn(user_prompt="Fix code only app.py. Must run pytest.", persist=True)
 
     assert prepared.continuation["checkpoint"] == "verify_changed_code"
     assert prepared.continuation["required_tool"] == "elite_verify"
@@ -49,9 +49,7 @@ async def test_prepare_only_amnesiac_is_left_at_a_blocking_mid_work_checkpoint(s
 @pytest.mark.asyncio
 async def test_agent_that_jumps_from_prepare_to_final_answer_is_rejected(simulated_ide):
     repo, tools = simulated_ide
-    prepared = await tools["elite_prepare"].fn(
-        user_prompt="Fix code only app.py. Must run pytest.", persist=True
-    )
+    prepared = await tools["elite_prepare"].fn(user_prompt="Fix code only app.py. Must run pytest.", persist=True)
     shortcut = await tools["elite_verify"].fn(
         check="outcomes",
         run_id=prepared.run_id,
@@ -68,9 +66,7 @@ async def test_agent_that_jumps_from_prepare_to_final_answer_is_rejected(simulat
 @pytest.mark.asyncio
 async def test_context_dilution_does_not_erase_required_next_call(simulated_ide):
     _, tools = simulated_ide
-    prepared = await tools["elite_prepare"].fn(
-        user_prompt="Fix code only app.py. Must run pytest.", persist=True
-    )
+    prepared = await tools["elite_prepare"].fn(user_prompt="Fix code only app.py. Must run pytest.", persist=True)
 
     # Twenty simulated host reasoning/file-navigation turns occur without Elite.
     # On re-entry, durable state still returns the exact missed checkpoint.
@@ -84,9 +80,7 @@ async def test_context_dilution_does_not_erase_required_next_call(simulated_ide)
 async def test_compliant_agent_is_chained_through_all_checkpoints(simulated_ide):
     repo, tools = simulated_ide
     verify = tools["elite_verify"].fn
-    prepared = await tools["elite_prepare"].fn(
-        user_prompt="Fix code only app.py. Must run pytest.", persist=True
-    )
+    prepared = await tools["elite_prepare"].fn(user_prompt="Fix code only app.py. Must run pytest.", persist=True)
     run_id = prepared.run_id
 
     syntax = await verify(
@@ -119,9 +113,7 @@ async def test_compliant_agent_is_chained_through_all_checkpoints(simulated_ide)
 async def test_post_verification_edit_reopens_earliest_stale_checkpoint(simulated_ide):
     repo, tools = simulated_ide
     verify = tools["elite_verify"].fn
-    prepared = await tools["elite_prepare"].fn(
-        user_prompt="Fix code only app.py. Must run pytest.", persist=True
-    )
+    prepared = await tools["elite_prepare"].fn(user_prompt="Fix code only app.py. Must run pytest.", persist=True)
     run_id = prepared.run_id
     await verify(
         check="syntax",

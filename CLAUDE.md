@@ -1,12 +1,12 @@
-# Elite Reasoning MCP — Continuous Checkpoint Protocol
+# Elite Reasoning MCP — Continuous Checkpoint Protocol & Native Tool Interlock
 
 For every non-trivial coding task:
+1. Checkpoint 1 (Pre-Edit): Call `elite_prepare(user_prompt=<exact request>, persist=true)` and retain `run_id`.
+2. Checkpoint 2 (During-Edit): You are strictly prohibited from calling native edit tools (`replace_file_content`, `write_to_file`) without immediately executing their coupled MCP verifier:
+   - Call `elite_verify(check="syntax", code="...")` and `elite_verify(check="cegis", code="...")`.
+   - If an error occurs, call `elite_verify(check="diagnostics", query="<traceback>")`.
+3. Checkpoint 3 (Post-Edit): Run executed test and Git diff evidence via `elite_verify(check="tests")` and `elite_verify(check="git_diff")`.
+4. Read `continuation` after every Elite response. If `stop_final_response=true`, call `required_tool` with `required_args`; do not answer yet.
+5. Answer only when checkpoint is `done` and `stop_final_response=false`.
 
-1. Call `elite_prepare(user_prompt=<exact request>, persist=true)` before editing and retain its `run_id`.
-2. Read the `continuation` object returned by every Elite tool call.
-3. When `continuation.stop_final_response=true`, do not answer the user. Invoke `continuation.required_tool` using `continuation.required_args` with current code, repository root, tests, or draft substituted for placeholders.
-4. The normal lifecycle is `prepare → syntax after edit → Git scope → executed tests → outcomes`.
-5. A `FAIL`, `UNKNOWN`, `NOT_CHECKED`, `REPEAT`, or stale-evidence response means repair and follow the newly returned continuation directive.
-6. Respond to the user only when `continuation.checkpoint="done"` and `stop_final_response=false`.
-
-This rule addresses model tool amnesia through repeated host-visible directives. MCP alone cannot force a host model to make another call, so never describe this as absolute enforcement unless an active external hook blocks the action.
+MCP cannot force another host call. IDE rules, durable state, evidence gates, and optional Git hooks are layered mitigation—not absolute enforcement.

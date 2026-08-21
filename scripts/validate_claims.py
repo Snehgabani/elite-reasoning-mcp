@@ -88,9 +88,7 @@ def _parse_timestamp(value: object, field: str, claim_id: str) -> datetime:
     return parsed
 
 
-def validate_registry(
-    registry: dict[str, Any], *, root: Path = ROOT, now: datetime | None = None
-) -> list[str]:
+def validate_registry(registry: dict[str, Any], *, root: Path = ROOT, now: datetime | None = None) -> list[str]:
     errors: list[str] = []
     now = now or datetime.now(timezone.utc)
 

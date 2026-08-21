@@ -285,6 +285,7 @@ class Requirement(BaseModel):
     extraction_confidence: float
     status: Literal["proposed", "confirmed", "waived"]
 
+
 class TaskContract(BaseModel):
     schema_version: str
     goal: str
@@ -375,6 +376,7 @@ class VerificationStatus(str, Enum):
     UNKNOWN = "UNKNOWN"
     NOT_CHECKED = "NOT_CHECKED"
 
+
 class Evidence(BaseModel):
     id: str
     kind: str
@@ -384,6 +386,7 @@ class Evidence(BaseModel):
     payload: dict[str, JsonValue]
     redactions: list[str]
     artifact_digest: str
+
 
 class VerificationResult(BaseModel):
     requirement_id: str

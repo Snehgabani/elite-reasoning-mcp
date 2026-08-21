@@ -27,11 +27,7 @@ class ContinuationDirective:
 
 def _passing(evidence: list[dict[str, Any]], check: str) -> dict[str, Any] | None:
     return next(
-        (
-            item
-            for item in evidence
-            if item.get("check_kind") == check and item.get("verification_status") == "PASS"
-        ),
+        (item for item in evidence if item.get("check_kind") == check and item.get("verification_status") == "PASS"),
         None,
     )
 
@@ -40,8 +36,12 @@ def _contract_requirements(run: dict[str, Any]) -> tuple[bool, bool, bool]:
     contract = run.get("task_contract") or {}
     constraints = contract.get("constraints") if isinstance(contract, dict) else []
     kinds = {item.get("kind") for item in constraints or [] if isinstance(item, dict)}
-    deliverable = str(contract.get("deliverable") or run.get("deliverable") or "").lower() if isinstance(contract, dict) else ""
-    is_code = bool(kinds & {"run_tests", "scope_files"}) or any(term in deliverable for term in ("patch", "code", "validation log"))
+    deliverable = (
+        str(contract.get("deliverable") or run.get("deliverable") or "").lower() if isinstance(contract, dict) else ""
+    )
+    is_code = bool(kinds & {"run_tests", "scope_files"}) or any(
+        term in deliverable for term in ("patch", "code", "validation log")
+    )
     return is_code, "scope_files" in kinds, "run_tests" in kinds
 
 

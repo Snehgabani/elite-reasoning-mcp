@@ -29,9 +29,7 @@ async def _run() -> None:
             raise RuntimeError(f"minimal syntax verification failed: {syntax.verification_status}")
 
     forbidden_imports = sorted(
-        name
-        for name in sys.modules
-        if name.startswith(("fastapi", "langchain", "langgraph", "networkx", "scipy"))
+        name for name in sys.modules if name.startswith(("fastapi", "langchain", "langgraph", "networkx", "scipy"))
     )
     if forbidden_imports:
         raise RuntimeError("optional modules loaded by core smoke: " + ", ".join(forbidden_imports[:20]))

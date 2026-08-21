@@ -1863,9 +1863,7 @@ class EliteStore:
                 "prepare_only_runs": prepare_only,
                 "runs_with_mid_work_checks": mid_work_runs,
                 "verified_complete_runs": verified_complete_runs,
-                "post_prepare_continuation_rate": round(
-                    (workflow_count - prepare_only) / workflow_count, 3
-                )
+                "post_prepare_continuation_rate": round((workflow_count - prepare_only) / workflow_count, 3)
                 if workflow_count
                 else None,
             },

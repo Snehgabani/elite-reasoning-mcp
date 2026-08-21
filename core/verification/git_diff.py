@@ -294,7 +294,9 @@ def verify_git_diff(
     changed_paths = {item.path for item in states}
     out_of_scope = sorted(path for path in changed_paths if allowed and path not in allowed)
     out_of_scope.extend(f"invalid:{path}" for path in invalid_paths)
-    dependency_changes = sorted(path for path in changed_paths if PurePosixPath(path).name.lower() in DEPENDENCY_MANIFESTS)
+    dependency_changes = sorted(
+        path for path in changed_paths if PurePosixPath(path).name.lower() in DEPENDENCY_MANIFESTS
+    )
 
     if snapshot_errors:
         status = VerificationStatus.UNKNOWN
@@ -312,7 +314,11 @@ def verify_git_diff(
         status = VerificationStatus.PASS
         reason = "all changed paths satisfy the supplied scope policy"
 
-    snapshot_parts = [f"root={root}", f"policy={','.join(normalized_allowed)}", f"forbid_deps={forbid_dependency_changes}"]
+    snapshot_parts = [
+        f"root={root}",
+        f"policy={','.join(normalized_allowed)}",
+        f"forbid_deps={forbid_dependency_changes}",
+    ]
     snapshot_parts.extend(f"{item.status}\0{item.path}\0{item.content_digest}" for item in states)
     return GitDiffVerification(
         status=status,
@@ -325,6 +331,8 @@ def verify_git_diff(
         snapshot_material="\n".join(snapshot_parts),
         snapshot_errors=tuple(snapshot_errors),
     )
+
+
 class GitDiffScopeVerifier(BaseVerifier):
     @property
     def name(self) -> str:

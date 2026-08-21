@@ -114,7 +114,11 @@ def compile_playbook(contract: TaskContract) -> tuple[PlaybookStep, ...]:
                 "check": "outcomes",
                 "run_id": "<run_id from elite_prepare>",
                 "draft": "<your draft>",
-                **({"project_root": "<active repository root>"} if any(c.kind in {"run_tests", "scope_files"} for c in contract.constraints) else {}),
+                **(
+                    {"project_root": "<active repository root>"}
+                    if any(c.kind in {"run_tests", "scope_files"} for c in contract.constraints)
+                    else {}
+                ),
             },
             required=True,
             instruction=(
