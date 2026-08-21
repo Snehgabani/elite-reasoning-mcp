@@ -244,6 +244,99 @@ def bootstrap_mean_ci(values: Sequence[float], n_boot: int = 1000, seed: int = 0
     }
 
 
+def position_bias_report(
+    original_verdicts: Sequence[str],
+    swapped_verdicts_relabelled: Sequence[str],
+) -> dict[str, Any]:
+    """Measure order sensitivity after the swapped result is relabelled to A/B.
+
+    A verdict is position-consistent when it names the same candidate in both
+    presentations. Any disagreement is reported rather than silently turned
+    into a win. The caller should use ties for inconsistent pairs.
+    """
+    if len(original_verdicts) != len(swapped_verdicts_relabelled) or not original_verdicts:
+        raise ValueError("paired verdict sequences required")
+    normalized = {"A", "B", "tie"}
+    original = [str(v).strip() for v in original_verdicts]
+    swapped = [str(v).strip() for v in swapped_verdicts_relabelled]
+    if any(v not in normalized for v in original + swapped):
+        raise ValueError("verdicts must be A, B, or tie")
+    consistent = sum(left == right for left, right in zip(original, swapped))
+    conflicts = len(original) - consistent
+    # This is the probability that the first slot wins on the original pass;
+    # report it separately from content consistency so it cannot be mistaken
+    # for accuracy.
+    first_slot_rate = sum(v == "A" for v in original) / len(original)
+    return {
+        "n": len(original),
+        "consistent": consistent,
+        "conflicts": conflicts,
+        "swap_consistency": consistent / len(original),
+        "conflict_rate": conflicts / len(original),
+        "first_slot_preference": round(first_slot_rate, 4),
+        "reliable_winner_rate": sum(
+            left == right and left in {"A", "B"} for left, right in zip(original, swapped)
+        ) / len(original),
+    }
+
+
+def paired_bootstrap_delta_ci(
+    baseline: Sequence[float],
+    treatment: Sequence[float],
+    *,
+    n_boot: int = 5000,
+    seed: int = 0,
+) -> dict[str, float]:
+    """Bootstrap the *paired* treatment-minus-baseline difference.
+
+    Resampling differences preserves the pairing between two arms evaluated on
+    the same task. This is preferable to independently resampling each arm for
+    before/after or matched-task comparisons.
+    """
+    if len(baseline) != len(treatment) or not baseline:
+        raise ValueError("paired numeric sequences required")
+    differences = [float(right) - float(left) for left, right in zip(baseline, treatment)]
+    rng = random.Random(seed)
+    estimates = []
+    for _ in range(max(100, int(n_boot))):
+        draw = [differences[rng.randrange(len(differences))] for _ in differences]
+        estimates.append(sum(draw) / len(draw))
+    estimates.sort()
+    lo_index = int(0.025 * (len(estimates) - 1))
+    hi_index = int(0.975 * (len(estimates) - 1))
+    return {
+        "mean_delta": round(sum(differences) / len(differences), 6),
+        "ci95_lo": round(estimates[lo_index], 6),
+        "ci95_hi": round(estimates[hi_index], 6),
+        "n": len(differences),
+    }
+
+
+def validate_trial_manifest(manifest: dict[str, Any], *, minimum_cases: int = 30) -> dict[str, Any]:
+    """Fail closed on common sources of fake or irreproducible RCT results."""
+    required = ("study_id", "seed", "holdout_locked", "cases", "objective_oracles")
+    errors = [f"missing:{key}" for key in required if key not in manifest]
+    cases = manifest.get("cases") if isinstance(manifest.get("cases"), list) else []
+    if len(cases) < minimum_cases:
+        errors.append(f"cases<{minimum_cases}")
+    ids = [case.get("case_id") for case in cases if isinstance(case, dict)]
+    if len(ids) != len(set(ids)):
+        errors.append("duplicate_case_id")
+    for case in cases:
+        if not isinstance(case, dict):
+            errors.append("case_not_object")
+            continue
+        if case.get("source") in {"hand_authored", "synthetic_fixed_score"}:
+            errors.append("hand_authored_or_fixed_score_case")
+        if case.get("baseline_output_hash") == case.get("treatment_output_hash"):
+            errors.append("identical_arm_outputs")
+    if manifest.get("holdout_locked") is not True:
+        errors.append("holdout_not_locked")
+    if not manifest.get("objective_oracles"):
+        errors.append("no_objective_oracle")
+    return {"valid": not errors, "errors": errors, "case_count": len(cases)}
+
+
 def ship_decision(
     *,
     following_delta: float,
