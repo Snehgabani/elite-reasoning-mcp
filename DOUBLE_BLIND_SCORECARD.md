@@ -1,7 +1,7 @@
 # Double-Blind Randomized Controlled Trial (RCT) Scorecard
 
 **Evaluation Methodology**: Cryptographic Blinded Pairwise Permutation with Dual-Pass Position Debiasing  
-**Evaluation Date**: 2026-08-21 22:22:49 UTC  
+**Evaluation Date**: 2026-08-21 22:58:09 UTC  
 **Control Group**: Baseline Cheap / Small LLM (Unassisted)  
 **Treatment Group**: Baseline Cheap / Small LLM + `elite-reasoning-mcp` (External Cognitive Scaffolding)
 
