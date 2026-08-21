@@ -143,10 +143,16 @@ def create_mcp_server(brain_dir: str, tool_profile: str | None = None) -> FastMC
 
         gateway.register(mcp, store, profile)
 
-        from core.tools import cognitive_tools
+        if tool_profile != "core":
+            try:
+                from core.tools import cognitive_tools
 
-        cognitive_tools.register(mcp, store, profile)
-        logger.info("Core gateway and cognitive tools registered", extra={"action": "core_tools_registered"})
+                cognitive_tools.register(mcp, store, profile)
+                logger.info("Cognitive tools registered", extra={"action": "cognitive_tools_registered"})
+            except ImportError as exc:
+                logger.debug("Optional cognitive tools not available: %s", exc)
+        else:
+            logger.info("Core 5-tool minimalist profile active", extra={"action": "core_profile_active"})
 
     # ── Build Middleware Chain (Blueprint #3: replaces monkey-patch) ──
     # Opus R2: Correct order matters critically:
