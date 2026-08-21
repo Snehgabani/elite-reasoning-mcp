@@ -35,46 +35,20 @@ jobs:
       - name: Set up Python ${{ matrix.python-version }}
         run: uv python install ${{ matrix.python-version }}
       
-      - name: Install Frozen Dependencies
+      - name: Install Frozen Dependencies with Dev Extras
         run: uv sync --frozen --extra dev
       
-      - name: "Gate 1: Invariant AST Syntax Validation"
+      - name: Run Full Science-Grade Release & Verification Gates
+        run: uv run --extra dev python scripts/release_check.py
+        env:
+          ELITE_BRAIN_DIR: /tmp/elite-test-brain
+
+      - name: Append Quality Scorecard to Job Summary
+        if: always()
         run: |
-          uv run python -c "
-          import ast, glob, sys
-          files = glob.glob('core/**/*.py', recursive=True) + glob.glob('tests/**/*.py', recursive=True)
-          print(f'Validating AST invariants across {len(files)} Python files...')
-          for f in files:
-              with open(f, 'r', encoding='utf-8') as src:
-                  ast.parse(src.read(), filename=f)
-          print('✅ All AST syntax trees 100% valid.')
-          "
-
-      - name: "Gate 2: Ruff Strict Linting & Formatting Check"
-        run: uv run ruff check core tests scripts
-
-      - name: "Gate 3: Focused Pyright Type Safety"
-        run: uv run pyright --pythonpath $(which python) core/runtime.py core/privacy.py core/sync_security.py core/identity/user_profile.py core/tools/errors.py core/tools/gateway.py core/middleware/chain.py core/middleware/prevention.py core/middleware/telemetry.py
-
-      - name: "Gate 4: OWASP Bandit Security Audit"
-        run: uv run bandit -q -r core -lll
-
-      - name: "Gate 5: Double-Blind RCT Benchmark Run"
-        run: |
-          uv run python scripts/double_blind_eval.py
           if [ -f DOUBLE_BLIND_SCORECARD.md ]; then
             cat DOUBLE_BLIND_SCORECARD.md >> $GITHUB_STEP_SUMMARY
           fi
-
-      - name: "Gate 6: Full 270+ Deterministic Pytest Suite"
-        run: uv run pytest -v --durations=10
-        env:
-          ELITE_BRAIN_DIR: /tmp/elite-test-brain
-
-      - name: "Gate 7: Wheel Packaging & Stdio MCP Protocol Handshake"
-        run: uv run python scripts/release_check.py
-        env:
-          ELITE_BRAIN_DIR: /tmp/elite-test-brain
 
       - name: Upload Quality Scorecard Artifact
         uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4
