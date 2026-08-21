@@ -3,41 +3,36 @@ name: Autonomous Issue & PR Triage
 on:
   issues:
     types: [opened]
-  pull_request:
-    types: [opened]
 
 permissions:
-  issues: write
-  pull-requests: write
+  contents: read
 
 jobs:
   triage:
     runs-on: ubuntu-latest
+    permissions:
+      issues: write
     steps:
       - name: Triage Issues
-        if: github.event.issue
-        run: |
-          TITLE="${{ github.event.issue.title }}"
-          BODY="${{ github.event.issue.body }}"
-          ISSUE_NUM="${{ github.event.issue.number }}"
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7
+        with:
+          script: |
+            const issue = context.payload.issue;
+            if (!issue) return;
 
-          LABELS=""
-          if echo "$TITLE $BODY" | grep -iqE "bug|error|fail|crash|broken"; then
-            LABELS="$LABELS,bug"
-          fi
-          if echo "$TITLE $BODY" | grep -iqE "feat|add|support|improve|enhancement"; then
-            LABELS="$LABELS,enhancement"
-          fi
-          if echo "$TITLE $BODY" | grep -iqE "doc|readme|guide"; then
-            LABELS="$LABELS,documentation"
-          fi
-          if echo "$TITLE $BODY" | grep -iqE "security|vulnerability|cve|leak"; then
-            LABELS="$LABELS,security"
-          fi
+            const text = `${issue.title} ${issue.body || ''}`.toLowerCase();
+            const labels = [];
 
-          if [ -n "$LABELS" ]; then
-            LABELS=$(echo "$LABELS" | sed 's/^,//')
-            gh issue edit "$ISSUE_NUM" --add-label "$LABELS"
-          fi
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            if (/(bug|error|fail|crash|broken)/i.test(text)) labels.push('bug');
+            if (/(feat|add|support|improve|enhancement)/i.test(text)) labels.push('enhancement');
+            if (/(doc|readme|guide)/i.test(text)) labels.push('documentation');
+            if (/(security|vulnerability|cve|leak)/i.test(text)) labels.push('security');
+
+            if (labels.length > 0) {
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                labels: labels,
+              });
+            }
