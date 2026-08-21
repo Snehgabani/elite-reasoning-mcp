@@ -17,14 +17,16 @@ call_mcp_tool(
 )
 ```
 
-### 🚩 Checkpoint 2 (Mid-Turn — DURING EDITING):
-After writing or editing ANY source code or test file, you MUST immediately call:
-- `elite_verify(check="syntax", code="...")` to verify AST integrity.
-- `elite_verify(check="cegis", code="...")` to verify boundary edge-case robustness.
+### 🚩 Checkpoint 2 (Mid-Turn — NATIVE TOOL INTERLOCK):
+You are strictly prohibited from calling native file edit tools without immediately executing their coupled MCP verifiers:
+- **IF YOU CALL** `replace_file_content`, `write_to_file`, or `apply_reasoning_diff`:
+  -> **YOUR VERY NEXT TOOL CALL MUST BE**: `elite_verify(check="syntax", code="...")` and `elite_verify(check="cegis", code="...")`.
+- **IF AN ERROR/EXCEPTION OCCURS**:
+  -> **YOUR VERY NEXT TOOL CALL MUST BE**: `elite_verify(check="diagnostics", query="<traceback>")`.
 
-### 🚩 Checkpoint 3 (End of Turn — POST-EDIT):
+### 🚩 Checkpoint 3 (End of Turn — POST-EDIT TEST RECEIPT):
 Before delivering your final text response to the user, you MUST:
-- Run test commands via `elite_verify(check="tests", command="pytest ...")`.
-- Include a structured verification receipt in your response.
+- Run test commands via `elite_verify(check="tests", command="pytest ...")` or execute in terminal.
+- Include a structured verification receipt in your response showing passed invariants.
 
 🚫 FORBIDDEN: Generating code and replying directly without Checkpoint 2 and Checkpoint 3 verification. Physical Git pre-commit barriers will reject unverified commits.
