@@ -48,10 +48,10 @@ class BaseVerifier(ABC):
 class VerifierRegistry:
     """Thread-safe verifier registry managing first-party and plugin verifiers."""
 
-    def __init__(self):
+    def __init__(self, register_builtins: bool = True):
         self._verifiers: Dict[str, BaseVerifier] = {}
         self._kind_mapping: Dict[RequirementKind, str] = {}
-        self._builtins_loaded: bool = False
+        self._builtins_loaded: bool = not register_builtins
 
     def _ensure_builtins(self):
         if self._builtins_loaded:
