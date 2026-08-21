@@ -129,12 +129,50 @@ class EliteCognitiveEngine:
 
         quality_score = 1.0 if (prm_passed and logic_valid) else 0.5
         mandatory_chaining_directive = (
-            "🚨 MANDATORY STEP-LOCKED LIFECYCLE DIRECTIVE (DO NOT BYPASS):\n"
-            f"1. Checkpoint 1 [PRE-EDIT]  : Active constraints compiled. Gate token: {gate_token.token}\n"
-            "2. Checkpoint 2 [DURING-EDIT]: After modifying any file/code, you MUST call `elite_verify(check='syntax', code=...)` and `elite_verify(check='cegis', code=...)`.\n"
-            "3. Checkpoint 3 [POST-EDIT]  : You MUST call `elite_verify(check='tests', command='pytest ...')` before replying.\n"
-            "4. HARD INVARIANT: You are strictly forbidden from delivering final text to the user without a passing `elite_verify` receipt."
+            "CONTINUOUS CHECKPOINT DIRECTIVE:\n"
+            f"1. Pre-edit contract recorded. Correlation token: {gate_token.token}\n"
+            "2. After modifying code, call elite_verify(check='syntax', run_id=..., code=..., project_root=...).\n"
+            "3. Verify Git scope and run repository-bound tests before outcomes.\n"
+            "4. Follow the returned continuation and reply only at checkpoint=done. The host must honor these calls."
         )
+
+        execution_playbook = [
+            {
+                "step": 1,
+                "phase": "PRE_EDIT_CONTRACT",
+                "tool": "legacy execute_mix (current call)",
+                "action": "Compile contract & issue gate token",
+                "status": "COMPLETED",
+            },
+            {
+                "step": 2,
+                "phase": "CODE_EDIT",
+                "tool": "replace_file_content / write_to_file",
+                "action": "Apply source modifications",
+                "status": "PENDING",
+            },
+            {
+                "step": 3,
+                "phase": "MID_VERIFY_SYNTAX",
+                "tool": "elite-reasoning-mcp:elite_verify",
+                "call_template": "elite_verify(check='syntax', run_id='<run_id>', code='<code>', project_root='<repo>')",
+                "status": "MANDATORY_NEXT",
+            },
+            {
+                "step": 4,
+                "phase": "MID_VERIFY_CEGIS",
+                "tool": "elite-reasoning-mcp:elite_verify",
+                "call_template": "elite_verify(check='cegis', run_id='<run_id>', code='<code>')",
+                "status": "MANDATORY_AFTER_SYNTAX",
+            },
+            {
+                "step": 5,
+                "phase": "POST_EDIT_TESTS",
+                "tool": "elite-reasoning-mcp:elite_verify",
+                "call_template": "elite_verify(check='tests', run_id='<run_id>', command='pytest ...', project_root='<repo>')",
+                "status": "MANDATORY_BEFORE_REPLY",
+            },
+        ]
 
         result = {
             "task_id": task_id,
@@ -143,6 +181,7 @@ class EliteCognitiveEngine:
             "scaffold_status": "scaffolded",
             "gate_token": gate_token.token,
             "mandatory_chaining_directive": mandatory_chaining_directive,
+            "execution_playbook": execution_playbook,
             "recency_step_lock": recency_envelope,
             "note": "This legacy path records checkpoint state and compiles a task contract. The host must report edits/checks; verify evidence with elite_verify.",
             "complexity": complexity,

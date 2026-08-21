@@ -38,11 +38,19 @@ class TrajectoryState(BaseModel):
     epoch_clock: int = 0
     gate_tokens: List[GateToken] = Field(default_factory=list)
     actions_since_last_verify: int = 0
+    mcp_tool_calls_count: int = 0
+    native_tool_calls_count: int = 0
     verified_files: Set[str] = Field(default_factory=set)
     unverified_edits_count: int = 0
     active_contract_goal: str = ""
     amnesia_detected: bool = False
     last_error_message: Optional[str] = None
+
+    def calculate_mcp_density(self) -> float:
+        total = self.mcp_tool_calls_count + self.native_tool_calls_count
+        if total == 0:
+            return 1.0
+        return round(self.mcp_tool_calls_count / total, 3)
 
 
 class TrajectoryGuardian:
@@ -60,6 +68,7 @@ class TrajectoryGuardian:
         """Checkpoint 1: Compiles contract and advances stage."""
         state = self.get_or_create_session(session_id)
         state.epoch_clock += 1
+        state.mcp_tool_calls_count += 1
         state.current_stage = TrajectoryStage.CONTRACT_COMPILED
         state.active_contract_goal = goal
         state.actions_since_last_verify = 0
@@ -79,6 +88,7 @@ class TrajectoryGuardian:
         """Triggered whenever a file modification occurs."""
         state = self.get_or_create_session(session_id)
         state.epoch_clock += 1
+        state.native_tool_calls_count += 1
         state.current_stage = TrajectoryStage.MID_VERIFY_PENDING
         state.actions_since_last_verify += 1
         state.unverified_edits_count += 1
@@ -92,6 +102,7 @@ class TrajectoryGuardian:
             "stage": state.current_stage.value,
             "actions_since_verify": state.actions_since_last_verify,
             "amnesia_warning": state.amnesia_detected,
+            "mcp_density": state.calculate_mcp_density(),
             "mandatory_action": f"Call elite_verify(check='syntax') on {file_path}",
         }
 
@@ -99,6 +110,7 @@ class TrajectoryGuardian:
         """Checkpoint 2 & 3: Records deterministic verification pass/fail."""
         state = self.get_or_create_session(session_id)
         state.epoch_clock += 1
+        state.mcp_tool_calls_count += 1
 
         if not passed:
             state.current_stage = TrajectoryStage.MID_VERIFY_PENDING
@@ -158,6 +170,13 @@ class TrajectoryGuardian:
         has_test_pass = any(t.stage == TrajectoryStage.TEST_VERIFIED for t in state.gate_tokens)
         if not has_test_pass and state.unverified_edits_count > 0:
             return False, "HARD INVARIANT VIOLATION: No test execution receipt found (Missing Checkpoint 3)."
+
+        # Check MCP Tool Density across trajectory
+        if state.native_tool_calls_count > 0 and state.mcp_tool_calls_count < 2:
+            return False, (
+                f"INSUFFICIENT REPORTED MCP DENSITY ({state.calculate_mcp_density() * 100:.1f}%): the host prepared once "
+                "but skipped intermediate MCP verifiers. You must execute all playbook verification steps."
+            )
 
         state.current_stage = TrajectoryStage.ATTESTED_COMPLETE
         return True, "All 3 trajectory checkpoints verified successfully."
