@@ -48,6 +48,9 @@ from core.cognitive.leverage.stealth_scraper import _STEALTH_SCRAPER
 from core.cognitive.leverage.vector_memory_bridge import _VECTOR_MEMORY_BRIDGE
 from core.cognitive.leverage.watchdog_notifier import _WATCHDOG_NOTIFIER
 from core.cognitive.leverage.duckdb_analytics_bridge import _DUCKDB_ANALYTICS_BRIDGE
+from core.cognitive.leverage.anti_falsification import CodebaseAuthenticityAuditor
+
+_ANTI_FALSIFICATION_AUDITOR = CodebaseAuthenticityAuditor()
 
 
 def register(mcp, store=None, profile=None) -> None:
@@ -549,4 +552,55 @@ def register(mcp, store=None, profile=None) -> None:
         Executes analytical SQL queries across Parquet datasets, SQLite tables, and logs (<2.5GB RAM cap).
         """
         res = _DUCKDB_ANALYTICS_BRIDGE.execute_sql(query=sql_query, parquet_path=parquet_path)
+        return json.dumps(res, indent=2)
+
+    @mcp.tool()
+    def verify_codebase_anti_falsification(target_subdirs: Optional[List[str]] = None) -> str:
+        """
+        Exhaustive Anti-Falsification & AST Authenticity Auditor.
+        Scans code trees for vacuous assertions, no-op mock stubs, and returns cryptographic integrity proofs.
+        """
+        rep = _ANTI_FALSIFICATION_AUDITOR.audit_codebase(target_subdirs=target_subdirs)
+        return json.dumps(
+            {
+                "total_files_scanned": rep.total_files_scanned,
+                "total_ast_nodes_audited": rep.total_ast_nodes_audited,
+                "authenticity_score": rep.authenticity_score,
+                "is_genuine": rep.is_genuine,
+                "cryptographic_codebase_hash": rep.cryptographic_codebase_hash,
+                "anomalies_count": len(rep.anomalies_found),
+                "anomalies": [
+                    {
+                        "file": a.file_path,
+                        "line": a.line_number,
+                        "type": a.anomaly_type,
+                        "severity": a.severity,
+                        "description": a.description,
+                    }
+                    for a in rep.anomalies_found[:10]
+                ],
+            },
+            indent=2,
+        )
+
+    @mcp.tool()
+    def attest_execution_authenticity(
+        task_id: str,
+        input_payload_json: str = "{}",
+        output_payload_json: str = "{}",
+    ) -> str:
+        """
+        Mints an unforgeable cryptographic HMAC-SHA256 Execution Attestation Token.
+        Binds task inputs, outputs, and codebase AST hash to guarantee zero falsification.
+        """
+        try:
+            in_dict = json.loads(input_payload_json)
+            out_dict = json.loads(output_payload_json)
+        except Exception:
+            in_dict = {"raw": input_payload_json}
+            out_dict = {"raw": output_payload_json}
+
+        res = _ANTI_FALSIFICATION_AUDITOR.attest_execution(
+            task_id=task_id, input_payload=in_dict, output_payload=out_dict
+        )
         return json.dumps(res, indent=2)
