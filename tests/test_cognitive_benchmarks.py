@@ -222,6 +222,21 @@ def test_dynamic_tool_router():
     assert recs_research[0].category == "DEEP_RESEARCH_GROUNDING"
     assert recs_research[0].tool_name in {"storm_research", "evaluate_fact_score", "live_web_search"}
 
+    # Database migration cross-MCP routing
+    recs_db = router.route_task("Inspect PostgreSQL schema on Neon and run Prisma migrations")
+    assert recs_db[0].category == "DATABASE_AND_MIGRATIONS"
+    assert "mcp-server-neon:inspect_database" in [r.tool_name for r in recs_db]
+
+    # Browser automation cross-MCP routing
+    recs_browser = router.route_task("Perform stealth browser scraping with Playwright and check Lighthouse Core Web Vitals")
+    assert recs_browser[0].category == "STEALTH_BROWSER_RESEARCH"
+    assert "playwright-elite:stealth_scrape" in [r.tool_name for r in recs_browser]
+
+    # Enterprise issue sync cross-MCP routing
+    recs_jira = router.route_task("Fetch Jira sprint ticket blocker and create GitHub issue")
+    assert recs_jira[0].category == "ENTERPRISE_ISSUE_SYNC"
+    assert "atlassian-mcp-server:getJiraIssue" in [r.tool_name for r in recs_jira]
+
     # Micro-prompt injection size check (<300 tokens)
     prompt_inj = router.get_tool_routing_prompt_injection("Verify mathematical proof invariants")
     assert "DYNAMIC TOOL ROUTER" in prompt_inj

@@ -71,6 +71,30 @@ class DynamicToolRouter:
                 ("attest_workflow_completion", "Zero-Escape FSM gatekeeper verifying complete proof manifest", {"task_id": "<task_id>", "required_stages_json": "[]"}),
             ],
         },
+        "DATABASE_AND_MIGRATIONS": {
+            "keywords": ["database", "sql", "neon", "prisma", "schema", "postgres", "migration", "tables", "query", "indexes"],
+            "primary_tools": [
+                ("mcp-server-neon:inspect_database", "Deep database schema introspection and query planning on Neon", {"project_id": "<project_id>"}),
+                ("prisma-mcp-server:migrate-dev", "Applies and validates declarative Prisma database migrations", {"name": "<migration_name>"}),
+                ("query_sovereign_analytics", "Zero-RAM out-of-core DuckDB SQL engine for data aggregation", {"sql_query": "<sql>"}),
+            ],
+        },
+        "STEALTH_BROWSER_RESEARCH": {
+            "keywords": ["browser", "scrape", "crawl", "playwright", "chrome", "devtools", "api", "inspect", "frontend", "lighthouse"],
+            "primary_tools": [
+                ("playwright-elite:stealth_scrape", "Stealth browser scraping with anti-bot bypass and session harvesting", {"url": "<target_url>"}),
+                ("context7:query-docs", "Official documentation lookup for modern libraries and frameworks", {"query": "<query>"}),
+                ("chrome-devtools-mcp:lighthouse_audit", "Full Core Web Vitals (LCP, INP, CLS) performance audit", {"url": "<url>"}),
+            ],
+        },
+        "ENTERPRISE_ISSUE_SYNC": {
+            "keywords": ["jira", "confluence", "ticket", "issue", "github", "pr", "pull request", "sprint", "atlassian"],
+            "primary_tools": [
+                ("atlassian-mcp-server:getJiraIssue", "Fetches sprint acceptance criteria and blocker status from Jira", {"issueIdOrKey": "<key>"}),
+                ("mcp-server-github:create_issue", "Creates tracked GitHub issue with reproduction steps", {"owner": "<owner>", "repo": "<repo>", "title": "<title>"}),
+                ("atlassian-mcp-server:createConfluencePage", "Publishes verified architectural decision record (ADR) to Confluence", {"spaceKey": "<space>", "title": "<title>"}),
+            ],
+        },
     }
 
     def __init__(self):
