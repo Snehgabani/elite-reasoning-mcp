@@ -295,6 +295,9 @@ def register(mcp, store, profile) -> None:
             "tests",
             "grounding",
             "outcomes",
+            "cegis",
+            "diagnostics",
+            "types",
         ] = "doctor",
         query: Annotated[str, Field(max_length=2000)] = "",
         draft: Annotated[str, Field(max_length=20000)] = "",
@@ -370,8 +373,48 @@ def register(mcp, store, profile) -> None:
             report = grounding_check(draft, evidence)
             report["evidence"] = evidence.to_dict()
             return VerifyResult(check="grounding", data=report)
+        if normalized_check == "cegis":
+            from core.contracts.models import Requirement, RequirementKind
+            from core.verification.cegis import CEGISPropertyVerifier
+
+            target = code or draft
+            if not target.strip():
+                raise validation_error("code or draft is required for check=cegis.")
+            dummy_req = Requirement(
+                id="REQ-CEGIS-GATEWAY",
+                kind=RequirementKind.ROBUSTNESS,
+                source_text="CEGIS property check",
+                interpretation="Handle boundary collections and invariants",
+            )
+            v_res = CEGISPropertyVerifier().verify(dummy_req, target)
+            return VerifyResult(check="cegis", data=v_res.model_dump())
+        if normalized_check == "diagnostics":
+            from core.verification.diagnostics import extract_diagnostic_slice
+
+            err_text = query or draft or command
+            if not err_text.strip():
+                raise validation_error(
+                    "query, draft, or command containing error text is required for check=diagnostics."
+                )
+            slice_res = extract_diagnostic_slice(err_text, source_code=code or draft)
+            return VerifyResult(check="diagnostics", data=slice_res.model_dump())
+        if normalized_check == "types":
+            from core.contracts.models import Requirement, RequirementKind
+            from core.verification.type_checker import TypeInvariantVerifier
+
+            target = code or draft
+            if not target.strip():
+                raise validation_error("code or draft is required for check=types.")
+            dummy_req = Requirement(
+                id="REQ-TYPE-GATEWAY",
+                kind=RequirementKind.COMPATIBILITY,
+                source_text="Type check",
+                interpretation="All public functions have explicit return type annotations",
+            )
+            v_res = TypeInvariantVerifier().verify(dummy_req, target)
+            return VerifyResult(check="types", data=v_res.model_dump())
         raise validation_error(
-            "check must be doctor, capabilities, constraints, evidence, syntax, tests, or grounding."
+            "check must be doctor, capabilities, constraints, evidence, syntax, tests, grounding, cegis, diagnostics, or types."
         )
 
     @mcp.tool(name="elite_memory", annotations=_MEMORY_ANNOTATIONS)

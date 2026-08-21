@@ -29,17 +29,21 @@ class VerifierRegistry:
             return
         self._builtins_loaded = True
         try:
+            from core.verification.cegis import CEGISPropertyVerifier
             from core.verification.completeness import EvidenceCompletenessVerifier
             from core.verification.constraints import ConstraintVerifier
             from core.verification.git_diff import GitDiffScopeVerifier
             from core.verification.syntax import PythonSyntaxVerifier
             from core.verification.test_command import TestCommandVerifier
+            from core.verification.type_checker import TypeInvariantVerifier
 
             self.register(ConstraintVerifier())
             self.register(PythonSyntaxVerifier())
             self.register(TestCommandVerifier())
             self.register(GitDiffScopeVerifier())
             self.register(EvidenceCompletenessVerifier())
+            self.register(CEGISPropertyVerifier())
+            self.register(TypeInvariantVerifier())
         except (ImportError, AttributeError) as exc:
             logger.debug("Failed to load some builtin verifiers: %s", exc)
 
