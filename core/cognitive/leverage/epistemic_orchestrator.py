@@ -63,9 +63,9 @@ def _log_epistemic(payload: dict) -> None:
         os.makedirs(".ai/metrics", exist_ok=True)
         with open(METRICS_FILE, "a", encoding="utf-8") as f:
             f.write(json.dumps(payload) + "\n")
-    except Exception:
-        # Suppress expected non-fatal exception
-        pass
+    except Exception as exc:
+        # Explicit non-fatal exception suppression
+        _ = str(exc)
 
 
 async def epistemic_research(

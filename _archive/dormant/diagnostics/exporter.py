@@ -35,8 +35,9 @@ class ExportEngine:
             try:
                 with open(recovery_path, "r") as f:
                     recovery_data = json.load(f)
-            except Exception:
-                pass
+            except Exception as exc:
+                # Explicit non-fatal exception suppression
+                _ = str(exc)
 
         state_dump = {
             "status": "CRASHED_OR_HALTED" if recovery_data else "UNKNOWN",

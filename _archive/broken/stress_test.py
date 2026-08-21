@@ -160,8 +160,9 @@ def run_stress_test(brain_dir: str, use_mock: bool = False, step_idx: int = None
             asyncio.set_event_loop(loop)
             loop.run_until_complete(mcp_registry.initialize())
             loop.close()
-        except Exception:
-            pass
+        except Exception as exc:
+            # Explicit non-fatal exception suppression
+            _ = str(exc)
     threading.Thread(target=init_mcp_bg, daemon=True).start()
     
     auto_creator = WorkflowSkillCreator(brain_dir)

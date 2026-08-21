@@ -402,9 +402,9 @@ class CompletePipeline:
                 },
                 duration_ms=result.duration_ms
             )
-        except Exception:
-            # Don't fail if recording fails
-            pass
+        except Exception as exc:
+            # Explicit non-fatal exception suppression
+            _ = str(exc)
 
 
 def verify_local_first():

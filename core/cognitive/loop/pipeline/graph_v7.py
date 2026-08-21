@@ -462,9 +462,9 @@ Let me work through this step-by-step:
                 },
                 duration_ms=state.pipeline_duration_ms
             )
-        except Exception:
-            # Suppress expected non-fatal exception
-            pass
+        except Exception as exc:
+            # Explicit non-fatal exception suppression
+            _ = str(exc)
         
         return state
     

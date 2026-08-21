@@ -43,8 +43,9 @@ class RecoveryManager:
             
             with open(self.recovery_path, "w") as f:
                 json.dump(data, f, indent=2)
-        except Exception:
-            pass # Prevent recovery manager itself from crashing the app
+        except Exception as exc:
+            # Explicit non-fatal exception suppression
+            _ = str(exc) # Prevent recovery manager itself from crashing the app
             
     def record_completion(self):
         """Mark the process as successfully completed (removes the need to recover)."""

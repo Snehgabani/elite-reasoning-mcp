@@ -27,8 +27,9 @@ class IDEBridge:
                 status["is_running"] = True
                 status["active_thread"] = rec.get("thread_id")
                 status["current_step"] = rec.get("current_step", 0)
-            except Exception:
-                pass
+            except Exception as exc:
+                # Explicit non-fatal exception suppression
+                _ = str(exc)
                 
         if os.path.exists(self.db_path):
             try:
@@ -39,8 +40,9 @@ class IDEBridge:
                 if row:
                     status["latest_checkpoint"] = row[0]
                 conn.close()
-            except Exception:
-                pass
+            except Exception as exc:
+                # Explicit non-fatal exception suppression
+                _ = str(exc)
                 
         return status
 

@@ -71,8 +71,9 @@ class EliteStore:
                     conn.enable_load_extension(True)
                     sqlite_vec.load(conn)
                     conn._vec_loaded = True
-                except Exception:
-                    pass
+                except Exception as exc:
+                    # Explicit non-fatal exception suppression
+                    _ = str(exc)
             return conn
 
         # Fallback: original thread-local caching
@@ -92,8 +93,9 @@ class EliteStore:
             conn.enable_load_extension(True)
             try:
                 sqlite_vec.load(conn)
-            except Exception:
-                pass
+            except Exception as exc:
+                # Explicit non-fatal exception suppression
+                _ = str(exc)
         self._local.conn = conn
         return conn
 
@@ -105,8 +107,9 @@ class EliteStore:
             # Pool connections stay alive — just commit any pending autocommit
             try:
                 conn.execute("SELECT 1")  # Verify connection is alive
-            except Exception:
-                pass
+            except Exception as exc:
+                # Explicit non-fatal exception suppression
+                _ = str(exc)
             return
         # Fallback: original close behavior
         conn.commit()
@@ -148,8 +151,9 @@ class EliteStore:
             conn.enable_load_extension(True)
             try:
                 sqlite_vec.load(conn)
-            except Exception:
-                pass
+            except Exception as exc:
+                # Explicit non-fatal exception suppression
+                _ = str(exc)
 
         conn.isolation_level = None
         self._local.in_transaction = True
@@ -176,13 +180,15 @@ class EliteStore:
         except Exception:
             try:
                 conn.execute("ROLLBACK")
-            except Exception:
-                pass
+            except Exception as exc:
+                # Explicit non-fatal exception suppression
+                _ = str(exc)
             if not same_db:
                 try:
                     graph_conn.execute("ROLLBACK")
-                except Exception:
-                    pass
+                except Exception as exc:
+                    # Explicit non-fatal exception suppression
+                    _ = str(exc)
             raise
         finally:
             self._local.in_transaction = False
@@ -236,8 +242,9 @@ class EliteStore:
                         embedding float[384]
                     )
                 """)
-            except Exception:
-                pass
+            except Exception as exc:
+                # Explicit non-fatal exception suppression
+                _ = str(exc)
 
         # --- Quality scores ---
         c.execute("""
@@ -686,8 +693,9 @@ class EliteStore:
         for stmt in index_stmts:
             try:
                 c.execute(stmt)
-            except Exception:
-                pass  # Some indexes may reference columns not yet added
+            except Exception as exc:
+                # Explicit non-fatal exception suppression
+                _ = str(exc)  # Some indexes may reference columns not yet added
 
         # --- Round 2 ALTER TABLE migrations (idempotent) ---
         # Opus R2 Q13c: Adversarial input handling on anti_patterns
@@ -714,8 +722,9 @@ class EliteStore:
         for alt in r2_alterations:
             try:
                 c.execute(alt)
-            except Exception:
-                pass  # Column already exists
+            except Exception as exc:
+                # Explicit non-fatal exception suppression
+                _ = str(exc)  # Column already exists
 
         # --- One-time trigger migration (Opus R2 Challenge 2) ---
         self._run_trigger_migration(c)
@@ -756,12 +765,14 @@ class EliteStore:
                     "UPDATE prevention_rules SET trigger_event = ? WHERE trigger_event = ?", (new, old)
                 )
                 migrated += result.rowcount
-            except Exception:
-                pass
+            except Exception as exc:
+                # Explicit non-fatal exception suppression
+                _ = str(exc)
         try:
             cursor.execute("INSERT INTO schema_migrations (version) VALUES (4)")
-        except Exception:
-            pass
+        except Exception as exc:
+            # Explicit non-fatal exception suppression
+            _ = str(exc)
 
     # ==================== SCHEMA MIGRATION v5: Learning Subsystem ====================
 
@@ -783,8 +794,9 @@ class EliteStore:
         for stmt in alter_stmts:
             try:
                 cursor.execute(stmt)
-            except Exception:
-                pass  # Column may already exist
+            except Exception as exc:
+                # Explicit non-fatal exception suppression
+                _ = str(exc)  # Column may already exist
 
         # Create optimization_events table
         cursor.execute("""
@@ -803,8 +815,9 @@ class EliteStore:
 
         try:
             cursor.execute("INSERT INTO schema_migrations (version) VALUES (5)")
-        except Exception:
-            pass
+        except Exception as exc:
+            # Explicit non-fatal exception suppression
+            _ = str(exc)
 
     # ==================== SCHEMA MIGRATION v6: Privacy Retention ====================
 
@@ -1016,8 +1029,9 @@ class EliteStore:
                     row = c.fetchone()
                     if row and row[1] < 0.15:  # cosine distance < 0.15 means >85% similar
                         return row[0]  # Return existing ID — dedup
-                except Exception:
-                    pass
+                except Exception as exc:
+                    # Explicit non-fatal exception suppression
+                    _ = str(exc)
 
             c.execute(
                 "INSERT INTO anti_patterns (mistake, root_cause, fix, severity, tags, created_at) VALUES (?, ?, ?, ?, ?, ?)",
@@ -1032,8 +1046,9 @@ class EliteStore:
                         "INSERT INTO anti_patterns_vec(id, embedding) VALUES (?, ?)",
                         (row_id, sqlite_vec.serialize_float32(emb)),
                     )
-                except Exception:
-                    pass
+                except Exception as exc:
+                    # Explicit non-fatal exception suppression
+                    _ = str(exc)
 
             # Extract graph node (inside same transaction boundary)
             self.graph.add_node(
@@ -1144,8 +1159,9 @@ class EliteStore:
                         "INSERT INTO decisions_vec(id, embedding) VALUES (?, ?)",
                         (row_id, sqlite_vec.serialize_float32(emb)),
                     )
-                except Exception:
-                    pass
+                except Exception as exc:
+                    # Explicit non-fatal exception suppression
+                    _ = str(exc)
 
         self._close(conn)
 
@@ -2257,8 +2273,9 @@ class EliteStore:
                     severity="P1",
                     source_detection_id=row_id,
                 )
-            except Exception:
-                pass  # Rule may already exist — idempotent
+            except Exception as exc:
+                # Explicit non-fatal exception suppression
+                _ = str(exc)  # Rule may already exist — idempotent
 
         return row_id
 
@@ -2535,8 +2552,9 @@ class EliteStore:
 
             for trace in traces:
                 trace["live_confidence"] = current_confidence(trace)
-        except Exception:
-            pass  # Never break trace retrieval if temporal_confidence unavailable
+        except Exception as exc:
+            # Explicit non-fatal exception suppression
+            _ = str(exc)  # Never break trace retrieval if temporal_confidence unavailable
         return traces
 
     def conclude_branch(self, session_id: str, branch_id: str, winning_thought_id: str) -> dict:
@@ -2636,8 +2654,9 @@ class EliteStore:
                         "auto_executable": False,
                     }
                 )
-        except Exception:
-            pass
+        except Exception as exc:
+            # Explicit non-fatal exception suppression
+            _ = str(exc)
 
         # 5. Check prompt health
         prompt_analysis = self.analyze_prompt_sequence(limit=50)

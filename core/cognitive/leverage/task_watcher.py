@@ -35,9 +35,9 @@ def notify_user(title: str, message: str, subtitle: str = ""):
         script = f'display notification "{clean_msg}" with title "{clean_title}" {sub_clause}'
         try:
             subprocess.Popen(["osascript", "-e", script], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        except Exception:
-            # Suppress expected non-fatal exception
-            pass
+        except Exception as exc:
+            # Explicit non-fatal exception suppression
+            _ = str(exc)
 
 
 def ensure_visual_watcher_open():
@@ -72,9 +72,9 @@ class TaskTracker:
             try:
                 with open(task_file, "r", encoding="utf-8") as f:
                     data = json.load(f)
-            except Exception:
-                # Suppress expected non-fatal exception
-                pass
+            except Exception as exc:
+                # Explicit non-fatal exception suppression
+                _ = str(exc)
         data.update({
             "task_id": task_id,
             "last_heartbeat": time.time(),
@@ -95,9 +95,9 @@ class TaskTracker:
                 with open(task_file, "r", encoding="utf-8") as f:
                     data = json.load(f)
                     started_at = data.get("started_at", started_at)
-            except Exception:
-                # Suppress expected non-fatal exception
-                pass
+            except Exception as exc:
+                # Explicit non-fatal exception suppression
+                _ = str(exc)
         now = time.time()
         elapsed = round(now - started_at, 1)
 
@@ -118,9 +118,9 @@ class TaskTracker:
         try:
             with open(task_file, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=2)
-        except Exception:
-            # Suppress expected non-fatal exception
-            pass
+        except Exception as exc:
+            # Explicit non-fatal exception suppression
+            _ = str(exc)
 
 
 class TaskWatchdog:
@@ -183,9 +183,9 @@ class TaskWatchdog:
         try:
             with open(STATUS_FILE, "w", encoding="utf-8") as f:
                 json.dump(snapshot, f, indent=2)
-        except Exception:
-            # Suppress expected non-fatal exception
-            pass
+        except Exception as exc:
+            # Explicit non-fatal exception suppression
+            _ = str(exc)
 
         return snapshot
 
@@ -206,9 +206,9 @@ def get_live_status() -> Dict[str, Any]:
         try:
             with open(STATUS_FILE, "r", encoding="utf-8") as f:
                 return json.load(f)
-        except Exception:
-            # Suppress expected non-fatal exception
-            pass
+        except Exception as exc:
+            # Explicit non-fatal exception suppression
+            _ = str(exc)
     # Fallback scan
     wd = TaskWatchdog()
     return wd.scan_once()

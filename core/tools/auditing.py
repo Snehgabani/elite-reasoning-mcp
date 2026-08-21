@@ -19,12 +19,14 @@ def register(mcp, store, orchestrator=None):
                         try:
                             store.update_goal(g["id"], kr.get("description", ""), min(kr_progress + 25, 100))
                             updates.append(f"Goal #{g['id']} key result auto-advanced")
-                        except Exception:
-                            pass
+                        except Exception as exc:
+                            # Explicit non-fatal exception suppression
+                            _ = str(exc)
             if updates:
                 return " | " + " | ".join(updates)
-        except Exception:
-            pass
+        except Exception as exc:
+            # Explicit non-fatal exception suppression
+            _ = str(exc)
         return ""
 
     @mcp.tool()

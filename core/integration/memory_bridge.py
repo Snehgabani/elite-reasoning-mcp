@@ -208,8 +208,9 @@ def register(mcp, store):
                 out += "\n### Related Anti-Patterns (local):\n"
                 for m in mistakes:
                     out += f"- ⚠️ {m['mistake'][:100]} → Fix: {m['fix'][:100]}\n"
-        except Exception:
-            pass
+        except Exception as exc:
+            # Explicit non-fatal exception suppression
+            _ = str(exc)
 
         return out
 

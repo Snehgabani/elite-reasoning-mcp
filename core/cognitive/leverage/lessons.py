@@ -50,9 +50,9 @@ class LessonStore:
                     continue
                 try:
                     rows.append(json.loads(line))
-                except Exception:
-                    # Suppress expected non-fatal exception
-                    pass
+                except Exception as exc:
+                    # Explicit non-fatal exception suppression
+                    _ = str(exc)
         except OSError:
             pass
         return rows

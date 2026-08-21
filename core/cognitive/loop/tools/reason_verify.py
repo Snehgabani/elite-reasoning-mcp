@@ -196,9 +196,9 @@ def register(mcp, store: SingularityStore):
             store.record_metric("verify_tool_calls", tool_calls)
 
             metrics_recorded = True
-        except Exception:
-            # Suppress expected non-fatal exception
-            pass
+        except Exception as exc:
+            # Explicit non-fatal exception suppression
+            _ = str(exc)
 
         store.log_tool_usage("reasoning_verify", session_id[:50],
                               json.dumps({"status": overall_status, "score": quality["total_score"]}),

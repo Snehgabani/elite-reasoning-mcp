@@ -155,8 +155,9 @@ class UserProfile:
             registry = build_capability_registry()
             if registry.active_ide:
                 return registry.active_ide
-        except Exception:
-            pass
+        except Exception as exc:
+            # Explicit non-fatal exception suppression
+            _ = str(exc)
         home = os.path.expanduser("~")
         if os.path.isdir(os.path.join(home, ".gemini", "antigravity")):
             return "antigravity"

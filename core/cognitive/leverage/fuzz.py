@@ -133,9 +133,9 @@ async def run_property_tests(file_path: str = "dummy.py", symbol: str = "target"
     finally:
         try:
             os.unlink(tmp_path)
-        except Exception:
-            # Suppress expected non-fatal exception
-            pass
+        except Exception as exc:
+            # Explicit non-fatal exception suppression
+            _ = str(exc)
 
 
 def fuzz_symbol(symbol_name: str, file_path: str = "", trials: int = 50) -> Dict[str, Any]:

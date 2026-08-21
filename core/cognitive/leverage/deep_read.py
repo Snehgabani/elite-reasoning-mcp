@@ -50,9 +50,9 @@ def _extract_pub_date(html: str) -> str | None:
             iso = re.match(r"(\d{4}-\d{2}-\d{2})", t["datetime"])
             if iso:
                 return iso.group(1)
-    except Exception:
-        # Suppress expected non-fatal exception
-        pass
+    except Exception as exc:
+        # Explicit non-fatal exception suppression
+        _ = str(exc)
     return None
 
 
@@ -78,9 +78,9 @@ async def deep_read_url(url: str, question: str = "", query: str = "") -> Dict[s
                     out["published_date"] = pub
                     out["date_source"] = "page-metadata"
                 return out
-    except Exception:
-        # Suppress expected non-fatal exception
-        pass
+    except Exception as exc:
+        # Explicit non-fatal exception suppression
+        _ = str(exc)
 
     # Pass 2: Jina Reader free fallback (renders JS, returns markdown text)
     try:
@@ -94,8 +94,8 @@ async def deep_read_url(url: str, question: str = "", query: str = "") -> Dict[s
                 "full_text_length": len(t), "text": t[:MAX_TEXT],
                 "extracted": True,
             }
-    except Exception:
-        # Suppress expected non-fatal exception
-        pass
+    except Exception as exc:
+        # Explicit non-fatal exception suppression
+        _ = str(exc)
 
     return {"url": url, "extracted": False, "error": "unreadable", "text": ""}

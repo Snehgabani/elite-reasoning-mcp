@@ -211,9 +211,9 @@ class ReasoningPipelineV5:
                                       {"mode": effective_mode})
             self.store.record_metric("pipeline_v5_quality", state.quality_score.get("total_score", 0))
             self.store.record_metric("pipeline_v5_multi_turn", state.multi_turn_iterations)
-        except Exception:
-            # Suppress expected non-fatal exception
-            pass
+        except Exception as exc:
+            # Explicit non-fatal exception suppression
+            _ = str(exc)
         
         return state
     

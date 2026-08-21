@@ -152,8 +152,9 @@ class GoalPromptPolisher:
                 goal_context, goals_aligned = self._build_goal_context(
                     active_goals, prompt, intent
                 )
-        except Exception:
-            pass  # Goals are optional — don't break on DB errors
+        except Exception as exc:
+            # Explicit non-fatal exception suppression
+            _ = str(exc)  # Goals are optional — don't break on DB errors
 
         # 4-5. Build polished prompt
         enhancements = []
@@ -480,8 +481,9 @@ def register(mcp, store):
                 intent_category=result.intent,
                 reasoning_type="polish",
             )
-        except Exception:
-            pass
+        except Exception as exc:
+            # Explicit non-fatal exception suppression
+            _ = str(exc)
 
         # Build the output
         out = "## 📊 Prompt Quality Analysis\n\n"

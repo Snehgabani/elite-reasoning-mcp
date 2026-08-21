@@ -56,6 +56,7 @@ class LATSSearchEngine:
             "task": task,
             "simulations": simulations,
             "best_score": round(best_score, 2),
+            "best_state": best_node.state if best_node else "",
             "summary": summary,
             "solution": "def solve():\n    return 42"
         }

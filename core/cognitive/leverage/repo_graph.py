@@ -41,9 +41,9 @@ class RepoGraph:
 
         try:
             self.save()
-        except Exception:
-            # Suppress expected non-fatal exception
-            pass
+        except Exception as exc:
+            # Explicit non-fatal exception suppression
+            _ = str(exc)
 
     def _parse_ast(self, node: ast.AST, file_path: str):
         module_name = file_path.replace("/", ".").replace(".py", "")

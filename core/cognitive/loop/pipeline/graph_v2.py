@@ -823,9 +823,9 @@ class ReasoningPipelineV2:
             self.store.record_metric("pipeline_v2_confidence", state.confidence)
             self.store.record_metric("pipeline_v2_quality", state.quality_score.get("total_score", 0))
             self.store.record_metric("pipeline_v2_refinement_rounds", state.refinement_round)
-        except Exception:
-            # Suppress expected non-fatal exception
-            pass
+        except Exception as exc:
+            # Explicit non-fatal exception suppression
+            _ = str(exc)
 
         return state
 

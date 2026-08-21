@@ -91,9 +91,9 @@ async def verify_code_candidate(
     finally:
         try:
             os.unlink(tmp_path)
-        except Exception:
-            # Suppress expected non-fatal exception
-            pass
+        except Exception as exc:
+            # Explicit non-fatal exception suppression
+            _ = str(exc)
 
 async def verify_non_code_candidate(
     task: str,

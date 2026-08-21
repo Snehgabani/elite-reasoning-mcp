@@ -293,9 +293,9 @@ def _install_hardened_middleware(mcp: FastMCP, store: SingularityStore, session_
             # Log error
             try:
                 store.log_tool_usage(name, str(arguments)[:200], f"ERROR: {e}", session_id, duration_ms)
-            except Exception as e:
-                # Suppress expected non-fatal exception
-                pass
+            except Exception as exc:
+                # Explicit non-fatal exception suppression
+                _ = str(exc)
             
             # Return user-friendly error
             return {

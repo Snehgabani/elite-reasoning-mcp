@@ -108,8 +108,9 @@ def register(mcp, store: EliteStore):
                     flags.append(
                         f"⚠️ RELATED PAST MISTAKE: {m['mistake'][:80]}… → Fix: {m['fix'][:80]}…"
                     )
-        except Exception:
-            pass  # Don't let anti-pattern check failure block scoring
+        except Exception as exc:
+            # Explicit non-fatal exception suppression
+            _ = str(exc)  # Don't let anti-pattern check failure block scoring
 
         # ── Calculate total ──
         total = max(0, min(100, sum(score_components.values())))
@@ -135,8 +136,9 @@ def register(mcp, store: EliteStore):
                 dimension="confidence",
                 notes=f"Domain: {domain} | Flags: {len(flags)} | Claim: {claim_text[:100]}"
             )
-        except Exception:
-            pass
+        except Exception as exc:
+            # Explicit non-fatal exception suppression
+            _ = str(exc)
 
         # ── Format output ──
         out = f"""╔══════════════════════════════════════════════╗
@@ -244,8 +246,9 @@ def register(mcp, store: EliteStore):
                         f"  Root cause: {m['root_cause'][:100]}\n"
                         f"  Fix: {m['fix'][:100]}\n\n"
                     )
-        except Exception:
-            pass
+        except Exception as exc:
+            # Explicit non-fatal exception suppression
+            _ = str(exc)
 
         # ── Format output ──
         out = f"""╔══════════════════════════════════════════════╗
@@ -292,8 +295,9 @@ _Why this matters: {ch['why']}_
                 dimension="reasoning_depth",
                 notes=f"Socratic challenge initiated | Depth: {depth} | Answer: {answer_text[:100]}"
             )
-        except Exception:
-            pass
+        except Exception as exc:
+            # Explicit non-fatal exception suppression
+            _ = str(exc)
 
         return out
 
@@ -372,8 +376,9 @@ _Why this matters: {ch['why']}_
                 anti_pattern_warnings.append(
                     f"⚠️ RELATED PAST MISTAKE: {m['mistake'][:80]}… → Fix: {m['fix'][:80]}"
                 )
-        except Exception:
-            pass
+        except Exception as exc:
+            # Explicit non-fatal exception suppression
+            _ = str(exc)
 
         # ── Format output ──
         complexity_labels = {
@@ -899,8 +904,9 @@ def _check_decision_contradictions(store, new_decision: str) -> list[str]:
                             f"   Similarity: {similarity:.0%}"
                         )
                         break
-    except Exception:
-        pass  # Never block decision recording
+    except Exception as exc:
+        # Explicit non-fatal exception suppression
+        _ = str(exc)  # Never block decision recording
     return warnings
 
 

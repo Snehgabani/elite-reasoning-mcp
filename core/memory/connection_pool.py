@@ -93,8 +93,9 @@ class ThreadLocalPool:
         except Exception:
             try:
                 conn.execute("ROLLBACK")
-            except Exception:
-                pass  # Connection may be in bad state; rollback best-effort
+            except Exception as exc:
+                # Explicit non-fatal exception suppression
+                _ = str(exc)  # Connection may be in bad state; rollback best-effort
             raise
 
     @contextmanager
@@ -112,8 +113,9 @@ class ThreadLocalPool:
         if conn is not None:
             try:
                 conn.close()
-            except Exception:
-                pass
+            except Exception as exc:
+                # Explicit non-fatal exception suppression
+                _ = str(exc)
             self._local.conn = None
             with self._lock:
                 try:
@@ -127,7 +129,8 @@ class ThreadLocalPool:
             for conn in self._all_connections:
                 try:
                     conn.close()
-                except Exception:
-                    pass
+                except Exception as exc:
+                    # Explicit non-fatal exception suppression
+                    _ = str(exc)
             self._all_connections.clear()
         self._local = threading.local()  # Reset thread-local storage

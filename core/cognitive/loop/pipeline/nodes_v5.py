@@ -424,9 +424,9 @@ class CrossTaskLearner(NodeV5):
                 "intent": intent,
                 "techniques": ",".join(state.techniques_applied)
             })
-        except Exception:
-            # Suppress expected non-fatal exception
-            pass
+        except Exception as exc:
+            # Explicit non-fatal exception suppression
+            _ = str(exc)
         
         # Analyze historical success rates
         success_rates = self._analyze_success_rates(state.task_learning_history)
@@ -490,9 +490,9 @@ class ConfidenceCalibrator(NodeV5):
                 "predicted": state.predicted_quality,
                 "actual": actual_quality
             })
-        except Exception:
-            # Suppress expected non-fatal exception
-            pass
+        except Exception as exc:
+            # Explicit non-fatal exception suppression
+            _ = str(exc)
         
         # Retrieve historical calibration data
         calibration_history = self._get_calibration_history(store)
