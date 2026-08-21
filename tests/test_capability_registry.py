@@ -10,7 +10,6 @@ from core.orchestration.capabilities import (
     scan_zed_context_servers,
 )
 from core.tools.goal_prompt_polisher import PolishResult
-from core.tools.orchestration import _gemini_endpoint, _validated_eval_harness, orchestrate_request
 
 
 def test_parse_jsonc_supports_zed_comments_and_trailing_commas():
@@ -103,23 +102,23 @@ def test_capability_report_is_human_readable(tmp_path, monkeypatch):
 def test_gemini_endpoint_requires_https_and_explicit_custom_host_opt_in(monkeypatch):
     monkeypatch.delenv("ELITE_GEMINI_BASE_URL", raising=False)
     monkeypatch.delenv("ELITE_ALLOW_CUSTOM_GEMINI_ENDPOINT", raising=False)
-    assert _gemini_endpoint().startswith("https://generativelanguage.googleapis.com/")
+    assert orchestration._gemini_endpoint().startswith("https://generativelanguage.googleapis.com/")
 
     monkeypatch.setenv("ELITE_GEMINI_BASE_URL", "http://localhost:8080/gemini")
     with pytest.raises(ValueError, match="https"):
-        _gemini_endpoint()
+        orchestration._gemini_endpoint()
 
     monkeypatch.setenv("ELITE_GEMINI_BASE_URL", "https://provider.example.test/gemini")
     with pytest.raises(ValueError, match="ELITE_ALLOW_CUSTOM_GEMINI_ENDPOINT"):
-        _gemini_endpoint()
+        orchestration._gemini_endpoint()
 
     monkeypatch.setenv("ELITE_ALLOW_CUSTOM_GEMINI_ENDPOINT", "1")
-    assert _gemini_endpoint() == "https://provider.example.test/gemini"
+    assert orchestration._gemini_endpoint() == "https://provider.example.test/gemini"
 
 
 def test_eval_harness_contract_rejects_unknown_values():
-    assert "Unsupported eval harness" in _validated_eval_harness("unknown")
-    assert "promptfoo" in _validated_eval_harness("promptfoo").lower()
+    assert "Unsupported eval harness" in orchestration._validated_eval_harness("unknown")
+    assert "promptfoo" in orchestration._validated_eval_harness("promptfoo").lower()
 
 
 def test_orchestrator_records_prompt_polisher_intent(tmp_path, monkeypatch):
@@ -149,7 +148,7 @@ def test_orchestrator_records_prompt_polisher_intent(tmp_path, monkeypatch):
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
     monkeypatch.setattr(orchestration, "_polisher", TestPolisher(store))
 
-    orchestrate_request("build a safe deploy workflow")
+    orchestration.orchestrate_request("build a safe deploy workflow")
 
     assert len(store.records) == 1
     assert store.records[0]["intent"] == "build"
@@ -167,7 +166,7 @@ def test_orchestrator_uses_zed_capabilities_not_legacy_skills(tmp_path, monkeypa
     legacy_skill = tmp_path / ".gemini" / "config" / "plugins" / "research" / "skills" / "arxiv"
     legacy_skill.mkdir(parents=True)
 
-    plan = orchestrate_request("research the best benchmark for coding agents")
+    plan = orchestration.orchestrate_request("research the best benchmark for coding agents")
 
     assert "Active IDE:** `zed`" in plan
     assert "`elite-reasoning`" in plan

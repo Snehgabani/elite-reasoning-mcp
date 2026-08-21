@@ -1689,8 +1689,6 @@ class EliteStore:
 
     def update_thinking_pattern(self, pattern_name: str, system_adaptation: str, example_prompt: str = "") -> str:
         """Update or create a user thinking pattern."""
-        import json
-
         conn = self._connect()
         c = conn.cursor()
         now = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())

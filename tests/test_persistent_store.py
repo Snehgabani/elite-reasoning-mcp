@@ -165,6 +165,7 @@ class TestDecisions:
             alternatives_rejected="Flask, Django",
             context="microservice arch",
         )
+        assert row_id >= 1
         results = store.get_all_decisions()
         assert len(results) == 1
         assert results[0]["alternatives_rejected"] == "Flask, Django"

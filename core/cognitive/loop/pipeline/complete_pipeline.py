@@ -27,12 +27,6 @@ try:
 except ImportError:
     HAS_TEXTSTAT = False
 
-try:
-    from scipy import stats as scipy_stats
-    HAS_SCIPY = True
-except ImportError:
-    HAS_SCIPY = False
-
 from core.cognitive.loop.core.classifier import classify_prompt
 from core.cognitive.loop.core.store import SingularityStore
 from core.cognitive.loop.pipeline.graph_v2 import TECHNIQUES

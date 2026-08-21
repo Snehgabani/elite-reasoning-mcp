@@ -211,3 +211,5 @@ class EliteCognitiveEngine:
 # Global Singleton
 _COGNITIVE_ENGINE = EliteCognitiveEngine()
 _MIX_ENGINE = _COGNITIVE_ENGINE
+
+__all__ = ["EliteCognitiveEngine", "_COGNITIVE_ENGINE", "_MIX_ENGINE"]

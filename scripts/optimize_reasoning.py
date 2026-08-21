@@ -47,7 +47,7 @@ def optimize_framework():
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Optimize DSPy Modules")
-    args = parser.parse_args()
+    _ = parser.parse_args()
     
     if not os.getenv("OPENAI_API_KEY"):
         print("Warning: OPENAI_API_KEY not set. Using dummy key. Optimization may fail.")

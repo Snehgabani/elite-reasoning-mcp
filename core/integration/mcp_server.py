@@ -902,11 +902,10 @@ def _install_orchestration_interceptor(mcp: FastMCP, store: EliteStore, session_
                         )
 
                         # ── Complexity ≥ 2: Lightweight checks ──
-                        if complexity >= 2:
-                            if intent in ('debug', 'investigate', 'fix'):
-                                preflight_lines.append(
-                                    "  🔎 RECOMMENDED: Run `check_anti_patterns` — have I seen this bug before?"
-                                )
+                        if intent in ('debug', 'investigate', 'fix'):
+                            preflight_lines.append(
+                                "  🔎 RECOMMENDED: Run `check_anti_patterns` — have I seen this bug before?"
+                            )
 
                         # ── Complexity ≥ 3: Structured reasoning ──
                         if complexity >= 3:
