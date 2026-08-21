@@ -226,3 +226,41 @@ def test_dynamic_tool_router():
     prompt_inj = router.get_tool_routing_prompt_injection("Verify mathematical proof invariants")
     assert "DYNAMIC TOOL ROUTER" in prompt_inj
     assert len(prompt_inj.split()) < 100
+
+
+def test_cognitive_trinity_flow():
+    """Verify 3-stage closed-loop trinity flow (Initiation, Benchmark, Verification)."""
+    from core.cognitive.leverage.cognitive_trinity import CognitiveTrinityManager
+
+    mgr = CognitiveTrinityManager()
+
+    # Stage 1: Initiate Workflow
+    init_res = mgr.initiate_workflow(task="Implement robust SQLite connection pool with thread safety", task_id="test-cid-1")
+    assert init_res["status"] == "WORKFLOW_INITIATED"
+    contract = init_res["contract"]
+    assert contract["contract_id"] == "test-cid-1"
+    assert len(contract["ordered_tool_sequence"]) >= 3
+    assert contract["ordered_tool_sequence"][0]["tool"] == "elite_reason"
+    assert contract["ordered_tool_sequence"][1]["tool"] == "establish_outcome_benchmark"
+
+    # Stage 2: Establish Benchmark
+    bench_res = mgr.establish_benchmark(contract_id="test-cid-1", target_quality_score=0.98)
+    assert bench_res["status"] == "BENCHMARK_ESTABLISHED"
+    benchmark = bench_res["benchmark"]
+    assert benchmark["target_quality_score"] == 0.98
+    assert len(benchmark["required_invariants"]) >= 4
+
+    # Stage 3a: Verification Failure on Broken Code (Zero-Escape Rejection)
+    broken_code = "def pool():\n  eval('malicious')\n  return 1"
+    fail_res = mgr.verify_and_attest(contract_id="test-cid-1", evidence_code=broken_code, test_exit_code=1)
+    assert fail_res["status"] == "VERIFICATION_REJECTED"
+    assert fail_res["can_complete"] is False
+    assert fail_res["violations_count"] >= 1
+    assert "HALT COMPLETION" in fail_res["reflexion_instruction"]
+
+    # Stage 3b: Verification Success on Clean Code (Certified Attestation)
+    clean_code = "def get_connection(db_path: str):\n    \"\"\"Thread-safe connection provider.\"\"\"\n    import sqlite3\n    return sqlite3.connect(db_path)"
+    pass_res = mgr.verify_and_attest(contract_id="test-cid-1", evidence_code=clean_code, test_exit_code=0)
+    assert pass_res["status"] == "ATTESTED_COMPLETE"
+    assert pass_res["can_complete"] is None or pass_res["terminal_completion_authorized"] is True
+    assert len(pass_res["attestation_token"]) == 64

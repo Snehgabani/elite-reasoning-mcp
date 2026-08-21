@@ -43,6 +43,7 @@ from core.cognitive.leverage.web_research import LiveWebResearcher as _Triangula
 from core.cognitive.leverage.web_research import live_web_search as _run_live_web_search
 from core.cognitive.leverage.zero_escape_fsm import ZeroEscapeFSM, LifecycleState
 from core.cognitive.leverage.dynamic_tool_router import DynamicToolRouter
+from core.cognitive.leverage.cognitive_trinity import _TRINITY_MANAGER
 
 
 def register(mcp, store=None, profile=None) -> None:
@@ -433,3 +434,52 @@ def register(mcp, store=None, profile=None) -> None:
         router = DynamicToolRouter()
         recs = router.route_task(task)
         return json.dumps([r.__dict__ for r in recs], indent=2)
+
+    @mcp.tool()
+    def initiate_cognitive_workflow(task: str, task_id: str | None = None) -> str:
+        """
+        STAGE 1 TRINITY GATEKEEPER:
+        Analyzes the user's prompt, classifies intent and complexity, and outputs the exact
+        ordered sequence of tools that MUST be executed in exact step order with pre-filled arguments.
+        """
+        res = _TRINITY_MANAGER.initiate_workflow(task=task, task_id=task_id)
+        return json.dumps(res, indent=2)
+
+    @mcp.tool()
+    def establish_outcome_benchmark(
+        contract_id: str,
+        task: str | None = None,
+        target_quality_score: float = 0.95,
+    ) -> str:
+        """
+        STAGE 2 TRINITY BENCHMARK CONTRACT:
+        Defines the quantitative target score, deterministic AST invariants, and quality rubric
+        that the execution must achieve before any output can be declared complete.
+        """
+        res = _TRINITY_MANAGER.establish_benchmark(
+            contract_id=contract_id,
+            task=task,
+            target_quality_score=target_quality_score,
+        )
+        return json.dumps(res, indent=2)
+
+    @mcp.tool()
+    def verify_and_attest_benchmark(
+        contract_id: str,
+        evidence_code: str | None = None,
+        test_exit_code: int = 0,
+        claims_text: str | None = None,
+    ) -> str:
+        """
+        STAGE 3 TRINITY INDEPENDENT VERIFIER & ZERO-ESCAPE ENFORCER:
+        Independently audits execution results against Stage 2 benchmarks.
+        If tests or invariants fail, strictly halts completion and returns diagnostic self-healing instructions.
+        If benchmarks pass, mints an unforgeable cryptographic attestation token unlocking completion.
+        """
+        res = _TRINITY_MANAGER.verify_and_attest(
+            contract_id=contract_id,
+            evidence_code=evidence_code,
+            test_exit_code=test_exit_code,
+            claims_text=claims_text,
+        )
+        return json.dumps(res, indent=2)
