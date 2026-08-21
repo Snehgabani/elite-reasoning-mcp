@@ -106,22 +106,23 @@ def audit_lens_5_double_blind_rct() -> bool:
 
 def audit_lens_6_mcp_latency_and_surface() -> bool:
     print_header("6. FastMCP Server Registry & Sub-2ms Latency Benchmark")
+    import asyncio
     from core.cognitive.engine import _COGNITIVE_ENGINE
     from core.integration.mcp_server import create_mcp_server
-    
+
     server = create_mcp_server("/tmp/elite-e2e-audit-brain", tool_profile="legacy")
     tools = server._tool_manager.list_tools()
     print(f"• Registered MCP Tools Count: {len(tools)}")
-    
+
     # Warmup and Latency Benchmark
     t0 = time.perf_counter()
-    res = _COGNITIVE_ENGINE.execute_mix("Audit system architecture latency and invariance", task_type="debugging")
+    res = asyncio.run(_COGNITIVE_ENGINE.execute_mix("Audit system architecture latency and invariance", task_type="debugging"))
     dur_ms = (time.perf_counter() - t0) * 1000.0
-    
+
     print(f"• Cognitive Engine Latency (execute_mix): {dur_ms:.2f}ms (Budget: <50ms)")
     print(f"• ZeroEscapeFSM State: {res.get('zero_escape_fsm', {}).get('current_state')}")
     print(f"• Proof-of-Work Valid: {res.get('proof_of_work', {}).get('valid')}")
-    
+
     if len(tools) >= 150 and dur_ms < 50.0 and res.get("proof_of_work", {}).get("valid"):
         print("✅ FastMCP Protocol & Latency Compliance: 100% Certified.")
         return True
