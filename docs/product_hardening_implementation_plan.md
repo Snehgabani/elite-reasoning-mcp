@@ -29,7 +29,7 @@ Last updated: 2026-08-22
 - [ ] Decompose the remaining monolithic persistence repositories.
 - [x] Move graph/model/sync/scientific dependencies behind `legacy` and add an isolated minimal-wheel core smoke gate.
 - [ ] Land isolated installed-wheel validation on Linux, macOS, and Windows for Python 3.11 and 3.13 (implementation prepared; GitHub App lacks workflow-write permission).
-- [ ] Build the manifest-driven multi-arm evaluation harness and frozen task corpus.
+- [x] Build a manifest-driven five-arm analysis harness and 250-task frozen corpus that reports `NOT_RUN` until independent matched outcomes are supplied.
 - [x] Add an offline installed-product demo with a deterministic fail-then-pass verification transition.
 - [x] Add previewable, confirmation-gated atomic IDE initialization and redacted workflow-evidence export.
 - [ ] Complete adversarial security, memory-poisoning, and corruption suites.

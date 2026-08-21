@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Confirmation-gated `init --ide` preview/install flow with valid no-argument core commands, malformed-config refusal, existing-key preservation, atomic writes, and owner-only permissions.
 - Redacted `export-evidence RUN_ID` CLI for durable workflow audit records.
 - Product hardening roadmap covering the evidence-first core, architecture, evaluation, security, and adoption milestones.
+- Manifest-driven contract extraction and five-arm analysis harnesses that compute observed metrics only and return `NOT_RUN` instead of simulating missing model outcomes.
 
 ### Changed
 - Reclassified the bundled seven-case comparison as an internal fixture pilot rather than an RCT.

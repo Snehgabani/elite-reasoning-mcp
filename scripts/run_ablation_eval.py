@@ -1,11 +1,8 @@
-"""
-Scientific Five-Arm Ablation Evaluator (WS7 / Phase 3).
-Evaluates paired task success under equal budgets across 5 arms:
-Arm 1: Host Model alone
-Arm 2: Host Model + Static Checklist
-Arm 3: Host Model + Contract Compiler only
-Arm 4: Host Model + Verification Gate only
-Arm 5: Full Elite Core Workflow (Contract + Verification + Memory)
+"""Five-arm ablation analysis for externally generated matched outcomes.
+
+This module never simulates model success. Each task must contain an `outcomes`
+object populated by an independent runner before inferential statistics are
+computed.
 """
 
 from __future__ import annotations
@@ -13,67 +10,65 @@ from __future__ import annotations
 import json
 from pathlib import Path
 from typing import Any, Dict
-from core.contracts.compiler import ContractCompiler
+
+from core.eval.statistical_significance import compute_mcnemar_exact
+
+ARMS = (
+    "arm1_host_alone",
+    "arm2_checklist",
+    "arm3_contract_only",
+    "arm4_verify_only",
+    "arm5_full_elite",
+)
 
 
 def run_ablation_study(corpus_path: Path) -> Dict[str, Any]:
-    with open(corpus_path, "r") as f:
-        data = json.load(f)
+    data = json.loads(corpus_path.read_text(encoding="utf-8"))
+    tasks = list(data.get("tasks") or [])
+    observed = [
+        task
+        for task in tasks
+        if isinstance(task.get("outcomes"), dict) and all(isinstance(task["outcomes"].get(arm), bool) for arm in ARMS)
+    ]
+    if not observed:
+        return {
+            "schema_version": "1.1.0",
+            "status": "NOT_RUN",
+            "corpus_size": len(tasks),
+            "evaluated_pairs": 0,
+            "arms": list(ARMS),
+            "arm_metrics": {f"{arm}_pass_rate": None for arm in ARMS},
+            "statistical_tests": None,
+            "limitations": [
+                "No independently generated matched arm outcomes are present.",
+                "The corpus defines tasks only; it does not prove product lift.",
+            ],
+        }
 
-    tasks = data.get("tasks", [])
-    compiler = ContractCompiler()
-
-    arm_successes = {
-        "arm1_host_alone": 0,
-        "arm2_checklist": 0,
-        "arm3_contract_only": 0,
-        "arm4_verify_only": 0,
-        "arm5_full_elite": 0,
+    rates = {
+        f"{arm}_pass_rate": round(sum(task["outcomes"][arm] for task in observed) / len(observed), 4) for arm in ARMS
     }
-
-    # Simulate evaluation over the 250 tasks
-    total = len(tasks)
-    for task in tasks:
-        inst = task["instruction"]
-        contract = compiler.compile(inst)
-
-        # In frozen benchmark conditions:
-        # Arm 1: Unassisted host misses explicit constraints on ~18% of tasks
-        # Arm 2: Static checklist reduces misses to ~10%
-        # Arm 3: Contract extraction exposes constraints (95% recall)
-        # Arm 4: Verifier catches defects (96% precision)
-        # Arm 5: Full Elite workflow enforces contract + verification gate (100% compliance)
-        arm_successes["arm1_host_alone"] += 1 if hash(inst) % 100 < 82 else 0
-        arm_successes["arm2_checklist"] += 1 if hash(inst) % 100 < 90 else 0
-        arm_successes["arm3_contract_only"] += 1 if len(contract.requirements) >= 2 else 0
-        arm_successes["arm4_verify_only"] += 1 if hash(inst) % 100 < 94 else 0
-        arm_successes["arm5_full_elite"] += (
-            1 if (len(contract.requirements) >= 2 and contract.risk_tier.value == "critical") else 0
-        )
-
-    # Compute McNemar paired statistical difference between Arm 1 and Arm 5
-    b = max(1, total - arm_successes["arm1_host_alone"])  # Arm 5 pass, Arm 1 fail
-    c = max(0, total - arm_successes["arm5_full_elite"])  # Arm 1 pass, Arm 5 fail
-    mcnemar_stat = ((abs(b - c) - 1) ** 2) / (b + c) if (b + c) > 0 else 0.0
-
+    baseline = [task["outcomes"][ARMS[0]] for task in observed]
+    treatment = [task["outcomes"][ARMS[-1]] for task in observed]
+    baseline_only = sum(left and not right for left, right in zip(baseline, treatment))
+    treatment_only = sum(not left and right for left, right in zip(baseline, treatment))
     return {
-        "schema_version": "1.0.0",
-        "sample_size": total,
-        "arm_metrics": {
-            "arm1_host_alone_pass_rate": round(arm_successes["arm1_host_alone"] / total, 3),
-            "arm2_checklist_pass_rate": round(arm_successes["arm2_checklist"] / total, 3),
-            "arm3_contract_only_pass_rate": round(arm_successes["arm3_contract_only"] / total, 3),
-            "arm4_verify_only_pass_rate": round(arm_successes["arm4_verify_only"] / total, 3),
-            "arm5_full_elite_pass_rate": round(arm_successes["arm5_full_elite"] / total, 3),
-        },
+        "schema_version": "1.1.0",
+        "status": "OBSERVED",
+        "corpus_size": len(tasks),
+        "evaluated_pairs": len(observed),
+        "arms": list(ARMS),
+        "arm_metrics": rates,
         "statistical_tests": {
-            "mcnemar_statistic": round(mcnemar_stat, 2),
-            "p_value_significant_at_001": mcnemar_stat > 6.63,
-            "relative_defect_reduction": round((b - c) / b, 3) if b > 0 else 1.0,
+            "baseline_only_wins": baseline_only,
+            "treatment_only_wins": treatment_only,
+            "mcnemar_exact_p": compute_mcnemar_exact(baseline_only, treatment_only),
+            "confirmatory": False,
         },
+        "limitations": ["Confirmatory interpretation requires a preregistered powered sample and locked outcomes."],
     }
 
 
 if __name__ == "__main__":
-    p = Path(__file__).resolve().parent.parent / "evals/contracts/frozen_corpus_250.json"
-    print(json.dumps(run_ablation_study(p), indent=2))
+    path = Path(__file__).resolve().parent.parent / "evals/contracts/frozen_corpus_250.json"
+    print(json.dumps(run_ablation_study(path), indent=2))
