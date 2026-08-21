@@ -1,0 +1,44 @@
+name: Autonomous Release Bot
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  auto-release:
+    runs-on: ubuntu-latest
+    if: "!contains(github.event.head_commit.message, 'skip-release') && !contains(github.event.head_commit.message, 'chore(release)')"
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          fetch-depth: 0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@38f3f104447c67c051c4a08e39b64a148898af3a # v4
+
+      - name: Set up Python 3.12
+        run: uv python install 3.12
+
+      - name: Check and Create GitHub Release if Tag Missing
+        run: |
+          VERSION=$(python3 -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['project']['version'])")
+          TAG="v$VERSION"
+          echo "Package version: $VERSION (Target tag: $TAG)"
+
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG already exists. No new release needed."
+          else
+            echo "Creating automated GitHub Release for $TAG"
+            gh release create "$TAG" \
+              --title "Elite Reasoning MCP $TAG" \
+              --generate-notes \
+              --target main
+            echo "✅ Created release $TAG"
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

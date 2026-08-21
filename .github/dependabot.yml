@@ -7,13 +7,18 @@ updates:
       day: "monday"
       time: "09:00"
       timezone: "Asia/Kolkata"
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 10
     labels:
       - "dependencies"
       - "python"
+      - "automerge"
     commit-message:
-      prefix: "chore"
+      prefix: "chore(deps)"
       include: "scope"
+    groups:
+      python-dependencies:
+        patterns:
+          - "*"
 
   - package-ecosystem: "npm"
     directory: "/telemetry-ui"
@@ -22,13 +27,18 @@ updates:
       day: "monday"
       time: "09:30"
       timezone: "Asia/Kolkata"
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 10
     labels:
       - "dependencies"
       - "telemetry-ui"
+      - "automerge"
     commit-message:
-      prefix: "chore"
+      prefix: "chore(deps-ui)"
       include: "scope"
+    groups:
+      ui-dependencies:
+        patterns:
+          - "*"
 
   - package-ecosystem: "github-actions"
     directory: "/"
@@ -37,25 +47,15 @@ updates:
       day: "monday"
       time: "10:00"
       timezone: "Asia/Kolkata"
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 10
     labels:
       - "dependencies"
       - "github-actions"
+      - "automerge"
     commit-message:
-      prefix: "chore"
+      prefix: "chore(ci)"
       include: "scope"
-
-  - package-ecosystem: "docker"
-    directory: "/"
-    schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "10:30"
-      timezone: "Asia/Kolkata"
-    open-pull-requests-limit: 5
-    labels:
-      - "dependencies"
-      - "docker"
-    commit-message:
-      prefix: "chore"
-      include: "scope"
+    groups:
+      actions:
+        patterns:
+          - "*"

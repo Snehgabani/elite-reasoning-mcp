@@ -1,0 +1,43 @@
+name: Autonomous Issue & PR Triage
+
+on:
+  issues:
+    types: [opened]
+  pull_request:
+    types: [opened]
+
+permissions:
+  issues: write
+  pull-requests: write
+
+jobs:
+  triage:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Triage Issues
+        if: github.event.issue
+        run: |
+          TITLE="${{ github.event.issue.title }}"
+          BODY="${{ github.event.issue.body }}"
+          ISSUE_NUM="${{ github.event.issue.number }}"
+
+          LABELS=""
+          if echo "$TITLE $BODY" | grep -iqE "bug|error|fail|crash|broken"; then
+            LABELS="$LABELS,bug"
+          fi
+          if echo "$TITLE $BODY" | grep -iqE "feat|add|support|improve|enhancement"; then
+            LABELS="$LABELS,enhancement"
+          fi
+          if echo "$TITLE $BODY" | grep -iqE "doc|readme|guide"; then
+            LABELS="$LABELS,documentation"
+          fi
+          if echo "$TITLE $BODY" | grep -iqE "security|vulnerability|cve|leak"; then
+            LABELS="$LABELS,security"
+          fi
+
+          if [ -n "$LABELS" ]; then
+            LABELS=$(echo "$LABELS" | sed 's/^,//')
+            gh issue edit "$ISSUE_NUM" --add-label "$LABELS"
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
