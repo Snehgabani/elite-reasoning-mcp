@@ -104,12 +104,11 @@ async def generate_and_judge(task: str, n_candidates: int = 5) -> Dict:
     # Rejection sampling: select candidate with highest composite score
     best_score, winning_candidate, rubric = max(scored_results, key=lambda x: x[0])
 
-    status = "VERIFIED_PERFECT"
+    status = "scored_only"
     if best_score < 0.92:
-        status = "RECURSIVELY_CORRECTED"
-        best_score = min(1.0, round(best_score + 0.08, 4))
+        status = "below_threshold"
         winning_candidate["content"] += (
-            "\n\n[CONSTITUTIONAL_SELF_CORRECTION] Invariant boundary constraints hardened; formal proof assertions enforced."
+            "\n\n[NOT CORRECTED] Score was not inflated. Re-generate a real candidate and verify it."
         )
 
     return {

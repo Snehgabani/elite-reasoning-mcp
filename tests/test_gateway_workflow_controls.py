@@ -52,6 +52,44 @@ async def test_gateway_requires_evidence_and_ordered_workflow_completion(tmp_pat
 
     assert progress.workflow_status == "completed"
     assert all(step.status == "passed" for step in progress.steps)
+    assert prepared.goal
+    assert prepared.constraints
+    assert prepared.next_action in {"none", "evidence", "verify_constraints", "verify_tests"}
+
+
+@pytest.mark.asyncio
+async def test_gateway_constraint_and_syntax_verification(tmp_path):
+    mcp = create_mcp_server(str(tmp_path / "brain"))
+    tools = mcp._tool_manager._tools
+
+    syntax = await tools["elite_verify"].fn(check="syntax", code="def add(a, b):\n    return a + b\n")
+    assert syntax.data["passed"] is True
+
+    constraints = await tools["elite_verify"].fn(
+        check="constraints",
+        query="Reply in JSON. At most 20 words. Do not mention tools.",
+        draft='{"ok": true, "reason": "done"}',
+    )
+    assert "pass_rate" in constraints.data
+    assert constraints.data["pass_rate"] >= 0.5
+
+    prepared = await tools["elite_prepare"].fn(
+        user_prompt="Reply in JSON. At most 20 words. Do not mention tools.",
+        persist=True,
+    )
+    assert prepared.playbook
+    assert prepared.expected_outcomes
+    assert prepared.allowed_tools
+    assert "elite_verify" in prepared.allowed_tools
+    assert prepared.repeat_until
+
+    outcomes = await tools["elite_verify"].fn(
+        check="outcomes",
+        run_id=prepared.run_id,
+        draft='{"ok": true, "reason": "done"}',
+    )
+    assert outcomes.data["action"] in {"DONE", "REPEAT"}
+    assert "passed" in outcomes.data
 
 
 @pytest.mark.asyncio

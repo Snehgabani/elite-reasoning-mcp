@@ -47,7 +47,10 @@ def create_mcp_server(brain_dir: str, tool_profile: str | None = None) -> FastMC
     profile_name = resolve_tool_profile(tool_profile)
     mcp = FastMCP(
         "EliteReasoning",
-        instructions="Evidence-gated workflow, trusted memory, and runtime verification for coding agents.",
+        instructions=(
+            "Checkable task contracts, quote-grounded web evidence, and local verification "
+            "for coding agents. This server does not generate the user's answer."
+        ),
         website_url="https://github.com/Snehgabani/elite-reasoning-mcp",
     )
     # FastMCP currently omits a version constructor argument even though the

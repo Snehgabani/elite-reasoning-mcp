@@ -31,9 +31,14 @@ class SelfRAGEngine:
             crag_triggered = True
             r_res = await self.researcher.search_and_triangulate(claim, k=2)
             sources = [s["url"] for s in r_res.get("sources", [])]
-            corrected_claim = f"{claim} (Corrected via CRAG Live Web Triangulation: Provenance {sources[0] if sources else 'https://arxiv.org'})"
-            is_sup = "YES_VIA_CRAG"
-            is_use = "HIGH"
+            if sources:
+                corrected_claim = f"{claim} [needs quote from {sources[0]}]"
+                is_sup = "UNVERIFIED"
+                is_use = "LOW"
+            else:
+                corrected_claim = claim
+                is_sup = "NO"
+                is_use = "LOW"
 
         return {
             "original_claim": claim,

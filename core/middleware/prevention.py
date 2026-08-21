@@ -204,8 +204,5 @@ class PreventionRuleMiddleware(Middleware):
         # Inject any prevention warnings into result
         all_warnings = ctx.metadata.get("prevention_warnings", []) + post_warnings
         if all_warnings:
-            result.augmentations.insert(
-                0,
-                "╔══ 🛡️ PREVENTION RULES FIRED ══╗\n" + "\n".join(all_warnings) + "\n╚═══════════════════════════════╝",
-            )
+            result.augmentations.insert(0, "Prevention: " + " | ".join(all_warnings))
         return result

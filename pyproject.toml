@@ -1,7 +1,7 @@
 [project]
 name = "elite-reasoning-mcp"
-version = "2.7.0"
-description = "The Unified Cognitive Operating System for AI Coding Agents: 9-Stage Cognitive Loop, Process Reward Model (PRM), Deterministic AST Invariant Gates, Stanford STORM Deep Research, and Trusted Memory."
+version = "2.8.0"
+description = "MCP server that compiles checkable task contracts, retrieves quote-grounded web evidence, and verifies drafts for coding agents — especially cheap/small host models."
 readme = "README.md"
 requires-python = ">=3.11"
 license = {text = "MIT"}

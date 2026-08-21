@@ -16,6 +16,8 @@ from core.eval.research_benchmarks import recommend_budget_tier
 from core.orchestration.capabilities import build_capability_registry
 from core.privacy import redact_text
 from core.reasoning.nuclear_prompt import nuclear_prompt_breakdown, protocol_recommendation
+from core.reasoning.playbook import playbook_card
+from core.reasoning.task_contract import compile_task_contract
 
 
 def _utc_now() -> str:
@@ -117,7 +119,11 @@ def build_workflow_run(user_prompt: str, store=None, persist: bool = True) -> di
     breakdown = nuclear_prompt_breakdown(cleaned)
     protocol = protocol_recommendation(cleaned, complexity)
     registry = build_capability_registry()
-    memory_context = _memory_context(store, cleaned, limit=8) if store is not None else []
+    memory_context = _memory_context(store, cleaned, limit=3) if store is not None else []
+    contract = compile_task_contract(cleaned, complexity)
+    card = playbook_card(contract)
+    contract_payload = contract.to_dict()
+    contract_payload.update(card)
     run_id = f"wf_{uuid.uuid4().hex[:12]}"
     now = _utc_now()
 
@@ -166,10 +172,8 @@ def build_workflow_run(user_prompt: str, store=None, persist: bool = True) -> di
         },
     ]
 
-    confidence = 0.55 + min(0.25, 0.04 * len(evidence_requirements)) + min(0.15, 0.03 * len(validation_gates))
-    if memory_context:
-        confidence += 0.05
-    confidence = round(min(confidence, 0.95), 2)
+    # Coverage of checkable constraints, not a model self-score.
+    confidence = round(min(0.35 + 0.07 * len(contract.constraints) + (0.05 if memory_context else 0), 0.80), 2)
 
     run = {
         "run_id": run_id,
@@ -188,6 +192,14 @@ def build_workflow_run(user_prompt: str, store=None, persist: bool = True) -> di
         "evidence_requirements": evidence_requirements,
         "validation_gates": validation_gates,
         "memory_context": memory_context,
+        "task_contract": contract_payload,
+        "next_action": contract.next_action,
+        "goal": contract.goal,
+        "deliverable": contract.deliverable,
+        "playbook": card["playbook"],
+        "expected_outcomes": card["expected_outcomes"],
+        "allowed_tools": card["allowed_tools"],
+        "repeat_until": card["repeat_until"],
         "tool_budget": {
             "tier": budget.tier,
             "max_tool_calls": budget.max_tool_calls,
@@ -210,10 +222,12 @@ def workflow_run_markdown(run: dict[str, Any]) -> str:
         "# Elite Workflow Run",
         "",
         f"**Run ID:** `{run['run_id']}`",
+        f"**Goal:** {run.get('goal') or run['intent']}",
         f"**Intent:** `{run['intent']}`",
         f"**Complexity:** {run['complexity']}/5",
         f"**Budget tier:** `{run['budget_tier']}`",
-        f"**Confidence:** {run['confidence']:.0%}",
+        f"**Next action:** `{run.get('next_action', 'none')}`",
+        f"**Contract coverage:** {run['confidence']:.0%}",
         f"**Active IDE:** `{run.get('active_ide', 'unknown')}`",
         "",
         "## Steps",
