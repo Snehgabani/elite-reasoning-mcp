@@ -86,6 +86,41 @@ def test_git_diff_rejects_roots_outside_approved_boundary(tmp_path):
     assert "outside approved" in result.reason
 
 
+def test_git_diff_hashes_symlink_identity_without_following_target(tmp_path):
+    repo = _repository(tmp_path)
+    outside = tmp_path / "outside-secret.txt"
+    outside.write_text("secret content that must not be hashed as repository source", encoding="utf-8")
+    link = repo / "link.txt"
+    link.symlink_to(outside)
+
+    result = verify_git_diff(project_root=str(repo), allowed_files=["link.txt"], cwd=repo)
+    assert result.status is VerificationStatus.PASS
+    assert result.changed_files[0].path == "link.txt"
+    assert result.changed_files[0].content_digest.startswith("sha256:")
+
+
+def test_git_diff_returns_unknown_when_file_exceeds_hash_budget(tmp_path):
+    repo = _repository(tmp_path)
+    oversized = repo / "large.bin"
+    with oversized.open("wb") as handle:
+        handle.truncate(50 * 1024 * 1024 + 1)
+
+    result = verify_git_diff(project_root=str(repo), allowed_files=["large.bin"], cwd=repo)
+    assert result.status is VerificationStatus.UNKNOWN
+    assert result.changed_files[0].content_digest == "oversized"
+    assert result.snapshot_errors == ("large.bin: oversized",)
+
+
+def test_git_diff_rejects_hostile_control_characters_in_paths(tmp_path):
+    repo = _repository(tmp_path)
+    (repo / "hostile\nname.py").write_text("value = 1\n", encoding="utf-8")
+
+    result = verify_git_diff(project_root=str(repo), allowed_files=["app.py"], cwd=repo)
+    assert result.status is VerificationStatus.UNKNOWN
+    assert result.snapshot_errors
+    assert "invalid path" in result.snapshot_errors[0]
+
+
 def test_git_diff_rejects_parent_traversal_in_allowed_paths(tmp_path):
     repo = _repository(tmp_path)
     result = verify_git_diff(project_root=str(repo), allowed_files=["../secret.txt"], cwd=repo)

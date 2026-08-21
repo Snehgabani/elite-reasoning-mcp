@@ -183,6 +183,15 @@ async def test_outcomes_require_fresh_persisted_test_and_repository_evidence(tmp
     stored = mcp._elite_store.list_workflow_evidence(prepared.run_id, "tests")
     assert stored[0]["id"] == tests.evidence[0].id
 
+    second_run = await mcp._tool_manager._tools["elite_prepare"].fn(
+        user_prompt="Fix code only app.py. Must run pytest.", persist=True
+    )
+    replay_attempt = await verify(
+        check="outcomes", run_id=second_run.run_id, draft=draft, project_root=str(repo)
+    )
+    assert replay_attempt.data["action"] == "REPEAT"
+    assert replay_attempt.data["evidence_gate"]["accepted_evidence_ids"] == []
+
     complete = await verify(
         check="outcomes", run_id=prepared.run_id, draft=draft, project_root=str(repo)
     )

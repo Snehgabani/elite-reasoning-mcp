@@ -23,6 +23,11 @@ import logging
 logger = logging.getLogger(__name__)
 
 from core.memory.graph_store import TemporalGraphStore  # noqa: E402
+from core.persistence.database import (  # noqa: E402
+    CURRENT_SCHEMA_VERSION,
+    create_migration_backup,
+    restore_migration_backup,
+)
 from core.privacy import (  # noqa: E402
     metadata_fingerprint,
     prompt_storage_value,
@@ -44,6 +49,7 @@ class EliteStore:
         self.db_path = os.path.join(brain_dir, "elite.db")
         self._local = threading.local()
         os.makedirs(brain_dir, exist_ok=True)
+        migration_backup = create_migration_backup(self.db_path)
 
         # P1: Use ThreadLocalPool for connection management
         # Falls back to direct connection if pool module unavailable
@@ -56,7 +62,14 @@ class EliteStore:
             self._pool = None
             self._use_pool = False
 
-        self._init_db()
+        try:
+            self._init_db()
+        except Exception:
+            if self._pool is not None:
+                self._pool.close_all()
+            if migration_backup is not None:
+                restore_migration_backup(self.db_path, migration_backup)
+            raise
         self.graph = TemporalGraphStore(self.db_path)  # Same DB — single transaction boundary
 
     def _connect(self) -> sqlite3.Connection:
@@ -752,6 +765,8 @@ class EliteStore:
         # --- Privacy retention migration (v6) ---
         self._run_privacy_migration(c)
 
+        c.execute("INSERT OR IGNORE INTO schema_migrations (version) VALUES (?)", (CURRENT_SCHEMA_VERSION,))
+        conn.commit()
         self._close(conn)
 
     def _run_trigger_migration(self, cursor):
@@ -1832,7 +1847,10 @@ class EliteStore:
         evidence = json.dumps(run.get("evidence_requirements", []))
         validation = json.dumps(run.get("validation_gates", []))
         memory_context = json.dumps(run.get("memory_context", []))
-        task_contract = json.dumps(run.get("task_contract") or {})
+        # Contracts contain source spans and extracted terms from the prompt.
+        # Preserve the structured contract while redacting secret-like values
+        # before they cross the persistence boundary.
+        task_contract = redact_text(json.dumps(run.get("task_contract") or {}), limit=1_000_000)
 
         with self.transaction():
             conn = self._connect()

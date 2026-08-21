@@ -16,6 +16,9 @@ from typing import Any, Iterable
 
 from core.verification.models import VerificationStatus
 
+MAX_CHANGED_FILES = 1000
+MAX_HASHED_FILE_BYTES = 50 * 1024 * 1024
+
 DEPENDENCY_MANIFESTS = frozenset(
     {
         "cargo.lock",
@@ -56,6 +59,7 @@ class GitDiffVerification:
     dependency_changes: tuple[str, ...]
     reason: str
     snapshot_material: str
+    snapshot_errors: tuple[str, ...] = ()
 
     @property
     def passed(self) -> bool:
@@ -70,6 +74,7 @@ class GitDiffVerification:
             "allowed_files": list(self.allowed_files),
             "out_of_scope": list(self.out_of_scope),
             "dependency_changes": list(self.dependency_changes),
+            "snapshot_errors": list(self.snapshot_errors),
             "reason": self.reason,
         }
 
@@ -79,7 +84,8 @@ def _normalize_relative_path(value: str) -> str:
     while candidate.startswith("./"):
         candidate = candidate[2:]
     path = PurePosixPath(candidate)
-    if not candidate or path.is_absolute() or ".." in path.parts:
+    hostile_character = any(ord(char) < 32 or 0xD800 <= ord(char) <= 0xDFFF for char in candidate)
+    if not candidate or path.is_absolute() or ".." in path.parts or hostile_character:
         raise ValueError(f"invalid repository-relative path: {value!r}")
     return path.as_posix()
 
@@ -157,18 +163,38 @@ def _parse_porcelain_z(output: bytes) -> list[tuple[str, str]]:
 
 
 def _content_digest(root: Path, relative: str) -> str:
+    """Hash one path and detect changes that occur during collection."""
     path = root / relative
     try:
+        before = path.lstat()
         if path.is_symlink():
             payload = os.readlink(path).encode("utf-8", errors="surrogateescape")
+            after = path.lstat()
+            if (before.st_mtime_ns, before.st_size, before.st_ino) != (
+                after.st_mtime_ns,
+                after.st_size,
+                after.st_ino,
+            ):
+                return "unstable"
             return "sha256:" + hashlib.sha256(b"symlink\0" + payload).hexdigest()
         if not path.is_file():
             return "deleted"
+        if before.st_size > MAX_HASHED_FILE_BYTES:
+            return "oversized"
         digest = hashlib.sha256()
         with path.open("rb") as handle:
             for chunk in iter(lambda: handle.read(1024 * 1024), b""):
                 digest.update(chunk)
+        after = path.stat()
+        if (before.st_mtime_ns, before.st_size, before.st_ino) != (
+            after.st_mtime_ns,
+            after.st_size,
+            after.st_ino,
+        ):
+            return "unstable"
         return "sha256:" + digest.hexdigest()
+    except FileNotFoundError:
+        return "deleted"
     except OSError:
         return "unreadable"
 
@@ -229,9 +255,24 @@ def verify_git_diff(
             snapshot_material=f"UNKNOWN\0{root}\0{reason}",
         )
 
+    parsed_changes = _parse_porcelain_z(completed.stdout)
+    if len(parsed_changes) > MAX_CHANGED_FILES:
+        reason = f"changed-file count exceeds safety budget ({len(parsed_changes)} > {MAX_CHANGED_FILES})"
+        return GitDiffVerification(
+            status=VerificationStatus.UNKNOWN,
+            repository_root=str(root),
+            changed_files=(),
+            allowed_files=tuple(normalized_allowed),
+            out_of_scope=(),
+            dependency_changes=(),
+            reason=reason,
+            snapshot_material=f"UNKNOWN\0{root}\0{reason}",
+            snapshot_errors=(reason,),
+        )
+
     states: list[GitFileState] = []
     invalid_paths: list[str] = []
-    for status_code, raw_path in _parse_porcelain_z(completed.stdout):
+    for status_code, raw_path in parsed_changes:
         try:
             relative = _normalize_relative_path(raw_path)
         except ValueError:
@@ -239,6 +280,12 @@ def verify_git_diff(
             continue
         states.append(GitFileState(relative, status_code, _content_digest(root, relative)))
     states.sort(key=lambda item: (item.path, item.status))
+    snapshot_errors = [f"invalid path: {path!r}" for path in invalid_paths]
+    snapshot_errors.extend(
+        f"{item.path}: {item.content_digest}"
+        for item in states
+        if item.content_digest in {"oversized", "unreadable", "unstable"}
+    )
 
     allowed = set(normalized_allowed)
     changed_paths = {item.path for item in states}
@@ -246,7 +293,10 @@ def verify_git_diff(
     out_of_scope.extend(f"invalid:{path}" for path in invalid_paths)
     dependency_changes = sorted(path for path in changed_paths if PurePosixPath(path).name.lower() in DEPENDENCY_MANIFESTS)
 
-    if not normalized_allowed:
+    if snapshot_errors:
+        status = VerificationStatus.UNKNOWN
+        reason = f"repository snapshot is incomplete: {snapshot_errors[0]}"
+    elif not normalized_allowed:
         status = VerificationStatus.NOT_CHECKED
         reason = "no allowed_files policy was supplied; repository state was recorded but scope was not checked"
     elif out_of_scope:
@@ -270,4 +320,5 @@ def verify_git_diff(
         dependency_changes=tuple(dependency_changes),
         reason=reason,
         snapshot_material="\n".join(snapshot_parts),
+        snapshot_errors=tuple(snapshot_errors),
     )

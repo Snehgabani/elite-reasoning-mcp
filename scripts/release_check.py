@@ -145,6 +145,22 @@ def main() -> int:
         ],
     )
     run_step(
+        "wheel offline demo",
+        [
+            "uv",
+            "run",
+            "--isolated",
+            "--no-project",
+            "--with",
+            str(wheels[-1]),
+            "elite-reasoning-mcp",
+            "--brain-dir",
+            str(Path(tempfile.gettempdir()) / "elite-wheel-demo-brain"),
+            "demo",
+            "--json",
+        ],
+    )
+    run_step(
         "minimal installed core",
         [
             "uv",

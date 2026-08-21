@@ -92,6 +92,9 @@ uv tool install elite-reasoning-mcp
 elite-reasoning-mcp --version
 elite-reasoning-mcp doctor --json
 
+# Run an offline bad-draft → corrected-draft verification demo
+elite-reasoning-mcp demo
+
 # Preview a safe standalone upgrade command
 elite-reasoning-mcp upgrade --dry-run
 ```

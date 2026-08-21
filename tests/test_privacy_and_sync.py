@@ -30,6 +30,17 @@ def test_default_telemetry_and_workflow_storage_withhold_raw_prompt(monkeypatch,
             "run_id": "workflow-private",
             "user_prompt": f"ship with api_key={secret}",
             "intent": "build",
+            "task_contract": {
+                "goal": "ship safely",
+                "constraints": [
+                    {
+                        "id": "secret",
+                        "kind": "must_not",
+                        "source_text": f"Do not expose {secret}",
+                        "terms": [secret],
+                    }
+                ],
+            },
         },
         [],
     )
@@ -37,6 +48,8 @@ def test_default_telemetry_and_workflow_storage_withhold_raw_prompt(monkeypatch,
     assert workflow is not None
     assert secret not in workflow["user_prompt"]
     assert workflow["user_prompt"].startswith("[prompt withheld;")
+    assert secret not in json.dumps(workflow["task_contract"])
+    assert "[REDACTED_OPENAI_KEY]" in json.dumps(workflow["task_contract"])
 
 
 def test_explicit_raw_prompt_storage_still_redacts_secrets(monkeypatch):
@@ -153,16 +166,36 @@ def test_workflow_evidence_is_redacted_before_persistence(tmp_path):
         "passed",
         f"validated with api_key={secret}",
     )
+    assert store.record_workflow_evidence(
+        "evidence-private",
+        "tests",
+        {
+            "id": "ev_private",
+            "verification_status": "PASS",
+            "subject_digest": "sha256:subject",
+            "artifact_digest": "sha256:artifact",
+            "producer": "test",
+            "payload": {"command": "pytest", "api_key": secret},
+            "limitations": [f"Bearer {secret}"],
+            "collected_at": "2026-08-22T00:00:00Z",
+        },
+    )
 
     with sqlite3.connect(store.db_path) as conn:
         raw_evidence = conn.execute(
             "SELECT evidence FROM workflow_steps WHERE run_id = ?",
             ("evidence-private",),
         ).fetchone()[0]
+        typed_payload, typed_limitations = conn.execute(
+            "SELECT payload, limitations FROM workflow_evidence WHERE run_id = ?",
+            ("evidence-private",),
+        ).fetchone()
 
     workflow = store.get_workflow_run("evidence-private")
     assert secret not in raw_evidence
     assert "[REDACTED]" in raw_evidence
+    assert secret not in typed_payload
+    assert secret not in typed_limitations
     assert workflow is not None
     assert secret not in workflow["steps"][0]["evidence"]
 

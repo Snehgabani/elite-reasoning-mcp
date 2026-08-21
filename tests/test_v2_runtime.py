@@ -65,8 +65,17 @@ def test_cli_reports_version_doctor_and_safe_upgrade_preview(tmp_path, capsys):
     assert main(["upgrade", "--dry-run"]) == 0
     assert "upgrade elite-reasoning-mcp" in capsys.readouterr().out
 
+    assert main(["--brain-dir", str(tmp_path / "brain"), "demo", "--json"]) == 0
+    demo = json.loads(capsys.readouterr().out)
+    assert demo["status"] == "ok"
+    assert demo["tool_count"] == 5
+    assert demo["failing_draft"]["verification_status"] == "FAIL"
+    assert demo["passing_draft"]["verification_status"] == "PASS"
+    assert demo["privacy"] == {"network_requests": 0, "raw_prompt_persisted": False}
+
     assert main(["--brain-dir", str(tmp_path / "brain"), "doctor", "--json"]) == 0
     report = json.loads(capsys.readouterr().out)
     assert report["tool_profile"] == "core"
     assert report["protocol_server_version"] == package_version()
     assert report["tool_count"] == 5
+    assert report["database_schema_version"] == report["expected_database_schema_version"] == 7

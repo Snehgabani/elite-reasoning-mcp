@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Typed verifier registry with inspectable, independently testable handlers for constraints, outcomes, evidence, syntax, tests, Git scope, and grounding.
 - Restricted test-command adapter with an environment allowlist and explicit timeout behavior.
 - Public API response schemas separated from MCP gateway registration.
+- Offline `elite-reasoning-mcp demo` command showing source-linked contract compilation and evidence-bound bad-draft → corrected-draft verification through the installed five-tool server.
 - Product hardening roadmap covering the evidence-first core, architecture, evaluation, security, and adoption milestones.
 
 ### Changed
@@ -29,6 +30,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Made `core.cognitive` compatibility exports lazy so deterministic checks do not load the graph engine.
 - Moved graph, model-provider, sync-server, SciPy, and NetworkX dependencies behind the explicit `legacy` extra; the local release gate now exercises a minimal isolated core wheel without them.
 - Kept release fixture-pilot output in a temporary artifact so validation no longer dirties the tracked benchmark report.
+- Added Git snapshot budgets, symlink-identity hashing, hostile-path rejection, and unstable/oversized/unreadable fail-unknown behavior.
+- Redacted secret-like values in persisted source-linked contracts and typed workflow evidence, with cross-workflow replay rejection coverage.
+- Added schema version 7, integrity-checked pre-migration SQLite backups, bounded backup retention, automatic rollback on migration failure, and doctor schema diagnostics.
 
 ## [2.8.0] - 2026-08-21
 

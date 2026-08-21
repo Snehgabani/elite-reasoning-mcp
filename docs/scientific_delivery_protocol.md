@@ -196,6 +196,15 @@ A lower level cannot be used to claim a higher-level outcome. For example, AST p
 - Intervention: typed registry, restricted command adapter, and separate API schemas.
 - Result: adopted; registry unit tests, public MCP integration tests, strict typing, and the full release gate pass with the same five-tool output contract.
 
+### Cycle CORE-005 — Migration failure recovery
+
+- Observation: schema changes were applied in place without a verified rollback artifact.
+- Hypothesis: an online SQLite backup plus automatic exception rollback prevents data loss during failed upgrades.
+- Primary endpoint: a simulated destructive migration failure restores schema v6 data byte-logically and passes `PRAGMA quick_check`.
+- Harm endpoint: backups are owner-only and retention is bounded to three.
+- Intervention: schema v7 ledger, integrity-checked backup/restore primitives, and doctor version diagnostics.
+- Result: adopted; successful upgrade, forced rollback, retention, and corrupt-source rejection fixtures pass.
+
 ## 7. Stop conditions
 
 Stop or revise an intervention when:

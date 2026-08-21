@@ -1,4 +1,5 @@
 import argparse
+import asyncio
 import json
 import os
 import shlex
@@ -6,6 +7,7 @@ import shutil
 import subprocess
 import sys
 import uuid
+from typing import Any
 
 try:
     from mcp.server.fastmcp import FastMCP
@@ -1252,6 +1254,63 @@ def _upgrade_command() -> list[str]:
     return [sys.executable, "-m", "pip", "install", "--upgrade", PACKAGE_NAME]
 
 
+async def _run_demo(server) -> dict[str, Any]:
+    """Exercise the installed five-tool core without network access."""
+    prompt = "Reply in JSON. At most 20 words. Do not mention tools."
+    tools = server._tool_manager._tools
+    prepared = await tools["elite_prepare"].fn(user_prompt=prompt, persist=False)
+    failing = await tools["elite_verify"].fn(
+        check="constraints",
+        query=prompt,
+        draft="I will use tools and provide a long unstructured explanation instead of JSON.",
+    )
+    passing_draft = '{"ok":true,"reason":"requirements satisfied"}'
+    passing = await tools["elite_verify"].fn(check="constraints", query=prompt, draft=passing_draft)
+    return {
+        "status": "ok" if failing.verification_status.value == "FAIL" and passing.verification_status.value == "PASS" else "failed",
+        "offline": True,
+        "persisted": prepared.persisted,
+        "tool_count": len(tools),
+        "contract_schema_version": prepared.task_contract.get("schema_version"),
+        "constraints": prepared.task_contract.get("constraints", []),
+        "failing_draft": {
+            "verification_status": failing.verification_status.value,
+            "unmet": failing.data.get("unmet", []),
+            "subject_digest": failing.subject_digest,
+            "evidence_id": failing.evidence[0].id,
+        },
+        "passing_draft": {
+            "verification_status": passing.verification_status.value,
+            "unmet": passing.data.get("unmet", []),
+            "subject_digest": passing.subject_digest,
+            "evidence_id": passing.evidence[0].id,
+        },
+        "privacy": {
+            "raw_prompt_persisted": False,
+            "network_requests": 0,
+        },
+    }
+
+
+def _demo_markdown(report: dict[str, Any]) -> str:
+    failing = report["failing_draft"]
+    passing = report["passing_draft"]
+    return "\n".join(
+        [
+            "# Elite Reasoning MCP Offline Demo",
+            "",
+            f"- Core tools discovered: {report['tool_count']}",
+            f"- Contract schema: {report['contract_schema_version']}",
+            f"- Intentionally invalid draft: {failing['verification_status']}",
+            f"- Corrected draft: {passing['verification_status']}",
+            f"- Raw prompt persisted: {str(report['privacy']['raw_prompt_persisted']).lower()}",
+            f"- Network requests: {report['privacy']['network_requests']}",
+            "",
+            "The demo passes only when the bad draft fails and the corrected draft passes.",
+        ]
+    )
+
+
 def main(argv: list[str] | None = None) -> int:
     """Run the MCP server or an explicit local maintenance command."""
     parser = argparse.ArgumentParser(prog=PACKAGE_NAME)
@@ -1271,6 +1330,8 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Exit non-zero unless the report is release-ready.",
     )
+    demo_parser = subcommands.add_parser("demo", help="Run an offline end-to-end core verification demo.")
+    demo_parser.add_argument("--json", action="store_true", help="Emit machine-readable JSON.")
     upgrade_parser = subcommands.add_parser("upgrade", help="Upgrade the standalone package explicitly.")
     upgrade_parser.add_argument("--yes", action="store_true", help="Confirm the package-manager upgrade command.")
     upgrade_parser.add_argument("--dry-run", action="store_true", help="Print the upgrade command without running it.")
@@ -1291,6 +1352,10 @@ def main(argv: list[str] | None = None) -> int:
         return subprocess.run(command, check=False).returncode
 
     server = create_mcp_server(args.brain_dir, tool_profile=args.tool_profile)
+    if args.command == "demo":
+        report = asyncio.run(_run_demo(server))
+        print(json.dumps(report, indent=2, sort_keys=True) if args.json else _demo_markdown(report))
+        return 0 if report["status"] == "ok" else 1
     if args.command == "doctor":
         from core.tools.doctor import build_doctor_report, doctor_markdown
 

@@ -384,6 +384,7 @@ class GitDiffVerifier:
                 "allowed_files": list(result.allowed_files),
                 "out_of_scope": list(result.out_of_scope),
                 "dependency_changes": list(result.dependency_changes),
+                "snapshot_errors": list(result.snapshot_errors),
                 "reason": result.reason,
             },
             limitations=(

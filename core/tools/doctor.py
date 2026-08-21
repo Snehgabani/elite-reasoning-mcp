@@ -10,6 +10,7 @@ import sys
 from typing import Any
 
 from core.orchestration.capabilities import build_capability_registry
+from core.persistence.database import CURRENT_SCHEMA_VERSION, schema_version
 from core.runtime import package_version, runtime_identity
 
 REQUIRED_TABLES = {
@@ -21,6 +22,8 @@ REQUIRED_TABLES = {
     "prevention_rules",
     "workflow_runs",
     "workflow_steps",
+    "workflow_evidence",
+    "schema_migrations",
     "memory_items",
 }
 
@@ -75,6 +78,7 @@ def build_doctor_report(store, profile=None, mcp=None) -> dict[str, Any]:
     tool_profile = getattr(mcp, "_elite_tool_profile", "legacy") if mcp is not None else "unknown"
     protocol_version = _protocol_server_version(mcp)
     runtime = runtime_identity()
+    current_schema = schema_version(getattr(store, "db_path", ""))
     profile_ide = getattr(profile, "ide_type", "") if profile is not None else ""
     blockers: list[str] = []
     warnings: list[str] = []
@@ -83,6 +87,8 @@ def build_doctor_report(store, profile=None, mcp=None) -> dict[str, Any]:
         blockers.append(f"Missing required DB tables: {', '.join(missing_tables)}")
     if not os.path.exists(getattr(store, "db_path", "")):
         blockers.append("elite.db does not exist or is not readable")
+    if current_schema != CURRENT_SCHEMA_VERSION:
+        blockers.append(f"Database schema version mismatch: {current_schema} != {CURRENT_SCHEMA_VERSION}")
     minimum_tool_count = 5 if tool_profile == "core" else 20
     if tool_count is not None and tool_count < minimum_tool_count:
         blockers.append(f"Unexpectedly low `{tool_profile}` MCP tool count: {tool_count}")
@@ -139,6 +145,8 @@ def build_doctor_report(store, profile=None, mcp=None) -> dict[str, Any]:
         "db_exists": os.path.exists(getattr(store, "db_path", "")),
         "required_tables_present": not missing_tables,
         "missing_tables": missing_tables,
+        "database_schema_version": current_schema,
+        "expected_database_schema_version": CURRENT_SCHEMA_VERSION,
         "tool_count": tool_count,
         "active_ide": registry.active_ide,
         "profile_ide": profile_ide or None,
