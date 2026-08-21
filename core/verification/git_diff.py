@@ -49,10 +49,24 @@ class GitDiffScopeVerifier(BaseVerifier):
 
         # If subject is a simple file list string rather than unified diff
         if not modified_files and diff_text.strip():
-            for line in diff_text.splitlines():
-                f = line.strip().lstrip("+-* ").strip()
-                if f and not f.startswith("#"):
+            lines = [
+                l.strip().lstrip("+-* ").strip()
+                for l in diff_text.splitlines()
+                if l.strip() and not l.strip().startswith("#")
+            ]
+            is_file_list = bool(lines) and all(
+                (" " not in l and ("." in l or "/" in l) and not l.endswith(":") and not l.endswith(";")) for l in lines
+            )
+            if is_file_list:
+                for f in lines:
                     modified_files.add(f)
+            else:
+                return VerificationResult(
+                    requirement_id=requirement.id,
+                    verifier=self.name,
+                    status=VerificationStatus.NOT_CHECKED,
+                    reason="Subject content is code/text rather than a unified git diff or file list",
+                )
 
         params = requirement.verifier_parameters
         allowed_files = set(params.get("allowed_files", []))

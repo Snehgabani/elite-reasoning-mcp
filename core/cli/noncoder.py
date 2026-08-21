@@ -1,0 +1,145 @@
+"""
+Non-Coder Leverage CLI & Interactive TUI (Elite Leverage Engine).
+Empowers product managers, non-technical founders, and builders to compile
+checkable task contracts and verify AI outputs with zero code knowledge.
+"""
+
+from __future__ import annotations
+
+import argparse
+import sys
+from core.contracts.compiler import ContractCompiler
+from core.verification.models import VerificationStatus
+from core.verification.registry import GLOBAL_VERIFIER_REGISTRY
+
+
+def format_contract_card(prompt: str) -> str:
+    """Formats a clear, non-technical contract card from any user instruction."""
+    compiler = ContractCompiler()
+    contract = compiler.compile(prompt)
+
+    lines = [
+        "╔══════════════════════════════════════════════════════════════════════╗",
+        "║            🎯 ELITE TASK CONTRACT (NON-CODER SUMMARY)                ║",
+        "╚══════════════════════════════════════════════════════════════════════╝",
+        f"📌 Goal        : {contract.goal[:60]}...",
+        f"⚠️ Risk Level  : {contract.risk_tier.value.upper()}",
+        f"🔍 Max Retries : {contract.max_repair_attempts}",
+        "",
+        "📋 CHECKABLE REQUIREMENTS EXTRACTED FROM YOUR PROMPT:",
+    ]
+
+    for idx, req in enumerate(contract.requirements, 1):
+        sev_icon = "🔴" if req.severity.value == "critical" else "🟡"
+        lines.append(f"  {idx}. {sev_icon} [{req.kind.value.upper()}] {req.interpretation}")
+        if req.source_text:
+            lines.append(f'     Source: "{req.source_text}" (chars {req.source_start}-{req.source_end})')
+
+    lines.append("")
+    lines.append("🛡️ HOW TO HOLD YOUR CODING AGENT ACCOUNTABLE:")
+    lines.append("  1. Paste these exact bullet points to your AI coding assistant.")
+    lines.append("  2. Tell the assistant: 'Do not mark DONE until all criteria PASS.'")
+    lines.append("  3. Paste the assistant's final response back here to verify.")
+    lines.append("══════════════════════════════════════════════════════════════════════")
+    return "\n".join(lines)
+
+
+def format_verification_receipt(prompt: str, draft: str) -> str:
+    """Evaluates AI output against compiled contract and generates a plain-English receipt."""
+    compiler = ContractCompiler()
+    contract = compiler.compile(prompt)
+    registry = GLOBAL_VERIFIER_REGISTRY
+
+    passed = 0
+    failed = 0
+    not_checked = 0
+    results_lines = []
+
+    for req in contract.requirements:
+        res = registry.verify_requirement(req, draft)
+        if res.status == VerificationStatus.PASS:
+            passed += 1
+            results_lines.append(f"  ✅ PASS: {req.interpretation}")
+        elif res.status == VerificationStatus.FAIL:
+            failed += 1
+            results_lines.append(f"  ❌ FAIL: {req.interpretation} -> Reason: {res.reason}")
+        else:
+            not_checked += 1
+            results_lines.append(f"  ℹ️ UNCHECKED: {req.interpretation} ({res.reason})")
+
+    is_acceptable = failed == 0 and passed > 0
+
+    lines = [
+        "╔══════════════════════════════════════════════════════════════════════╗",
+        "║            🧾 ELITE AI VERIFICATION RECEIPT                          ║",
+        "╚══════════════════════════════════════════════════════════════════════╝",
+        f"📊 Overall Score : {passed}/{len(contract.requirements)} Criteria Passed",
+        f"🏁 Status        : {'✅ ACCEPTABLE TO MERGE' if is_acceptable else '🚨 REJECT / REQUEST FIX'}",
+        "",
+        "📋 INDIVIDUAL REQUIREMENT VERDICTS:",
+    ]
+    lines.extend(results_lines)
+    lines.append("")
+    if failed > 0:
+        lines.append("💡 RECOMMENDED ACTION FOR NON-CODER:")
+        lines.append(
+            "  Tell your AI agent: 'Your draft failed verification. Please fix the items marked ❌ FAIL above.'"
+        )
+    else:
+        lines.append("🎉 All checkable constraints are fully satisfied! Safe to proceed.")
+    lines.append("══════════════════════════════════════════════════════════════════════")
+    return "\n".join(lines)
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Elite Reasoning MCP Non-Coder Leverage Suite")
+    subparsers = parser.add_subparsers(dest="command")
+
+    # Contract command
+    contract_p = subparsers.add_parser("contract", help="Compile a plain-English contract card from a prompt")
+    contract_p.add_argument("prompt", help="Natural language request or business requirement")
+
+    # Verify command
+    verify_p = subparsers.add_parser("verify", help="Verify an AI draft against your prompt")
+    verify_p.add_argument("--prompt", required=True, help="Original prompt or requirement")
+    verify_p.add_argument("--draft", required=True, help="AI response or code draft")
+
+    # Interactive mode
+    subparsers.add_parser("interactive", help="Launch interactive step-by-step assistant")
+
+    args = parser.parse_args()
+
+    if args.command == "contract":
+        print(format_contract_card(args.prompt))
+    elif args.command == "verify":
+        print(format_verification_receipt(args.prompt, args.draft))
+    elif args.command == "interactive" or len(sys.argv) == 1:
+        print("=" * 70)
+        print("🌟 Welcome to Elite Assistant (Zero-Code AI Verification)")
+        print("=" * 70)
+        try:
+            prompt = input("Enter your task / requirement: ").strip()
+            if not prompt:
+                print("No prompt provided. Exiting.")
+                return
+            print("\n" + format_contract_card(prompt) + "\n")
+            verify_now = input("Do you have an AI draft to test right now? (y/n): ").strip().lower()
+            if verify_now == "y":
+                print("Paste the AI draft below (press Ctrl+D or type EOF on a new line when done):")
+                lines = []
+                while True:
+                    try:
+                        line = input()
+                        if line.strip() == "EOF":
+                            break
+                        lines.append(line)
+                    except EOFError:
+                        break
+                draft = "\n".join(lines)
+                print("\n" + format_verification_receipt(prompt, draft))
+        except KeyboardInterrupt:
+            print("\nExiting.")
+
+
+if __name__ == "__main__":
+    main()

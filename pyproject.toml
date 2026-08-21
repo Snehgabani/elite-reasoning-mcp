@@ -105,6 +105,7 @@ all = [
 
 [project.scripts]
 elite-reasoning-mcp = "core.integration.mcp_server:main"
+elite-audit = "core.cli.noncoder:main"
 
 [build-system]
 requires = ["hatchling>=1.26,<1.30"]
