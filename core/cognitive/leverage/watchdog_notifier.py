@@ -14,6 +14,10 @@ import time
 from typing import Any, Dict
 
 
+from core.logging_config import get_logger
+
+logger = get_logger(__name__)
+
 BRAIN_DIR = os.environ.get("ELITE_BRAIN_DIR", os.path.expanduser("~/.elite-reasoning/brain"))
 LIVE_STATUS_FILE = os.path.join(BRAIN_DIR, "live_status.json")
 
@@ -41,8 +45,8 @@ class WatchdogNotifier:
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
                 )
-            except (OSError, subprocess.SubprocessError):
-                pass
+            except (OSError, subprocess.SubprocessError) as exc:
+                logger.debug("Desktop notification skipped: %s", exc)
 
     def record_telemetry(
         self,
@@ -70,8 +74,8 @@ class WatchdogNotifier:
         try:
             with open(LIVE_STATUS_FILE, "w", encoding="utf-8") as f:
                 json.dump(payload, f, indent=2)
-        except OSError:
-            pass
+        except OSError as exc:
+            logger.debug("Live status telemetry persistence skipped: %s", exc)
 
         if notify_desktop or status in {"ATTESTED_COMPLETE", "INVARIANT_VIOLATION", "DEADLOCK_HALT"}:
             msg = f"{status}: {details[:80]}" if details else f"Task progress: {progress_pct}%"
