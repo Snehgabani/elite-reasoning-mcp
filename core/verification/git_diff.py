@@ -82,6 +82,46 @@ class GitDiffVerification:
         }
 
 
+def compute_file_digest(path: str | Path) -> str:
+    """Computes sha256 digest of a target file."""
+    p = Path(path)
+    if not p.is_file():
+        return ""
+    try:
+        content = p.read_bytes()
+        return "sha256:" + hashlib.sha256(content).hexdigest()
+    except Exception:
+        return ""
+
+
+def verify_file_snapshot_lock(path: str | Path, expected_digest: str) -> tuple[bool, str]:
+    """Verifies target file has not been modified by human/external counter-edits."""
+    if not expected_digest.strip():
+        return True, ""
+    current = compute_file_digest(path)
+    if current != expected_digest.strip():
+        return False, (
+            f"STALE_SNAPSHOT_CONFLICT: target file '{path}' was modified externally "
+            f"(expected digest {expected_digest}, found {current}). Re-read file before editing."
+        )
+    return True, ""
+
+
+def check_test_tampering(
+    changed_files: Iterable[str],
+    task_type: str = "bug_fix",
+    allow_test_edits: bool = False,
+) -> tuple[bool, str]:
+    """Detects reward-hacking attempts where test assertions are tampered during bug-fix tasks."""
+    if allow_test_edits or task_type != "bug_fix":
+        return True, ""
+    for f in changed_files:
+        lowered = f.lower()
+        if lowered.startswith("tests/") or lowered.startswith("test/") or lowered.endswith("_test.py") or "/test_" in lowered:
+            return False, f"REWARD_HACKING_DETECTED: test file '{f}' was modified during bug-fix task without explicit permission."
+    return True, ""
+
+
 def _normalize_relative_path(value: str) -> str:
     candidate = (value or "").replace("\\", "/").strip()
     while candidate.startswith("./"):

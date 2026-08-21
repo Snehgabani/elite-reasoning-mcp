@@ -18,17 +18,39 @@ class DiagnosticSlice(BaseModel):
     error_message: str
     minimal_code_context: Optional[str] = None
     suggested_invariant_fix: str
-    schema_version: str = "1.0.0"
+    sliced_traceback: Optional[str] = None
+    schema_version: str = "1.1.0"
+
+
+def slice_raw_traceback(raw_trace: str, max_frames: int = 3, max_chars: int = 1500) -> str:
+    """Prunes runtime framework internal frames and caps traceback size to protect context budget."""
+    if not raw_trace:
+        return ""
+    lines = raw_trace.splitlines()
+    filtered_lines: list[str] = []
+    
+    # Filter out pytest, site-packages, uvicorn, and importlib runtime boilerplate
+    for line in lines:
+        if any(skip in line for skip in ("/site-packages/", "<frozen ", "/pytest/", "/pluggy/")):
+            continue
+        filtered_lines.append(line)
+        
+    result = "\n".join(filtered_lines[-max_frames * 4:]) if filtered_lines else "\n".join(lines[-10:])
+    return result[-max_chars:].strip()
 
 
 def extract_diagnostic_slice(error_text: str, source_code: Optional[str] = None) -> DiagnosticSlice:
     """Parses tracebacks or error messages into a structured, minimal diagnostic slice."""
     # Match standard python traceback patterns
-    line_match = re.search(r'File "([^"]+)", line (\d+)(?:, in (\w+))?', error_text)
+    line_match = re.findall(r'File "([^"]+)", line (\d+)(?:, in (\w+))?', error_text)
     err_match = re.search(r"([A-Za-z]+Error|[A-Za-z]+Exception):\s*(.*)", error_text)
 
-    file_name = line_match.group(1) if line_match else None
-    line_num = int(line_match.group(2)) if line_match else None
+    # Prefer user code frame over framework internal frame
+    user_frames = [f for f in line_match if not any(skip in f[0] for skip in ("/site-packages/", "<frozen ", "/pytest/"))]
+    target_frame = user_frames[-1] if user_frames else (line_match[-1] if line_match else None)
+
+    file_name = target_frame[0] if target_frame else None
+    line_num = int(target_frame[1]) if target_frame else None
     err_type = err_match.group(1) if err_match else "ExecutionError"
     err_msg = (
         err_match.group(2).strip()
@@ -36,7 +58,7 @@ def extract_diagnostic_slice(error_text: str, source_code: Optional[str] = None)
         else error_text.strip().splitlines()[-1]
         if error_text.strip()
         else "Unknown error"
-    )
+    )[:500]
 
     code_context = None
     if source_code and line_num:
@@ -58,4 +80,5 @@ def extract_diagnostic_slice(error_text: str, source_code: Optional[str] = None)
         error_message=err_msg,
         minimal_code_context=code_context,
         suggested_invariant_fix=fix_suggestion,
+        sliced_traceback=slice_raw_traceback(error_text),
     )

@@ -23,6 +23,7 @@ _OPENAI_TOKEN = re.compile(r"\bsk-[A-Za-z0-9_-]{16,}\b")
 _GITHUB_TOKEN = re.compile(r"\bgh[pousr]_[A-Za-z0-9_]{20,}\b")
 _GOOGLE_API_KEY = re.compile(r"\bAIza[0-9A-Za-z_-]{20,}\b")
 _PRIVATE_KEY = re.compile(r"-----BEGIN [A-Z ]+PRIVATE KEY-----.*?-----END [A-Z ]+PRIVATE KEY-----", re.DOTALL)
+_URI_CREDENTIALS = re.compile(r"://([^:/]+):([^@]+)@")
 
 
 def _serialize(value: Any) -> str:
@@ -38,6 +39,7 @@ def redact_text(value: Any, limit: int = 500) -> str:
     """Remove common secret forms before a value reaches telemetry or logs."""
     text = _serialize(value)
     text = _PRIVATE_KEY.sub("[REDACTED_PRIVATE_KEY]", text)
+    text = _URI_CREDENTIALS.sub(r"://\1:[REDACTED]@", text)
     text = _JSON_SECRET.sub(r"\1[REDACTED]\2", text)
     # Bearer credentials must be removed before generic key/value handling.
     # Otherwise ``Authorization: Bearer <token>`` leaves the token intact.
@@ -47,6 +49,11 @@ def redact_text(value: Any, limit: int = 500) -> str:
     text = _GITHUB_TOKEN.sub("[REDACTED_GITHUB_TOKEN]", text)
     text = _GOOGLE_API_KEY.sub("[REDACTED_GOOGLE_KEY]", text)
     return text[:limit]
+
+
+def scrub_secrets(value: Any, limit: int = 100000) -> str:
+    """Exhaustive secret scrubbing across tokens, passwords, and private keys."""
+    return redact_text(value, limit=limit)
 
 
 def _fingerprint(value: Any) -> str:
