@@ -42,6 +42,7 @@ from core.cognitive.leverage.verifier import verify_code_candidate, verify_non_c
 from core.cognitive.leverage.web_research import LiveWebResearcher as _Triangulator
 from core.cognitive.leverage.web_research import live_web_search as _run_live_web_search
 from core.cognitive.leverage.zero_escape_fsm import ZeroEscapeFSM, LifecycleState
+from core.cognitive.leverage.dynamic_tool_router import DynamicToolRouter
 
 
 def register(mcp, store=None, profile=None) -> None:
@@ -421,3 +422,14 @@ def register(mcp, store=None, profile=None) -> None:
 
         res = fsm.verify_completion_eligibility(required_stages=req_stages)
         return json.dumps(res, indent=2)
+
+    @mcp.tool()
+    def route_optimal_tools(task: str) -> str:
+        """
+        Hierarchical Dynamic Tool Router (Tool-RAG).
+        Analyzes the task intent and projects the Top-3 optimal tools with pre-populated arguments,
+        eliminating tool overload and selection hallucinations.
+        """
+        router = DynamicToolRouter()
+        recs = router.route_task(task)
+        return json.dumps([r.__dict__ for r in recs], indent=2)

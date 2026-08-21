@@ -204,3 +204,25 @@ def test_zero_escape_fsm_transitions_and_rejection():
     assert eligibility["can_complete"] is True
     assert eligibility["status"] == "ATTESTED_COMPLETE"
     assert len(eligibility["terminal_hmac"]) == 64
+
+
+def test_dynamic_tool_router():
+    """Verify DynamicToolRouter intent slotting and repetition penalty."""
+    from core.cognitive.leverage.dynamic_tool_router import DynamicToolRouter
+
+    router = DynamicToolRouter()
+
+    # Coding task routing
+    recs_code = router.route_task("Fix syntax error and bare except in database pool")
+    assert recs_code[0].category == "CODING_AND_REPAIR"
+    assert recs_code[0].tool_name in {"cegis_repair", "apply_reasoning_diff", "fuzz_symbol"}
+
+    # Research task routing
+    recs_research = router.route_task("Conduct deep research on Stanford STORM multi-perspective dialogue")
+    assert recs_research[0].category == "DEEP_RESEARCH_GROUNDING"
+    assert recs_research[0].tool_name in {"storm_research", "evaluate_fact_score", "live_web_search"}
+
+    # Micro-prompt injection size check (<300 tokens)
+    prompt_inj = router.get_tool_routing_prompt_injection("Verify mathematical proof invariants")
+    assert "DYNAMIC TOOL ROUTER" in prompt_inj
+    assert len(prompt_inj.split()) < 100
