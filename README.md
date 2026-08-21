@@ -415,6 +415,48 @@ Existing installations can retain the full legacy tool catalog by setting `ELITE
 
 </details>
 
+<details>
+<summary><strong>Unified Cognitive Singularity & MIX MCP Pipeline (42)</strong></summary>
+
+| Tool | Description |
+|:-----|:------------|
+| `execute_mix` | 9-Stage Supreme Cognitive Pipeline (Meta-Routing + Bias Scan + Dynamic Topology + PRM Invariant Gate + PoW) |
+| `elite_reason` | High-deliberation reasoning execution pipeline |
+| `execute_singularity` | Drop-in backward-compatible entry point for `execute_mix` |
+| `prm_verify_step` | Process Reward Model step verification (Math invariants, AST syntax, quantifier biases) |
+| `compose_reasoning_topology` | Dynamic reasoning DAG topology composition via Self-Discover framework |
+| `think_on_graph_search` | Think-on-Graph (ToG) beam search over knowledge graphs |
+| `verify_argument` | Syllogism and logical fallacy verification with deterministic fail-safes |
+| `expert_panel` | Concurrent dialectical viewpoint evaluation across domain expert personas |
+| `repo_search` | Codebase AST property graph search for symbol definitions and references |
+| `repo_impact_map` | Blast radius, dependency tree, and impacted test analysis for code changes |
+| `apply_reasoning_diff` | Physical disk write barrier gated by HMAC-SHA256 authorization and AST syntax pre-flight |
+| `fuzz_symbol` | Property-based testing for code symbols discovering edge case failures |
+| `god_tier_reasoning` | N-candidate parallel reasoning with Constitutional Rubric Rejection Sampling |
+| `hard_reason` | Language Agent Tree Search (LATS) with executable verifiers |
+| `dual_process_route` | System 1 (fast heuristic) vs System 2 (deep deliberate graph) dynamic router |
+| `self_rag_evaluate` | Self-RAG reflection token evaluation (relevance, support, utility) |
+| `skeleton_of_thought_generate` | Concurrent parallel expansion of structured skeleton points |
+| `live_web_search` | Multi-engine live search with semantic re-ranking |
+| `red_team_attack` | Adversarial counter-hypothesis and failure mode stress-testing |
+| `epistemic_verify` | Atomic proposition deconstruction and authoritative verification |
+| `triangulate_claim` | Multi-source cross-referencing and verification |
+| `deep_read` | Full markdown extraction, chunking, and semantic filtering on URLs |
+| `temporal_verify` | Historical and temporal validity verification against timestamped records |
+| `devils_advocate` | Dialectical revision loop challenging assumptions |
+| `epistemic_research` | Multi-phase deep epistemic research with provenance tracking |
+| `verify_claims` | Automated claim extraction and verification pipeline |
+| `deep_research_report` | Stanford STORM Deep Research Engine with Table of Contents and citations |
+| `autonomous_research` | Iterative research loop decomposing complex questions |
+| `candidate_search` | Multi-solution candidate generation and automated scoring |
+| `verify_candidate` | Candidate solution verification via sandbox execution or rubric |
+| `reflexion_fix` | Minimal repair plan generation with automated lesson extraction |
+| `compile_skills` | Compiles successful traces into task-specific exemplar prompts |
+| `get_workspace_file` | Reads workspace files directly into reasoning state |
+| `get_live_watcher_status` | Real-time live telemetry, active cognitive graphs, and watchdog health status |
+
+</details>
+
 Plus **7 MCP Resources** (`elite://profile`, `elite://anti_patterns`, `elite://decisions`, `elite://quality`, `elite://health`, `elite://goals`, `elite://benchmarks`) for real-time dashboards.
 
 ---
