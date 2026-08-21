@@ -1,0 +1,33 @@
+name: Autonomous Branch Cleaner
+
+on:
+  schedule:
+    - cron: "0 4 * * 0" # Weekly Sunday at 4 AM UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Delete Merged and Stale Remote Branches
+        run: |
+          git fetch --prune
+          # List all merged remote branches except main
+          for branch in $(git branch -r --merged origin/main | grep -v 'origin/main' | grep -v 'HEAD' | sed 's/origin\///'); do
+            if [ -n "$branch" ]; then
+              echo "Pruning merged remote branch: $branch"
+              git push origin --delete "$branch" || true
+            fi
+          done
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

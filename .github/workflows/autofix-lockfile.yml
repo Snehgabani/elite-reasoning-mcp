@@ -1,0 +1,40 @@
+name: Auto-Heal Lockfile
+
+on:
+  push:
+    paths:
+      - "pyproject.toml"
+    branches-ignore:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  heal-lockfile:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@38f3f104447c67c051c4a08e39b64a148898af3a # v4
+
+      - name: Update uv lockfile
+        run: uv lock
+
+      - name: Commit changes if out of sync
+        run: |
+          if ! git diff --quiet uv.lock; then
+            git config --global user.name "github-actions[bot]"
+            git config --global user.email "github-actions[bot]@users.noreply.github.com"
+            git add uv.lock
+            git commit -m "chore(lockfile): auto-heal and sync uv.lock [skip ci]"
+            git push origin ${{ github.ref_name }}
+          else
+            echo "uv.lock is already synchronized."
+          fi
