@@ -58,13 +58,17 @@ class VerifierRegistry:
             return
         self._builtins_loaded = True
         try:
+            from core.verification.completeness import EvidenceCompletenessVerifier
             from core.verification.constraints import ConstraintVerifier
+            from core.verification.git_diff import GitDiffScopeVerifier
             from core.verification.syntax import PythonSyntaxVerifier
             from core.verification.test_command import TestCommandVerifier
 
             self.register(ConstraintVerifier())
             self.register(PythonSyntaxVerifier())
             self.register(TestCommandVerifier())
+            self.register(GitDiffScopeVerifier())
+            self.register(EvidenceCompletenessVerifier())
         except Exception:
             pass
 
