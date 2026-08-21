@@ -17,8 +17,9 @@ Last updated: 2026-08-22
 - [x] Add four-state verification results and content-addressed evidence bound to subject digests.
 - [x] Stop the core profile from loading the legacy cognitive catalog during startup.
 - [x] Make deterministic cognitive exports lazy so syntax checks do not load the graph engine.
-- [ ] Require independent command/diff evidence before code-workflow outcomes can return `DONE`.
-- [ ] Add a Git-diff scope verifier and verifier registry.
+- [x] Require independently executed, repository-bound test evidence before tested code workflows can return `DONE`.
+- [x] Add a Git working-tree scope verifier with stale-state detection and dependency-manifest policy.
+- [ ] Replace gateway branching with a typed verifier registry.
 - [ ] Split the gateway and server composition modules along the target architecture.
 - [ ] Decompose persistence and add migration backup/rollback fixtures.
 - [ ] Reduce default dependencies and test a minimal installed wheel across operating systems.

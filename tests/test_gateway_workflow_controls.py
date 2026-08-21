@@ -1,3 +1,8 @@
+import os
+import subprocess
+import sys
+from pathlib import Path
+
 import pytest
 
 from core.integration.mcp_server import create_mcp_server
@@ -108,6 +113,88 @@ async def test_gateway_constraint_and_syntax_verification(tmp_path):
     assert not_executed.verification_status.value == "NOT_CHECKED"
     assert not_executed.data["executed"] is False
     assert not_executed.data["verification_status"] == "NOT_CHECKED"
+
+
+@pytest.mark.asyncio
+async def test_gateway_verifies_git_scope_and_binds_repository_snapshot(tmp_path, monkeypatch):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    subprocess.run(["git", "-C", str(repo), "init", "-q"], check=True)
+    subprocess.run(["git", "-C", str(repo), "config", "user.email", "tests@example.invalid"], check=True)
+    subprocess.run(["git", "-C", str(repo), "config", "user.name", "Elite Tests"], check=True)
+    (repo / "app.py").write_text("value = 1\n", encoding="utf-8")
+    subprocess.run(["git", "-C", str(repo), "add", "."], check=True)
+    subprocess.run(["git", "-C", str(repo), "commit", "-qm", "fixture"], check=True)
+    (repo / "app.py").write_text("value = 2\n", encoding="utf-8")
+    monkeypatch.setenv("ELITE_PROJECT_ROOTS", str(repo))
+
+    mcp = create_mcp_server(str(tmp_path / "brain"))
+    verify = mcp._tool_manager._tools["elite_verify"].fn
+    passed = await verify(check="diff", project_root=str(repo), allowed_files=["app.py"])
+    assert passed.verification_status.value == "PASS"
+    assert passed.data["changed_files"][0]["path"] == "app.py"
+    assert passed.subject_digest == passed.evidence[0].subject_digest
+
+    (repo / "extra.py").write_text("outside = True\n", encoding="utf-8")
+    failed = await verify(check="diff", project_root=str(repo), allowed_files=["app.py"])
+    assert failed.verification_status.value == "FAIL"
+    assert failed.data["out_of_scope"] == ["extra.py"]
+    assert failed.subject_digest != passed.subject_digest
+
+
+@pytest.mark.asyncio
+async def test_outcomes_require_fresh_persisted_test_and_repository_evidence(tmp_path, monkeypatch):
+    repo = tmp_path / "tested-repo"
+    repo.mkdir()
+    subprocess.run(["git", "-C", str(repo), "init", "-q"], check=True)
+    subprocess.run(["git", "-C", str(repo), "config", "user.email", "tests@example.invalid"], check=True)
+    subprocess.run(["git", "-C", str(repo), "config", "user.name", "Elite Tests"], check=True)
+    (repo / ".gitignore").write_text(".pytest_cache/\n__pycache__/\n", encoding="utf-8")
+    (repo / "app.py").write_text("def value():\n    return 1\n", encoding="utf-8")
+    (repo / "test_app.py").write_text("from app import value\n\ndef test_value():\n    assert value() == 2\n", encoding="utf-8")
+    subprocess.run(["git", "-C", str(repo), "add", "."], check=True)
+    subprocess.run(["git", "-C", str(repo), "commit", "-qm", "fixture"], check=True)
+    (repo / "app.py").write_text("def value():\n    return 2\n", encoding="utf-8")
+
+    monkeypatch.setenv("ELITE_PROJECT_ROOTS", str(repo))
+    monkeypatch.setenv("ELITE_ALLOW_TEST_COMMAND", "1")
+    monkeypatch.setenv("PATH", str(Path(sys.executable).parent) + os.pathsep + os.environ.get("PATH", ""))
+    mcp = create_mcp_server(str(tmp_path / "evidence-brain"))
+    verify = mcp._tool_manager._tools["elite_verify"].fn
+    prepared = await mcp._tool_manager._tools["elite_prepare"].fn(
+        user_prompt="Fix code only app.py. Must run pytest.", persist=True
+    )
+    draft = "Updated app.py and ran pytest; 1 test passed."
+
+    missing = await verify(
+        check="outcomes", run_id=prepared.run_id, draft=draft, project_root=str(repo)
+    )
+    assert missing.data["action"] == "REPEAT"
+    assert any("no independently executed" in item for item in missing.data["unmet"])
+
+    tests = await verify(
+        check="tests",
+        run_id=prepared.run_id,
+        command="pytest -q",
+        project_root=str(repo),
+    )
+    assert tests.verification_status.value == "PASS"
+    assert tests.data["repository_snapshot_digest"].startswith("sha256:")
+    stored = mcp._elite_store.list_workflow_evidence(prepared.run_id, "tests")
+    assert stored[0]["id"] == tests.evidence[0].id
+
+    complete = await verify(
+        check="outcomes", run_id=prepared.run_id, draft=draft, project_root=str(repo)
+    )
+    assert complete.data["action"] == "DONE"
+    assert complete.data["evidence_gate"]["accepted_evidence_ids"] == [tests.evidence[0].id]
+
+    (repo / "app.py").write_text("def value():\n    return 3\n", encoding="utf-8")
+    stale = await verify(
+        check="outcomes", run_id=prepared.run_id, draft=draft, project_root=str(repo)
+    )
+    assert stale.data["action"] == "REPEAT"
+    assert any("changed after" in item for item in stale.data["unmet"])
 
 
 @pytest.mark.asyncio

@@ -382,7 +382,7 @@ def compile_task_contract(prompt: str, complexity: int = 0) -> TaskContract:
         evidence = ("Primary-source quotes from live pages.",)
     elif is_code:
         deliverable = "Minimal patch or code plus a validation log"
-        next_action = "none"
+        next_action = "verify_tests" if any(item.kind == "run_tests" for item in constraints) else "none"
         evidence = ("Targeted test or lint output.",)
     else:
         deliverable = "Direct answer that satisfies every constraint"

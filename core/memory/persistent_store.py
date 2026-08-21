@@ -564,6 +564,23 @@ class EliteStore:
                 FOREIGN KEY(run_id) REFERENCES workflow_runs(run_id) ON DELETE CASCADE
             )
         """)
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS workflow_evidence (
+                evidence_id TEXT NOT NULL,
+                run_id TEXT NOT NULL,
+                check_kind TEXT NOT NULL,
+                verification_status TEXT NOT NULL,
+                subject_digest TEXT NOT NULL,
+                artifact_digest TEXT NOT NULL,
+                producer TEXT NOT NULL,
+                payload TEXT NOT NULL DEFAULT '{}',
+                limitations TEXT NOT NULL DEFAULT '[]',
+                collected_at TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                PRIMARY KEY(run_id, evidence_id),
+                FOREIGN KEY(run_id) REFERENCES workflow_runs(run_id) ON DELETE CASCADE
+            )
+        """)
 
         # --- Quality-Gated Memory Items (selective, scoped long-term context) ---
         c.execute("""
@@ -684,6 +701,7 @@ class EliteStore:
             "CREATE INDEX IF NOT EXISTS idx_workflow_runs_created ON workflow_runs(created_at)",
             "CREATE INDEX IF NOT EXISTS idx_workflow_runs_status ON workflow_runs(status, created_at)",
             "CREATE INDEX IF NOT EXISTS idx_workflow_steps_run ON workflow_steps(run_id, step_index)",
+            "CREATE INDEX IF NOT EXISTS idx_workflow_evidence_run ON workflow_evidence(run_id, check_kind, created_at)",
             "CREATE INDEX IF NOT EXISTS idx_memory_items_lookup ON memory_items(scope, memory_type, trust_score)",
             "CREATE INDEX IF NOT EXISTS idx_memory_items_quarantine ON memory_items(quarantined, trust_score)",
             "CREATE INDEX IF NOT EXISTS idx_memory_items_hash ON memory_items(content_hash)",
@@ -1929,6 +1947,95 @@ class EliteStore:
             "task_contract": _load_object(row[12] if len(row) > 12 else "{}"),
             "steps": steps,
         }
+
+    def record_workflow_evidence(self, run_id: str, check_kind: str, evidence: dict) -> bool:
+        """Persist one content-addressed verification record for a workflow."""
+        if not run_id or not isinstance(evidence, dict):
+            return False
+        evidence_id = str(evidence.get("id") or "")
+        if not evidence_id:
+            return False
+        conn = self._connect()
+        c = conn.cursor()
+        c.execute("SELECT 1 FROM workflow_runs WHERE run_id = ?", (run_id,))
+        if c.fetchone() is None:
+            if not getattr(self._local, "in_transaction", False):
+                self._close(conn)
+            return False
+        now = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
+        safe_payload = redact_text(json.dumps(evidence.get("payload") or {}, sort_keys=True), limit=10000)
+        safe_limitations = redact_text(json.dumps(evidence.get("limitations") or []), limit=4000)
+        c.execute(
+            """INSERT OR REPLACE INTO workflow_evidence
+               (evidence_id, run_id, check_kind, verification_status, subject_digest,
+                artifact_digest, producer, payload, limitations, collected_at, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                evidence_id,
+                run_id,
+                str(check_kind),
+                str(evidence.get("verification_status") or "NOT_CHECKED"),
+                str(evidence.get("subject_digest") or ""),
+                str(evidence.get("artifact_digest") or ""),
+                str(evidence.get("producer") or "unknown"),
+                safe_payload,
+                safe_limitations,
+                str(evidence.get("collected_at") or now),
+                now,
+            ),
+        )
+        changed = c.rowcount > 0
+        if not getattr(self._local, "in_transaction", False):
+            conn.commit()
+            self._close(conn)
+        return changed
+
+    def list_workflow_evidence(self, run_id: str, check_kind: str = "", limit: int = 50) -> list[dict]:
+        """Return recent typed evidence for one workflow without raw checked content."""
+        conn = self._connect()
+        c = conn.cursor()
+        bounded = max(1, min(int(limit or 50), 200))
+        if check_kind:
+            c.execute(
+                """SELECT evidence_id, check_kind, verification_status, subject_digest,
+                          artifact_digest, producer, payload, limitations, collected_at, created_at
+                   FROM workflow_evidence WHERE run_id = ? AND check_kind = ?
+                   ORDER BY created_at DESC, rowid DESC LIMIT ?""",
+                (run_id, check_kind, bounded),
+            )
+        else:
+            c.execute(
+                """SELECT evidence_id, check_kind, verification_status, subject_digest,
+                          artifact_digest, producer, payload, limitations, collected_at, created_at
+                   FROM workflow_evidence WHERE run_id = ?
+                   ORDER BY created_at DESC, rowid DESC LIMIT ?""",
+                (run_id, bounded),
+            )
+        rows = c.fetchall()
+        if not getattr(self._local, "in_transaction", False):
+            self._close(conn)
+
+        def _json(value: object, fallback: object) -> object:
+            try:
+                return json.loads(str(value or ""))
+            except (TypeError, json.JSONDecodeError):
+                return fallback
+
+        return [
+            {
+                "id": row[0],
+                "check_kind": row[1],
+                "verification_status": row[2],
+                "subject_digest": row[3],
+                "artifact_digest": row[4],
+                "producer": row[5],
+                "payload": _json(row[6], {}),
+                "limitations": _json(row[7], []),
+                "collected_at": row[8],
+                "created_at": row[9],
+            }
+            for row in rows
+        ]
 
     def list_workflow_runs(self, limit: int = 20, status: str = "") -> list[dict]:
         """List recent workflow runs for release/eval audit trails."""

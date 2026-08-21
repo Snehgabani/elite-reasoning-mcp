@@ -80,9 +80,17 @@ def compile_playbook(contract: TaskContract) -> tuple[PlaybookStep, ...]:
             PlaybookStep(
                 index=n,
                 tool="elite_verify",
-                args={"check": "tests", "command": "pytest"},
+                args={
+                    "check": "tests",
+                    "command": "pytest",
+                    "run_id": "<run_id from elite_prepare>",
+                    "project_root": "<active repository root>",
+                },
                 required=True,
-                instruction="Run allowlisted tests. A prose claim that tests passed is not evidence.",
+                instruction=(
+                    "Run allowlisted tests and bind the result to the repository state. "
+                    "A prose claim that tests passed is not evidence."
+                ),
             )
         )
         n += 1
@@ -102,7 +110,12 @@ def compile_playbook(contract: TaskContract) -> tuple[PlaybookStep, ...]:
         PlaybookStep(
             index=n,
             tool="elite_verify",
-            args={"check": "outcomes", "run_id": "<run_id from elite_prepare>", "draft": "<your draft>"},
+            args={
+                "check": "outcomes",
+                "run_id": "<run_id from elite_prepare>",
+                "draft": "<your draft>",
+                **({"project_root": "<active repository root>"} if any(c.kind in {"run_tests", "scope_files"} for c in contract.constraints) else {}),
+            },
             required=True,
             instruction=(
                 "Independent gate. If action=REPEAT, do not answer the user — fix unmet items and verify again."

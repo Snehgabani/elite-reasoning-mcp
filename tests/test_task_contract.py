@@ -11,7 +11,7 @@ def test_contract_extracts_checkable_constraints_for_cheap_models():
     assert "max_words" in kinds
     assert "format" in kinds
     assert "must_not" in kinds
-    assert contract.next_action in {"none", "evidence", "verify_constraints", "verify_tests"}
+    assert contract.next_action == "verify_tests"
     assert "Task Contract" in contract_markdown(contract)
     assert contract.max_tool_calls <= 4
 

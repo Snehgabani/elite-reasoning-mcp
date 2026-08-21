@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Source text, character spans, inferred/explicit provenance, verifier hints, and extraction confidence on compiled constraints.
 - Versioned task-contract payloads (`schema_version=1.1`) with backward-compatible persisted-contract loading.
 - Four-state verification results (`PASS`, `FAIL`, `UNKNOWN`, `NOT_CHECKED`) with subject digests and content-addressed evidence IDs.
+- Git working-tree scope verification with approved-root confinement, changed-file content digests, untracked-file coverage, and optional dependency-manifest blocking.
+- Persisted workflow evidence that binds executed test results to repository snapshots and rejects stale completion evidence.
 - Product hardening roadmap covering the evidence-first core, architecture, evaluation, security, and adoption milestones.
 
 ### Changed

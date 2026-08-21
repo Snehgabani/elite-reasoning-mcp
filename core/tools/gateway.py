@@ -32,7 +32,7 @@ _ALLOWED_TEST_PREFIXES = (
 )
 
 
-def _run_allowlisted_command(command: str) -> dict[str, Any]:
+def _run_allowlisted_command(command: str, *, cwd: str = "") -> dict[str, Any]:
     """Run a tiny allowlisted test/lint command. Never a generic shell."""
     cleaned = (command or "").strip()
     if not cleaned:
@@ -59,6 +59,7 @@ def _run_allowlisted_command(command: str) -> dict[str, Any]:
             text=True,
             timeout=30,
             check=False,
+            cwd=cwd or None,
         )
     except (OSError, subprocess.TimeoutExpired) as exc:
         return {"passed": False, "executed": False, "reason": str(exc)[:200], "command": cleaned}
@@ -236,6 +237,100 @@ def _checked_result(
     )
 
 
+def _persist_checked_result(store, run_id: str, result: VerifyResult) -> VerifyResult:
+    if not run_id.strip():
+        return result
+    if store.get_workflow_run(run_id.strip()) is None:
+        raise validation_error("Workflow run was not found.")
+    for record in result.evidence:
+        payload = record.model_dump(mode="json")
+        payload["verification_status"] = result.verification_status.value
+        if not store.record_workflow_evidence(run_id.strip(), result.check, payload):
+            raise validation_error("Verification evidence could not be persisted for the workflow run.")
+    return result
+
+
+def _gate_outcomes_with_workflow_evidence(
+    *,
+    data: dict[str, Any],
+    contract,
+    store,
+    run_id: str,
+    project_root: str,
+) -> dict[str, Any]:
+    """Reject code completion when command/scope evidence is missing or stale."""
+    if not run_id.strip():
+        return data
+
+    from core.verification.git_diff import verify_git_diff
+
+    unmet: list[str] = []
+    accepted_ids: list[str] = []
+    kinds = {item.kind for item in contract.constraints}
+    current_snapshot_digest = ""
+
+    if "run_tests" in kinds:
+        test_records = store.list_workflow_evidence(run_id.strip(), check_kind="tests", limit=20)
+        passing = next(
+            (
+                item
+                for item in test_records
+                if item.get("verification_status") == VerificationStatus.PASS.value
+                and isinstance(item.get("payload"), dict)
+                and item["payload"].get("executed") is True
+            ),
+            None,
+        )
+        if passing is None:
+            unmet.append("run_tests: no independently executed passing test evidence is attached to this workflow")
+        else:
+            expected_snapshot = str(passing["payload"].get("repository_snapshot_digest") or "")
+            if not expected_snapshot:
+                unmet.append("run_tests: passing test evidence is not bound to a repository snapshot")
+            elif not project_root.strip():
+                unmet.append("run_tests: project_root is required to prove the tested repository state is still current")
+            else:
+                snapshot = verify_git_diff(project_root=project_root)
+                unavailable = snapshot.status is VerificationStatus.UNKNOWN or (
+                    snapshot.status is VerificationStatus.NOT_CHECKED
+                    and not snapshot.reason.startswith("no allowed_files policy")
+                )
+                if unavailable:
+                    unmet.append(f"run_tests: current repository state is unavailable ({snapshot.reason})")
+                else:
+                    current_snapshot_digest = subject_digest("git_worktree_snapshot", snapshot.snapshot_material)
+                    if current_snapshot_digest != expected_snapshot:
+                        unmet.append("run_tests: repository state changed after the passing test evidence was collected")
+                    else:
+                        accepted_ids.append(str(passing["id"]))
+
+    scope_constraints = [item for item in contract.constraints if item.kind == "scope_files"]
+    if scope_constraints:
+        if not project_root.strip():
+            unmet.append("scope_files: project_root is required for Git scope verification")
+        else:
+            allowed = [str(path) for item in scope_constraints for path in item.terms]
+            scope_result = verify_git_diff(project_root=project_root, allowed_files=allowed)
+            if scope_result.status is not VerificationStatus.PASS:
+                unmet.append(f"scope_files: {scope_result.reason}")
+
+    gated = dict(data)
+    if unmet:
+        gated["passed"] = False
+        gated["action"] = "REPEAT"
+        gated["unmet"] = list(dict.fromkeys([*gated.get("unmet", []), *unmet]))
+        gated["instruction"] = (
+            "REPEAT. Do not present a final answer. Collect fresh command and repository evidence, then verify again."
+        )
+    gated["evidence_gate"] = {
+        "passed": not unmet,
+        "accepted_evidence_ids": accepted_ids,
+        "current_repository_snapshot_digest": current_snapshot_digest,
+        "unmet": unmet,
+    }
+    return gated
+
+
 def register(mcp, store, profile) -> None:
     """Register the five public v2 gateway tools."""
 
@@ -341,6 +436,7 @@ def register(mcp, store, profile) -> None:
             "tests",
             "grounding",
             "outcomes",
+            "diff",
         ] = "doctor",
         query: Annotated[str, Field(max_length=2000)] = "",
         draft: Annotated[str, Field(max_length=20000)] = "",
@@ -348,8 +444,11 @@ def register(mcp, store, profile) -> None:
         code: Annotated[str, Field(max_length=20000)] = "",
         language: Annotated[str, Field(max_length=32)] = "python",
         command: Annotated[str, Field(max_length=400)] = "",
+        project_root: Annotated[str, Field(max_length=1024)] = "",
+        allowed_files: Annotated[list[str] | None, Field(max_length=100)] = None,
+        forbid_dependency_changes: bool = False,
     ) -> VerifyResult:
-        """Verify health, capabilities, draft constraints, syntax, allowlisted tests, or quote-grounded evidence."""
+        """Verify health, constraints, syntax, tests, Git scope, outcomes, or grounded evidence."""
         normalized_check = check.strip().lower()
         if normalized_check == "doctor":
             return VerifyResult(check="doctor", data=build_doctor_report(store, profile=profile, mcp=mcp))
@@ -386,7 +485,14 @@ def register(mcp, store, profile) -> None:
                 if not draft.strip():
                     raise validation_error("outcomes check needs draft.")
                 data = verify_outcomes(draft, contract)
-                return _checked_result(
+                data = _gate_outcomes_with_workflow_evidence(
+                    data=data,
+                    contract=contract,
+                    store=store,
+                    run_id=run_id,
+                    project_root=project_root,
+                )
+                checked = _checked_result(
                     check="outcomes",
                     status=status_from_bool(bool(data["passed"])),
                     data=data,
@@ -397,11 +503,13 @@ def register(mcp, store, profile) -> None:
                         "passed": bool(data["passed"]),
                         "action": str(data["action"]),
                         "unmet": list(data["unmet"]),
+                        "evidence_gate": dict(data.get("evidence_gate") or {}),
                     },
                     limitations=[
                         "Draft checks do not prove repository state, command execution, or runtime behavior."
                     ],
                 )
+                return _persist_checked_result(store, run_id, checked)
             report = check_draft(draft, contract)
             return _checked_result(
                 check="constraints",
@@ -460,7 +568,29 @@ def register(mcp, store, profile) -> None:
                 limitations=["Syntax and selected static rules do not prove runtime correctness or security."],
             )
         if normalized_check == "tests":
-            data = _run_allowlisted_command(command)
+            from core.verification.git_diff import verify_git_diff
+
+            execution_root = ""
+            repository_limitation = ""
+            if project_root.strip():
+                discovered = verify_git_diff(project_root=project_root)
+                unavailable = discovered.status is VerificationStatus.UNKNOWN or (
+                    discovered.status is VerificationStatus.NOT_CHECKED
+                    and not discovered.reason.startswith("no allowed_files policy")
+                )
+                if unavailable:
+                    data = {
+                        "passed": False,
+                        "executed": False,
+                        "reason": f"project_root is unavailable: {discovered.reason}",
+                        "command": command.strip(),
+                    }
+                    repository_limitation = discovered.reason
+                else:
+                    execution_root = discovered.repository_root
+                    data = _run_allowlisted_command(command, cwd=execution_root)
+            else:
+                data = _run_allowlisted_command(command)
             if data.get("executed"):
                 test_status = status_from_bool(bool(data.get("passed")))
             elif str(data.get("reason", "")).startswith("set ELITE_ALLOW_TEST_COMMAND") or "allowlist" in str(
@@ -469,12 +599,26 @@ def register(mcp, store, profile) -> None:
                 test_status = VerificationStatus.NOT_CHECKED
             else:
                 test_status = VerificationStatus.UNKNOWN
-            return _checked_result(
+            repository_snapshot_digest = ""
+            if project_root.strip() and execution_root:
+                snapshot = verify_git_diff(project_root=execution_root)
+                unavailable = snapshot.status is VerificationStatus.UNKNOWN or (
+                    snapshot.status is VerificationStatus.NOT_CHECKED
+                    and not snapshot.reason.startswith("no allowed_files policy")
+                )
+                if unavailable:
+                    repository_limitation = snapshot.reason
+                else:
+                    repository_snapshot_digest = subject_digest(
+                        "git_worktree_snapshot", snapshot.snapshot_material
+                    )
+            data["repository_snapshot_digest"] = repository_snapshot_digest
+            checked = _checked_result(
                 check="tests",
                 status=test_status,
                 data=data,
-                subject_kind="test_command",
-                subject=command.strip(),
+                subject_kind="test_command_and_repository",
+                subject=f"{command.strip()}\0{repository_snapshot_digest}",
                 producer="core.tools.gateway._run_allowlisted_command",
                 evidence_payload={
                     "command": data.get("command", command.strip()),
@@ -482,9 +626,62 @@ def register(mcp, store, profile) -> None:
                     "returncode": data.get("returncode"),
                     "passed": bool(data.get("passed")),
                     "reason": data.get("reason", ""),
+                    "repository_snapshot_digest": repository_snapshot_digest,
                 },
-                limitations=([] if data.get("executed") else [str(data.get("reason") or "Command was not executed.")]),
+                limitations=[
+                    item
+                    for item in (
+                        "" if data.get("executed") else str(data.get("reason") or "Command was not executed."),
+                        repository_limitation,
+                        "" if project_root.strip() else "No project_root was supplied; test evidence is not bound to repository state.",
+                    )
+                    if item
+                ],
             )
+            return _persist_checked_result(store, run_id, checked)
+        if normalized_check == "diff":
+            from core.verification.git_diff import verify_git_diff
+
+            scope = list(allowed_files or [])
+            if run_id.strip():
+                run = store.get_workflow_run(run_id.strip())
+                if run is None:
+                    raise validation_error("Workflow run was not found.")
+                raw_contract = run.get("task_contract") or {}
+                if isinstance(raw_contract, dict):
+                    for item in raw_contract.get("constraints") or []:
+                        if isinstance(item, dict) and item.get("kind") == "scope_files":
+                            for path in item.get("terms") or []:
+                                if str(path) not in scope:
+                                    scope.append(str(path))
+            result = verify_git_diff(
+                project_root=project_root,
+                allowed_files=scope,
+                forbid_dependency_changes=forbid_dependency_changes,
+            )
+            data = result.to_dict()
+            checked = _checked_result(
+                check="diff",
+                status=result.status,
+                data=data,
+                subject_kind="git_worktree_snapshot",
+                subject=result.snapshot_material,
+                producer="core.verification.git_diff.verify_git_diff",
+                evidence_payload={
+                    "repository_root": result.repository_root,
+                    "changed_files": [item.to_dict() for item in result.changed_files],
+                    "allowed_files": list(result.allowed_files),
+                    "out_of_scope": list(result.out_of_scope),
+                    "dependency_changes": list(result.dependency_changes),
+                    "reason": result.reason,
+                },
+                limitations=(
+                    []
+                    if result.status in {VerificationStatus.PASS, VerificationStatus.FAIL}
+                    else [result.reason]
+                ),
+            )
+            return _persist_checked_result(store, run_id, checked)
         if normalized_check == "grounding":
             from core.evidence.grounded_search import grounded_evidence, grounding_check
 
@@ -521,7 +718,7 @@ def register(mcp, store, profile) -> None:
                 limitations=list(dict.fromkeys(limitations)),
             )
         raise validation_error(
-            "check must be doctor, capabilities, constraints, evidence, syntax, tests, grounding, or outcomes."
+            "check must be doctor, capabilities, constraints, evidence, syntax, tests, diff, grounding, or outcomes."
         )
 
     @mcp.tool(name="elite_memory", annotations=_MEMORY_ANNOTATIONS)
