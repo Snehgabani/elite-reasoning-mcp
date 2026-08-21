@@ -50,7 +50,7 @@ class EliteLooper:
 
     def phase2_plan(self):
         print(f"[{self.goal_id}] Phase 2: Plan")
-        anti_patterns = self.t("check_anti_patterns", "We are doing concurrent database writes with SQLite")
+        _ = self.t("check_anti_patterns", "We are doing concurrent database writes with SQLite")
         # In a real agent, we'd parse the LLM output. Here we simulate.
         
     def phase3_act(self):

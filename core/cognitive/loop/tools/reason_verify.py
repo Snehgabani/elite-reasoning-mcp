@@ -74,12 +74,12 @@ def register(mcp, store: SingularityStore):
 
         # Load session
         session = store.get_session(session_id)
-        session_data = {}
         if session:
             try:
-                session_data = json.loads(session.get("metrics_json", "{}"))
-            except (json.JSONDecodeError, TypeError):
-                pass
+                _ = json.loads(session.get("metrics_json", "{}"))
+            except (json.JSONDecodeError, TypeError) as exc:
+                # Malformed session metrics ignored gracefully
+                _ = str(exc)
 
         # Run verification gates
         gates = []

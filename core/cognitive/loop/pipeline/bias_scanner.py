@@ -129,7 +129,6 @@ def scan_for_biases(text: str, context: str = "") -> list[RedFlag]:
     """
     flags = []
     lower_text = text.lower()
-    combined = f"{text} {context}".lower()
     
     for bias_name, pattern in BIAS_PATTERNS.items():
         signals = pattern["signals"]

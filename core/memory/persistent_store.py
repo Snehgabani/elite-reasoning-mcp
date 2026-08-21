@@ -14,8 +14,6 @@ import threading
 import time
 
 try:
-    import struct  # noqa: F401
-
     import sqlite_vec
 except ImportError:
     sqlite_vec = None

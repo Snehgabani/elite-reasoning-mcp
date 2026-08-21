@@ -221,8 +221,9 @@ def register(mcp, store, orchestrator=None):
                     # silently dropping pre-upgrade local records.
                     last_pulled_at = cursor.get("last_pulled_at")
                     last_pushed_at = cursor.get("last_pushed_at")
-            except (OSError, ValueError, TypeError):
-                pass
+            except (OSError, ValueError, TypeError) as exc:
+                # Ignore corrupt or missing cursor and start from baseline
+                _ = str(exc)
 
         def canonical_cursor(value: object) -> str | None:
             if not isinstance(value, str) or not value:
@@ -272,8 +273,9 @@ def register(mcp, store, orchestrator=None):
             except Exception:
                 try:
                     os.unlink(temporary_path)
-                except OSError:
-                    pass
+                except OSError as exc:
+                    # Non-critical: OS temporary cleanup will reclaim orphaned temp file
+                    _ = str(exc)
                 raise
 
         quarantined = 0

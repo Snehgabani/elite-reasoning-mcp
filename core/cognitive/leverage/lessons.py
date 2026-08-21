@@ -53,8 +53,9 @@ class LessonStore:
                 except Exception as exc:
                     # Explicit non-fatal exception suppression
                     _ = str(exc)
-        except OSError:
-            pass
+        except OSError as exc:
+            # Memory lessons file may not exist yet on initial run
+            _ = str(exc)
         return rows
 
     def record(self, tool: str, task: str, detail: str, fp: str | None = None) -> bool:

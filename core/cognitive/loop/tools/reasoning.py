@@ -173,8 +173,6 @@ def register(mcp, store: SingularityStore):
         warnings = list(result.warnings)
         verification = None
         if synthesize:
-
-            _t0 = time.monotonic()
             template = getattr(result, "reasoning_template", "") or ""
             if not template:
                 subs = "; ".join(

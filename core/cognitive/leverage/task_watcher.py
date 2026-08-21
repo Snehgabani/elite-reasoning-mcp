@@ -105,6 +105,7 @@ class TaskTracker:
             "task_id": task_id,
             "last_heartbeat": now,
             "finished_at": now,
+            "elapsed_seconds": elapsed,
             "status": status,
             "progress_pct": 100,
             "quality_score": quality_score,

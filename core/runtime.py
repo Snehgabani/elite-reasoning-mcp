@@ -24,8 +24,9 @@ def package_version() -> str:
             for line in pyproject.read_text(encoding="utf-8").splitlines():
                 if line.startswith("version = "):
                     return line.split("=", 1)[1].strip().strip('"')
-        except OSError:
-            pass
+        except OSError as exc:
+            # Source pyproject.toml not accessible in some execution contexts
+            _ = str(exc)
     return "unknown"
 
 

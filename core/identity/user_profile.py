@@ -68,8 +68,9 @@ class UserProfile:
         for path in (self.elite_dir, self.brain_dir):
             try:
                 os.chmod(path, 0o700)
-            except OSError:
-                pass
+            except OSError as exc:
+                # Permission change may be restricted on some shared/virtual filesystems
+                _ = str(exc)
 
     @property
     def config(self) -> dict:
@@ -136,8 +137,9 @@ class UserProfile:
         except Exception:
             try:
                 os.unlink(temporary_path)
-            except OSError:
-                pass
+            except OSError as exc:
+                # Temporary file cleanup error non-critical
+                _ = str(exc)
             raise
         self._config = config
 

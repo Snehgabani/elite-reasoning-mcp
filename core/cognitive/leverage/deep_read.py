@@ -57,7 +57,6 @@ def _extract_pub_date(html: str) -> str | None:
 
 
 async def deep_read_url(url: str, question: str = "", query: str = "") -> Dict[str, Any]:
-    target_q = question or query
     if not url.startswith(("http://", "https://")):
         return {"url": url, "extracted": False, "error": "invalid_scheme"}
 

@@ -55,8 +55,9 @@ class ThreadLocalPool:
                 with self._lock:
                     try:
                         self._all_connections.remove(conn)
-                    except ValueError:
-                        pass
+                    except ValueError as exc:
+                        # Connection already removed or not tracked
+                        _ = str(exc)
 
         conn = sqlite3.connect(
             self._db_path,
@@ -120,8 +121,9 @@ class ThreadLocalPool:
             with self._lock:
                 try:
                     self._all_connections.remove(conn)
-                except ValueError:
-                    pass
+                except ValueError as exc:
+                    # Connection already removed or not present
+                    _ = str(exc)
 
     def close_all(self):
         """Close all connections. Call on shutdown."""

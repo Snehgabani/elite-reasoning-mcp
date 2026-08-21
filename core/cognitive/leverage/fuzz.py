@@ -40,7 +40,6 @@ async def generate_property_tests(file_path: str, symbol: str) -> str:
     """Dynamically generate property-based hypothesis tests based on symbol signature."""
     sym_info = _find_symbol_ast(symbol, file_path)
     args = []
-    has_type_hints = False
     
     if sym_info:
         node, actual_path = sym_info
@@ -48,8 +47,6 @@ async def generate_property_tests(file_path: str, symbol: str) -> str:
             for arg in node.args.args:
                 if arg.arg != "self" and arg.arg != "cls":
                     args.append(arg.arg)
-                    if arg.annotation:
-                        has_type_hints = True
 
     if not args:
         args = ["a", "b"]

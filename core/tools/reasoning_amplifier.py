@@ -785,9 +785,9 @@ def _register_hidden_tools(mcp, store):
             except Exception:
                 severity = 'P1'  # Safe default if inference unavailable
         try:
-            store.record_missed_detection(detection_type, what_was_missed, how_found, suggested_rule)
+            store.record_missed_detection(detection_type, what_was_missed, how_found, suggested_rule, severity=severity)
             return (
-                f"✅ Missed detection recorded: {detection_type}\n"
+                f"✅ Missed detection recorded: {detection_type} (severity: {severity})\n"
                 f"What was missed: {what_was_missed}\n"
                 f"This will be used to improve autonomous scanning.{inferred_info}"
             )

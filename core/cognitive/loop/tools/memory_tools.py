@@ -56,7 +56,6 @@ def register(mcp, store: SingularityStore):
 
         Trust-gated: low-trust items deprioritized. Privacy-gated: secret items require trust ≥ 0.9.
         """
-        start = time.time()
         act = action.strip().lower()
 
         # Parameter normalization & fallback aliasing

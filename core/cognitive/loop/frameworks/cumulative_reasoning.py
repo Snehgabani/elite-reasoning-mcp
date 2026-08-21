@@ -228,10 +228,6 @@ class Verifier:
                 # Explicit non-fatal exception suppression
                 _ = str(exc)  # Fall back to LLM verification
         
-        # Build prompt for verifier
-        verified_props = dag.get_verified_propositions()
-        verified_text = "\n".join([f"- {p.content}" for p in verified_props])
-        
         # Get reasoning chain for this proposition
         chain = dag.get_reasoning_chain(proposition.id)
         chain_text = "\n".join([f"Step {i+1}: {p.content}" for i, p in enumerate(chain)])

@@ -298,7 +298,7 @@ def main(argv: list[str] | None = None) -> int:
     doctor_parser.add_argument("--json", action="store_true", help="Output as JSON")
     
     # Benchmark subcommand
-    bench_parser = subcommands.add_parser("benchmark", help="Run smoke benchmark")
+    _ = subcommands.add_parser("benchmark", help="Run smoke benchmark")
     
     args = parser.parse_args(argv)
     

@@ -112,14 +112,6 @@ class System2AttentionNode(PipelineNode):
     def _run(self, state: PipelineState, store: SingularityStore) -> PipelineState:
         prompt = state.prompt
         
-        # Identify and flag irrelevant context signals
-        irrelevant_signals = [
-            "unrelated to the core question",
-            "distracting information",
-            "emotional framing that doesn't affect the answer",
-            "assumptions embedded in the question",
-        ]
-        
         # Extract the core question (strip framing)
         core_elements = []
         bias_elements = []
