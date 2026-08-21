@@ -57,7 +57,8 @@ class VerifierContext:
 class Verifier(Protocol):
     name: str
 
-    async def verify(self, request: VerifierRequest, context: VerifierContext) -> VerificationExecution: ...
+    async def verify(self, request: VerifierRequest, context: VerifierContext) -> VerificationExecution:
+        raise NotImplementedError
 
 
 class VerifierRegistry:
