@@ -1,0 +1,12 @@
+{
+  "task_id": "repo-auth-impact",
+  "type": "architecture",
+  "mode": "baseline",
+  "passed": true,
+  "score": 1.0,
+  "verifier_output": "Rubric check score 1.0 >= 0.75",
+  "time_seconds": 0.0,
+  "total_tokens": 1500,
+  "number_of_backtracks": 0,
+  "human_edit_required": false
+}

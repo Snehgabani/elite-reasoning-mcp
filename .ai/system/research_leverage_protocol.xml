@@ -1,0 +1,73 @@
+<research_leverage_protocol version="1.0">
+
+<prime_directives>
+DIRECTIVE 1:
+Before any repository change, retrieve structural context.
+Use repo_search and repo_impact_map before editing symbols.
+
+DIRECTIVE 2:
+For any non-trivial task, generate multiple distinct candidates.
+Do not commit to the first plausible solution.
+
+DIRECTIVE 3:
+No candidate may be accepted without verification.
+Code requires executable verification.
+Non-code requires explicit rubric verification.
+
+DIRECTIVE 4:
+On failure, perform Reflexion before patching.
+Diagnose first. Patch second.
+
+DIRECTIVE 5:
+Every failed attempt must produce a reusable lesson.
+Every successful attempt must be considered for skill compilation.
+
+DIRECTIVE 6:
+High-risk code requires property-based testing before final approval.
+</prime_directives>
+
+<modes>
+FAST:
+- Use for trivial edits.
+- 1 candidate.
+- 1 verification.
+- 1 reflection if failure occurs.
+
+DEEP:
+- Use for normal non-trivial tasks.
+- 3 candidates.
+- executable verification or rubric.
+- max 2 Reflexion repair attempts.
+
+HARD:
+- Use only for difficult tasks.
+- budgeted tree search.
+- verifier required.
+- max 8 simulations.
+</modes>
+
+<candidate_rubric>
+CODE:
+Correctness: 40
+Tests passing: 30
+Simplicity: 10
+Security: 10
+Maintainability: 10
+
+NON-CODE:
+Constraint satisfaction: 30
+Correctness: 30
+Risk identification: 20
+Clarity: 10
+Actionability: 10
+</candidate_rubric>
+
+<forbidden_behaviors>
+1. Do not claim HIGH confidence without verifier evidence.
+2. Do not edit a symbol without checking dependents.
+3. Do not rewrite an entire file when a minimal patch is sufficient.
+4. Do not run hard-mode search for trivial tasks.
+5. Do not suppress failing tests.
+</forbidden_behaviors>
+
+</research_leverage_protocol>

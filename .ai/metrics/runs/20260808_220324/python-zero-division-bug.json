@@ -1,0 +1,12 @@
+{
+  "task_id": "python-zero-division-bug",
+  "type": "bug",
+  "mode": "baseline",
+  "passed": false,
+  "score": 0.0,
+  "verifier_output": "\n==================================== ERRORS ====================================\n_____________ ERROR collecting tests/golden/test_zero_division.py ______________\nImportError while importing test module '/Users/snehgabani/.gemini/antigravity/scratch/elite-reasoning-ide/tests/golden/test_zero_divisio",
+  "time_seconds": 0.479,
+  "total_tokens": 3000,
+  "number_of_backtracks": 1,
+  "human_edit_required": true
+}

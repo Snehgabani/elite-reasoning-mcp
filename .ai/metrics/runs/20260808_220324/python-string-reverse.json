@@ -1,0 +1,12 @@
+{
+  "task_id": "python-string-reverse",
+  "type": "feature",
+  "mode": "baseline",
+  "passed": true,
+  "score": 1.0,
+  "verifier_output": ".                                                                        [100%]\n1 passed in 0.00s\n",
+  "time_seconds": 0.394,
+  "total_tokens": 1500,
+  "number_of_backtracks": 0,
+  "human_edit_required": false
+}

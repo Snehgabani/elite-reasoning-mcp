@@ -1,0 +1,12 @@
+{
+  "task_id": "python-dictionary-merge-bug",
+  "type": "bug",
+  "mode": "baseline",
+  "passed": false,
+  "score": 0.0,
+  "verifier_output": "\n==================================== ERRORS ====================================\n_______________ ERROR collecting tests/golden/test_dict_merge.py _______________\nImportError while importing test module '/Users/snehgabani/.gemini/antigravity/scratch/elite-reasoning-ide/tests/golden/test_dict_merge.p",
+  "time_seconds": 0.475,
+  "total_tokens": 3000,
+  "number_of_backtracks": 1,
+  "human_edit_required": true
+}

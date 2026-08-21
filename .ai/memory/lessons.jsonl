@@ -1,0 +1,1 @@
+{"ts": "2026-08-09T00:41:27", "ts_unix": 1786216287.202282, "tool": "verify_candidate", "task": "Live hook test: add function with broken quoting", "detail": "{\"failure_type\": \"test_failure\", \"output\": \"  File \\\"<string>\\\", line 1\\n    \\\"from\\n    ^\\nSyntaxError: unterminated string literal (detected at line 1)\\n\"}", "fingerprint": "10e45a0a7b9ad23d"}

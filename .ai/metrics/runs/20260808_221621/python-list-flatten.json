@@ -1,0 +1,12 @@
+{
+  "task_id": "python-list-flatten",
+  "type": "feature",
+  "mode": "audit_test",
+  "passed": false,
+  "score": 0.0,
+  "verifier_output": "[Errno 2] No such file or directory: 'pytest'",
+  "time_seconds": 0.001,
+  "total_tokens": 3000,
+  "number_of_backtracks": 1,
+  "human_edit_required": true
+}

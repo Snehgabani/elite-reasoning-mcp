@@ -1,0 +1,12 @@
+{
+  "task_id": "python-list-flatten",
+  "type": "feature",
+  "mode": "audit_test",
+  "passed": true,
+  "score": 1.0,
+  "verifier_output": ".                                                                        [100%]\n1 passed in 0.12s\n",
+  "time_seconds": 0.616,
+  "total_tokens": 1500,
+  "number_of_backtracks": 0,
+  "human_edit_required": false
+}

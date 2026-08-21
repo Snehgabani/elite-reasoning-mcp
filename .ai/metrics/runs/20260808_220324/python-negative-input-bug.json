@@ -1,0 +1,12 @@
+{
+  "task_id": "python-negative-input-bug",
+  "type": "bug",
+  "mode": "baseline",
+  "passed": false,
+  "score": 0.0,
+  "verifier_output": "\n==================================== ERRORS ====================================\n_____________ ERROR collecting tests/golden/test_negative_input.py _____________\nImportError while importing test module '/Users/snehgabani/.gemini/antigravity/scratch/elite-reasoning-ide/tests/golden/test_negative_inp",
+  "time_seconds": 0.526,
+  "total_tokens": 3000,
+  "number_of_backtracks": 1,
+  "human_edit_required": true
+}
