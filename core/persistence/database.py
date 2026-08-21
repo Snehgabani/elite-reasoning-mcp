@@ -31,6 +31,11 @@ class MigrationLedger:
                 status TEXT
             )
         """)
+        # Check if status column exists in existing table
+        cols = [c[1] for c in conn.execute("PRAGMA table_info(schema_migrations)").fetchall()]
+        if "status" not in cols:
+            conn.execute("ALTER TABLE schema_migrations ADD COLUMN status TEXT DEFAULT 'applied'")
+
         cursor = conn.execute("SELECT MAX(version) FROM schema_migrations WHERE status = 'applied'")
         row = cursor.fetchone()
         return row[0] if row and row[0] is not None else 0
@@ -45,6 +50,7 @@ class MigrationLedger:
             shutil.copy2(self.db_path, backup_path)
 
         conn = sqlite3.connect(str(self.db_path))
+        current_v = 0
         try:
             current_v = self.get_current_version(conn)
             max_v = target_version if target_version is not None else max(self._migrations.keys(), default=0)
