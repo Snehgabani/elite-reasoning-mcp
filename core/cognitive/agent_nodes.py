@@ -41,12 +41,14 @@ from core.cognitive.leverage.deterministic_gates import (
 
 load_dotenv()
 
+import secrets
+
 _LLM_BASE = os.getenv("ELITE_LLM_BASE", "http://127.0.0.1:4096/v1")
 _LLM_KEY = os.getenv("ELITE_LLM_KEY", "local-proxy")
 _LLM_MODEL = os.getenv("ELITE_LLM_MODEL", "opencode-zen/deepseek-v4-flash-free")
 _LLM_MAX_TOKENS = int(os.getenv("ELITE_LLM_MAX_TOKENS", "8192"))
 _LLM_TIMEOUT = float(os.getenv("ELITE_LLM_TIMEOUT", "3.0"))  # Fast 3.0s bound: prevents hangs on wedged proxy
-_HMAC_SECRET = os.getenv("MIX_HMAC_SECRET", "singularity_closed_loop_secret_2026").encode("utf-8")
+_HMAC_SECRET = os.getenv("ELITE_HMAC_SECRET", "").encode("utf-8") or secrets.token_bytes(32)
 
 POLICY_LLM = ChatOpenAI(
     model=_LLM_MODEL,

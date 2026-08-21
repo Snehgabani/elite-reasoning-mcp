@@ -13,7 +13,9 @@ from core.cognitive.leverage.deterministic_gates import (
     ValidationResult
 )
 
-_HMAC_SECRET = os.getenv("MIX_HMAC_SECRET", "singularity_closed_loop_secret_2026").encode("utf-8")
+import secrets
+
+_HMAC_SECRET = os.getenv("ELITE_HMAC_SECRET", "").encode("utf-8") or secrets.token_bytes(32)
 
 
 class GatedEnforcer:
