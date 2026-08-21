@@ -1,8 +1,9 @@
-"""
-Automated Double-Blind Randomized Controlled Trial (RCT) Benchmark Runner.
-Executes unbiased A/B trials comparing baseline Small Language Models (SLMs)
-against SLMs augmented with Elite Cognitive Exoskeleton Scaffolding.
-Generates certified scientific scorecards with Cohen's d, McNemar p-values, and FActScore.
+"""Internal paired-fixture evaluation runner.
+
+The bundled candidates are hand-authored protocol fixtures, not outputs from a
+live randomized model experiment. This runner exercises deterministic scoring,
+position assignment, and report generation. It must not be presented as an RCT
+or as evidence of broad model improvement.
 """
 
 from __future__ import annotations
@@ -38,8 +39,10 @@ class PairedTrialResult:
 
 
 class DoubleBlindRCTRunner:
-    """
-    Orchestrates unbiased, randomized, position-swapped double-blind trials.
+    """Score bundled paired fixtures with reproducible position assignment.
+
+    The compatibility class name is retained for existing imports. Candidate
+    generation and evaluator blinding are outside this implementation.
     """
 
     def __init__(self, seed: int = 42):
@@ -132,65 +135,67 @@ class DoubleBlindRCTRunner:
         }
 
     def generate_markdown_report(self, results: Dict[str, Any]) -> str:
-        """Generates a publication-grade scientific benchmark report."""
+        """Generate an explicitly limited internal-fixture pilot report."""
         sc = results["scorecard"]
         trials = results["trials"]
+        primary_label = "significant at alpha=0.05" if sc["statistically_significant"] else "not significant at alpha=0.05"
 
         lines = [
-            "# 🔬 Double-Blind Randomized Controlled Trial (RCT) Benchmark Report",
+            "# Internal Fixture Pilot Report",
             "",
-            f"**Execution Timestamp:** `{results['timestamp']}`  ",
-            f"**Evaluation Split:** `{results['split']}` ({sc['n_trials']} Paired Trials)  ",
-            f"**Empirical Scientific Verdict:** **`{sc['empirical_verdict']}`**  ",
+            "> **Protocol smoke test—not a randomized controlled trial.** The baseline and treatment drafts are hand-authored fixtures bundled with the repository. This report validates scoring behavior; it does not estimate improvement for live models or real coding tasks.",
             "",
-            "---",
+            f"**Execution timestamp:** `{results['timestamp']}`",
+            f"**Evaluation split:** `{results['split']}` ({sc['n_trials']} paired fixtures)",
+            f"**Primary-endpoint interpretation:** **{primary_label}**",
+            f"**Internal verdict:** `{sc['empirical_verdict']}`",
             "",
-            "## 1. Executive Statistical Scorecard",
+            "## Observed fixture results",
             "",
-            "| Statistical Metric | Control (Small Model Vanilla) | Treatment (Small Model + Elite MCP) | Empirical Lift / Delta | Statistical Standard |",
-            "| :--- | :--- | :--- | :--- | :--- |",
-            f"| **Constraint Pass Rate** | {sc['baseline_pass_rate'] * 100:.1f}% | **{sc['treatment_pass_rate'] * 100:.1f}%** | **+{sc['pass_rate_lift_pct']:.1f}%** | $p \\le 0.05$ |",
-            f"| **McNemar Exact p-value** | — | — | **{sc['mcnemar_p_value']:.4f}** | $p < 0.05$ (Stat. Sig.) |",
-            f"| **Wilcoxon Signed-Rank p** | — | — | **{sc['wilcoxon_p_value']:.4f}** | $p < 0.05$ (Stat. Sig.) |",
-            f"| **Effect Size (Cohen's d)** | — | — | **{sc['cohens_d']:.3f}** | {sc['cohens_d_interpretation']} |",
-            f"| **Bradley-Terry Elo Lift** | Baseline (1000) | **{1000 + sc['elo_delta']:.0f}** | **+{sc['elo_delta']:.1f} Elo** | Win-rate advantage |",
-            f"| **Bootstrap 95% CI on Lift** | — | — | **[{sc['bootstrap_ci_95_lift'][0]:.3f}, {sc['bootstrap_ci_95_lift'][1]:.3f}]** | 10,000 resamples |",
-            f"| **Headache Index ($H_{{index}}$)** | {sc['headache_index_baseline']:.2f} | **{sc['headache_index_treatment']:.2f}** | **-{sc['headache_reduction_pct']:.1f}% Friction** | Lower is better |",
+            "| Metric | Baseline fixtures | Treatment fixtures | Observed difference / result | Interpretation |",
+            "|:---|---:|---:|---:|:---|",
+            f"| All-constraint pass rate | {sc['baseline_pass_rate'] * 100:.1f}% | {sc['treatment_pass_rate'] * 100:.1f}% | {sc['pass_rate_lift_pct']:+.1f} percentage points | Descriptive, n={sc['n_trials']} |",
+            f"| Exact McNemar primary test | — | — | p={sc['mcnemar_p_value']:.4f} | {primary_label} |",
+            f"| Wilcoxon score comparison | — | — | p={sc['wilcoxon_p_value']:.4f} | Exploratory secondary metric |",
+            f"| Standardized score difference | — | — | d={sc['cohens_d']:.3f} | {sc['cohens_d_interpretation']}; not independent proof of significance |",
+            f"| Bootstrap interval for mean score difference | — | — | [{sc['bootstrap_ci_95_lift'][0]:.3f}, {sc['bootstrap_ci_95_lift'][1]:.3f}] | Fixture uncertainty only; not population generalization |",
             "",
-            "---",
+            "## Paired fixture breakdown",
             "",
-            "## 2. Paired Trial Case Breakdown",
-            "",
-            "| Case ID | Split | Slice | Blind Order Swapped? | Baseline Pass | Treatment Pass | Lift Ratio |",
-            "| :--- | :--- | :--- | :--- | :--- | :--- | :--- |",
+            "| Case ID | Split | Slice | Display order swapped? | Baseline | Treatment | Score difference |",
+            "|:---|:---|:---|:---|:---|:---|---:|",
         ]
 
-        for t in trials:
-            b_mark = "✅ Pass" if t["baseline_passed"] else "❌ Fail"
-            t_mark = "✅ Pass" if t["treatment_passed"] else "❌ Fail"
-            swap_mark = "Yes ($B \\leftrightarrow A$)" if t["is_order_swapped"] else "No ($A \\leftrightarrow B$)"
-            lift = f"{t['treatment_score'] - t['baseline_score']:+.2f}"
+        for trial in trials:
+            baseline = "Pass" if trial["baseline_passed"] else "Fail"
+            treatment = "Pass" if trial["treatment_passed"] else "Fail"
+            swapped = "Yes" if trial["is_order_swapped"] else "No"
+            difference = trial["treatment_score"] - trial["baseline_score"]
             lines.append(
-                f"| `{t['case_id']}` | `{t['split']}` | `{t['slice_type']}` | {swap_mark} | {b_mark} | **{t_mark}** | {lift} |"
+                f"| `{trial['case_id']}` | `{trial['split']}` | `{trial['slice_type']}` | {swapped} | {baseline} | {treatment} | {difference:+.2f} |"
             )
 
         lines.extend(
             [
                 "",
-                "---",
+                "## Limitations",
                 "",
-                "## 3. Scientific Invariant Guarantees",
-                "- **Double-Blind Anonymization**: Model names, system prompts, and tool headers stripped before judging.",
-                "- **Deterministic AST Verification**: Constraint outcomes evaluated via pure-Python grammar trees with 0 LLM opinion bias.",
-                "- **FEVER Citation Gating**: Fabricated URLs and non-verbatim quotes fail-closed with 0% false positives.",
+                "- Candidate drafts are hand-authored fixtures; no host model generated either arm under randomized assignment.",
+                "- Position assignment is randomized, but the deterministic constraint scorer does not inspect presentation order; this is not evaluator blinding.",
+                "- Seven cases are insufficient for broad model, repository, cost, safety, or product-effect claims.",
+                "- Exact quote occurrence checks do not prove source authority or full claim entailment.",
+                "- The exact McNemar test is the registered primary binary endpoint. Secondary score statistics do not override it.",
+                "",
+                "## Appropriate use",
+                "",
+                "Use this suite as a release smoke test for the evaluation protocol. A confirmatory product claim requires independently generated candidates, equal budgets, a frozen larger task set, pre-registration, and external replication.",
             ]
         )
-
         return "\n".join(lines)
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Double-Blind RCT Benchmark Runner")
+    parser = argparse.ArgumentParser(description="Internal paired-fixture evaluation runner")
     parser.add_argument("--split", choices=["dev", "holdout", "all"], default="all", help="Dataset split to evaluate")
     parser.add_argument("--output", type=str, default="BENCHMARK_REPORT.md", help="Output report file")
     args = parser.parse_args()
@@ -201,8 +206,8 @@ def main():
 
     out_path = Path(args.output)
     out_path.write_text(report, encoding="utf-8")
-    print(f"Generated double-blind RCT report at {out_path.resolve()}")
-    print(f"Empirical Verdict: {results['scorecard']['empirical_verdict']}")
+    print(f"Generated internal fixture pilot report at {out_path.resolve()}")
+    print(f"Internal verdict: {results['scorecard']['empirical_verdict']}")
     print(
         f"Pass Rate: {results['scorecard']['baseline_pass_rate'] * 100:.1f}% -> {results['scorecard']['treatment_pass_rate'] * 100:.1f}% (+{results['scorecard']['pass_rate_lift_pct']:.1f}%)"
     )

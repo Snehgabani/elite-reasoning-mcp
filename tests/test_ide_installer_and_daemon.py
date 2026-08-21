@@ -34,7 +34,7 @@ def test_benchmark_daemon_execution(tmp_path):
     res = daemon.execute_cycle(split="dev")
 
     assert res["status"] == "completed"
-    assert res["verdict"] in ("OPTIMAL_LIFT_CERTIFIED", "DIRECTIONAL_LIFT", "INCONCLUSIVE")
+    assert res["verdict"] in ("PRIMARY_ENDPOINT_SIGNIFICANT", "INTERNAL_PILOT_DIRECTIONAL", "INCONCLUSIVE")
     assert (tmp_path / "history.jsonl").exists()
     assert (tmp_path / "LATEST_BENCHMARK.md").exists()
 

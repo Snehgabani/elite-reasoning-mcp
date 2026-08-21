@@ -1,40 +1,42 @@
-# 🔬 Double-Blind Randomized Controlled Trial (RCT) Benchmark Report
+# Internal Fixture Pilot Report
 
-**Execution Timestamp:** `2026-08-21T18:36:14.873752+00:00`  
-**Evaluation Split:** `all` (7 Paired Trials)  
-**Empirical Scientific Verdict:** **`OPTIMAL_LIFT_CERTIFIED`**  
+> **Protocol smoke test—not a randomized controlled trial.** The baseline and treatment drafts are hand-authored fixtures bundled with the repository. This report validates scoring behavior; it does not estimate improvement for live models or real coding tasks.
 
----
+**Execution timestamp:** `2026-08-21T18:57:36.077268+00:00`
+**Evaluation split:** `all` (7 paired fixtures)
+**Primary-endpoint interpretation:** **not significant at alpha=0.05**
+**Internal verdict:** `INTERNAL_PILOT_DIRECTIONAL`
 
-## 1. Executive Statistical Scorecard
+## Observed fixture results
 
-| Statistical Metric | Control (Small Model Vanilla) | Treatment (Small Model + Elite MCP) | Empirical Lift / Delta | Statistical Standard |
-| :--- | :--- | :--- | :--- | :--- |
-| **Constraint Pass Rate** | 0.0% | **71.4%** | **+71.4%** | $p \le 0.05$ |
-| **McNemar Exact p-value** | — | — | **0.0625** | $p < 0.05$ (Stat. Sig.) |
-| **Wilcoxon Signed-Rank p** | — | — | **0.0156** | $p < 0.05$ (Stat. Sig.) |
-| **Effect Size (Cohen's d)** | — | — | **2.996** | Large effect size (High empirical significance) |
-| **Bradley-Terry Elo Lift** | Baseline (1000) | **1280** | **+279.6 Elo** | Win-rate advantage |
-| **Bootstrap 95% CI on Lift** | — | — | **[0.486, 0.964]** | 10,000 resamples |
-| **Headache Index ($H_{index}$)** | 3.00 | **0.86** | **-71.4% Friction** | Lower is better |
+| Metric | Baseline fixtures | Treatment fixtures | Observed difference / result | Interpretation |
+|:---|---:|---:|---:|:---|
+| All-constraint pass rate | 0.0% | 71.4% | +71.4 percentage points | Descriptive, n=7 |
+| Exact McNemar primary test | — | — | p=0.0625 | not significant at alpha=0.05 |
+| Wilcoxon score comparison | — | — | p=0.0180 | Exploratory secondary metric |
+| Standardized score difference | — | — | d=2.996 | Large observed standardized difference; not independent proof of significance |
+| Bootstrap interval for mean score difference | — | — | [0.486, 0.964] | Fixture uncertainty only; not population generalization |
 
----
+## Paired fixture breakdown
 
-## 2. Paired Trial Case Breakdown
+| Case ID | Split | Slice | Display order swapped? | Baseline | Treatment | Score difference |
+|:---|:---|:---|:---|:---|:---|---:|
+| `follow_json_cap` | `dev` | `following` | No | Fail | Pass | +0.75 |
+| `follow_bullets_no_secret` | `dev` | `following` | No | Fail | Fail | +0.25 |
+| `follow_file_scope` | `dev` | `following` | Yes | Fail | Fail | +0.20 |
+| `ground_quotes` | `dev` | `grounding` | No | Fail | Pass | +1.00 |
+| `hold_direct_cap` | `holdout` | `following` | No | Fail | Pass | +1.00 |
+| `hold_must_test` | `holdout` | `following` | No | Fail | Pass | +1.00 |
+| `hold_ground` | `holdout` | `grounding` | No | Fail | Pass | +1.00 |
 
-| Case ID | Split | Slice | Blind Order Swapped? | Baseline Pass | Treatment Pass | Lift Ratio |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| `follow_json_cap` | `dev` | `following` | No ($A \leftrightarrow B$) | ❌ Fail | **✅ Pass** | +0.75 |
-| `follow_bullets_no_secret` | `dev` | `following` | No ($A \leftrightarrow B$) | ❌ Fail | **❌ Fail** | +0.25 |
-| `follow_file_scope` | `dev` | `following` | Yes ($B \leftrightarrow A$) | ❌ Fail | **❌ Fail** | +0.20 |
-| `ground_quotes` | `dev` | `grounding` | No ($A \leftrightarrow B$) | ❌ Fail | **✅ Pass** | +1.00 |
-| `hold_direct_cap` | `holdout` | `following` | No ($A \leftrightarrow B$) | ❌ Fail | **✅ Pass** | +1.00 |
-| `hold_must_test` | `holdout` | `following` | No ($A \leftrightarrow B$) | ❌ Fail | **✅ Pass** | +1.00 |
-| `hold_ground` | `holdout` | `grounding` | No ($A \leftrightarrow B$) | ❌ Fail | **✅ Pass** | +1.00 |
+## Limitations
 
----
+- Candidate drafts are hand-authored fixtures; no host model generated either arm under randomized assignment.
+- Position assignment is randomized, but the deterministic constraint scorer does not inspect presentation order; this is not evaluator blinding.
+- Seven cases are insufficient for broad model, repository, cost, safety, or product-effect claims.
+- Exact quote occurrence checks do not prove source authority or full claim entailment.
+- The exact McNemar test is the registered primary binary endpoint. Secondary score statistics do not override it.
 
-## 3. Scientific Invariant Guarantees
-- **Double-Blind Anonymization**: Model names, system prompts, and tool headers stripped before judging.
-- **Deterministic AST Verification**: Constraint outcomes evaluated via pure-Python grammar trees with 0 LLM opinion bias.
-- **FEVER Citation Gating**: Fabricated URLs and non-verbatim quotes fail-closed with 0% false positives.
+## Appropriate use
+
+Use this suite as a release smoke test for the evaluation protocol. A confirmatory product claim requires independently generated candidates, equal budgets, a frozen larger task set, pre-registration, and external replication.

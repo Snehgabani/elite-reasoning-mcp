@@ -33,11 +33,15 @@ def test_rct_runner_execution_and_anonymization():
     sc = results["scorecard"]
     assert sc["n_trials"] >= 7
     assert sc["treatment_pass_rate"] > sc["baseline_pass_rate"]
-    assert sc["statistically_significant"] is True
-    assert sc["cohens_d"] >= 0.8
+    # The primary paired binary endpoint is not significant for five
+    # treatment-only wins (exact McNemar p=0.0625). A secondary continuous
+    # score must not be used to relabel the primary endpoint significant.
+    assert sc["mcnemar_p_value"] == 0.0625
+    assert sc["statistically_significant"] is False
+    assert sc["empirical_verdict"] == "INTERNAL_PILOT_DIRECTIONAL"
 
-    # Verify report formatting
+    # Verify report formatting and limitations.
     report = runner.generate_markdown_report(results)
-    assert "Double-Blind Randomized Controlled Trial" in report
-    assert "Executive Statistical Scorecard" in report
-    assert "Cohen" in report
+    assert "Internal Fixture Pilot" in report
+    assert "Protocol smoke test" in report
+    assert "not significant" in report

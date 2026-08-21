@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- Machine-validated public claims registry with a generated README evidence summary and release gate.
+- Product hardening roadmap covering the evidence-first core, architecture, evaluation, security, and adoption milestones.
+
+### Changed
+- Reclassified the bundled seven-case comparison as an internal fixture pilot rather than an RCT.
+- Made the paired binary McNemar endpoint control significance instead of allowing a secondary Wilcoxon score to override it.
+- Replaced unsupported performance and security language with scoped implementation claims and explicit limitations.
+- Isolated the legacy cognitive smoke script from the registered `BENCHMARK_REPORT.md` artifact.
+
 ## [2.8.0] - 2026-08-21
 
 ### Added

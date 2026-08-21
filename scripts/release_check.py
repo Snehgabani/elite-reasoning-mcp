@@ -94,8 +94,9 @@ def verify_sdist_contents(archive_path: Path) -> None:
 
 def main() -> int:
     run_step("lock integrity", ["uv", "lock", "--check"])
+    run_step("public claims integrity", [sys.executable, "scripts/validate_claims.py"])
     run_step("pytest", ["uv", "run", "--extra", "dev", "pytest"])
-    run_step("double-blind RCT benchmark", ["uv", "run", "--extra", "dev", "python", "scripts/double_blind_eval.py"])
+    run_step("internal fixture pilot", ["uv", "run", "--extra", "dev", "python", "scripts/double_blind_eval.py"])
     run_step("ruff", ["uv", "run", "--extra", "dev", "ruff", "check", "core", "tests", "scripts"])
     run_step(
         "focused pyright",

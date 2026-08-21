@@ -1,43 +1,92 @@
-# Elite Reasoning MCP - Verified Claims Registry
-version: "2.9.0"
-updated_at: "2026-08-22T00:00:00Z"
-owner: "Sneh Gabani"
-
-claims:
-  - id: "CLAIM-001"
-    name: "Small Model Constraint Pass Rate Lift"
-    statement: "Elite Reasoning MCP cognitive scaffolding improves instruction-following and constraint pass rate on paired evaluation tasks versus unassisted baseline small models."
-    dataset_version: "BLIND_CASES_v2.9"
-    split: "holdout"
-    sample_size: 7
-    measured_lift_pct: "+71.4%"
-    confidence_interval_95: [0.486, 0.964]
-    cohens_d: 2.996
-    statistical_significance_p: 0.0156
-    test_method: "Paired Wilcoxon Signed-Rank Test & Exact McNemar"
-    evidence_artifact: "BENCHMARK_REPORT.md"
-    status: "verified_pilot"
-
-  - id: "CLAIM-002"
-    name: "Sub-2ms Deterministic Fast Path"
-    statement: "Pure Python AST syntax and invariant gates execute deterministically in under 2ms without LLM latency overhead."
-    dataset_version: "GATE_BENCH_v1"
-    measured_latency_ms: 1.35
-    throughput_ops_sec: 114000
-    evidence_artifact: "core/cognitive/leverage/deterministic_gates.py"
-    status: "verified_production"
-
-  - id: "CLAIM-003"
-    name: "Zero-Escape FEVER Grounded Verification"
-    statement: "FActScore grounding verifies verbatim quotes against retrieved text snippets; ungrounded citations and hallucinated URLs are deterministically fail-closed."
-    dataset_version: "FACT_GROUND_v1"
-    evidence_artifact: "core/evidence/fact_grounder.py"
-    status: "verified_production"
-
-  - id: "CLAIM-004"
-    name: "Apple Silicon M2 Memory Budget"
-    statement: "Core cognitive graph RSS is constrained under 35MB with zero SSD swap on 8GB Unified Memory."
-    measured_rss_mb: 32.4
-    budget_limit_mb: 50.0
-    evidence_artifact: "doctor_report.json"
-    status: "verified_production"
+{
+  "schema_version": "1.0",
+  "product_version": "2.9.0",
+  "updated_at": "2026-08-22T00:00:00Z",
+  "owner": "Sneh Gabani",
+  "claims": [
+    {
+      "id": "CLAIM-001",
+      "name": "Internal fixture pilot constraint pass rate",
+      "statement": "The bundled seven-case fixture pilot produced a 0/7 baseline pass rate and a 5/7 treatment pass rate under the repository's deterministic constraint scorer.",
+      "scope": "Seven hand-authored baseline and treatment drafts bundled in core/eval/blind_protocol.py; this is a protocol smoke test, not a live-model randomized controlled trial.",
+      "exclusions": [
+        "Does not estimate improvement across models, repositories, or real user workflows.",
+        "Does not establish causality because candidate drafts are bundled fixtures rather than independently generated randomized model outputs.",
+        "The exact McNemar p-value is 0.0625 and is not significant at alpha=0.05."
+      ],
+      "metric_definition": "Difference in all-constraint pass rate under score_constraint_case across seven paired fixtures.",
+      "dataset_version": "BLIND_CASES_v2.9",
+      "code_version": "2.9.0",
+      "run_id": "pilot-2026-08-21",
+      "sample_size": 7,
+      "result": {
+        "baseline_passed": 0,
+        "treatment_passed": 5,
+        "observed_absolute_difference": 0.714,
+        "mcnemar_exact_p": 0.0625
+      },
+      "evidence": {
+        "artifact": "BENCHMARK_REPORT.md",
+        "command": "python scripts/double_blind_eval.py --split all --output BENCHMARK_REPORT.md",
+        "artifact_sha256": null
+      },
+      "replication_status": "not_independently_replicated",
+      "status": "internal_pilot",
+      "expires_at": "2026-11-22T00:00:00Z",
+      "owner": "Sneh Gabani",
+      "permitted_public_wording": "A seven-case internal fixture pilot observed 5/7 treatment drafts and 0/7 baseline drafts passing all extracted constraints. The bundled drafts were hand-authored protocol fixtures—not live randomized model outputs—and the primary exact McNemar result (p=0.0625) was not significant at alpha=0.05."
+    },
+    {
+      "id": "CLAIM-002",
+      "name": "Deterministic syntax and security checks",
+      "statement": "The package includes local deterministic checks that parse Python syntax and reject covered unsafe patterns such as eval calls and bare except clauses.",
+      "scope": "Only the explicitly implemented patterns and languages exercised by the linked tests.",
+      "exclusions": [
+        "A passing check is not proof that code is correct or vulnerability-free.",
+        "No production throughput or latency claim is currently registered."
+      ],
+      "metric_definition": "Behavioral pass/fail tests for covered syntax and static-pattern fixtures.",
+      "dataset_version": "DETERMINISTIC_GATES_TESTS_v1",
+      "code_version": "2.9.0",
+      "run_id": null,
+      "sample_size": null,
+      "result": {},
+      "evidence": {
+        "artifact": "tests/test_cognitive_benchmarks.py",
+        "command": "pytest tests/test_cognitive_benchmarks.py -q",
+        "artifact_sha256": null
+      },
+      "replication_status": "repository_tests_only",
+      "status": "implementation_verified",
+      "expires_at": "2026-11-22T00:00:00Z",
+      "owner": "Sneh Gabani",
+      "permitted_public_wording": "Local deterministic checks cover Python syntax and selected unsafe patterns. Their scope is limited to implemented rules; passing them does not prove correctness or absence of vulnerabilities."
+    },
+    {
+      "id": "CLAIM-003",
+      "name": "Exact-quote grounding behavior",
+      "statement": "The grounding component can require a cited quote to occur in retrieved evidence and can return an explicit degraded or uncertain state when support is unavailable.",
+      "scope": "Exact-quote occurrence and URL/evidence handling implemented by the linked grounding modules and tests.",
+      "exclusions": [
+        "Exact quote occurrence does not prove that a source is authoritative or that the broader claim is entailed.",
+        "Network retrieval availability is environment-dependent."
+      ],
+      "metric_definition": "Behavioral tests for exact quote matching, unsupported citations, and degraded retrieval states.",
+      "dataset_version": "GROUNDING_TESTS_v1",
+      "code_version": "2.9.0",
+      "run_id": null,
+      "sample_size": null,
+      "result": {},
+      "evidence": {
+        "artifact": "tests/test_grounded_search.py",
+        "command": "pytest tests/test_grounded_search.py tests/test_fact_grounding_live.py -q",
+        "artifact_sha256": null
+      },
+      "replication_status": "repository_tests_only",
+      "status": "implementation_verified",
+      "expires_at": "2026-11-22T00:00:00Z",
+      "owner": "Sneh Gabani",
+      "permitted_public_wording": "The grounding path checks exact quote occurrence against retrieved evidence and exposes degraded or uncertain states. Quote matching alone does not prove source quality or full claim entailment."
+    }
+  ]
+}
