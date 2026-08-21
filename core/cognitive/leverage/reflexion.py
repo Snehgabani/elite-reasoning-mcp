@@ -65,10 +65,29 @@ async def analyze_failure(task: str, candidate_content: str, verifier_output: st
     )
 
 
+import hashlib
+from typing import Set
+
+_SEEN_FAILURE_HASHES: Dict[str, Set[str]] = {}
+
+
 async def reflexion_repair(
-    task: str, candidate_content: str, verifier_output: str, max_attempts: int = 2
+    task: str, candidate_content: str, verifier_output: str, max_attempts: int = 3
 ) -> Dict[str, Any]:
     report = await analyze_failure(task, candidate_content, verifier_output)
+
+    # Compute candidate failure state hash to prevent duplicate repair loops
+    state_sig = hashlib.sha256(f"{candidate_content}:{verifier_output}".encode("utf-8")).hexdigest()[:16]
+    task_key = hashlib.sha256(task.encode("utf-8")).hexdigest()[:16]
+
+    if task_key not in _SEEN_FAILURE_HASHES:
+        _SEEN_FAILURE_HASHES[task_key] = set()
+
+    is_duplicate_loop = state_sig in _SEEN_FAILURE_HASHES[task_key]
+    _SEEN_FAILURE_HASHES[task_key].add(state_sig)
+    attempts_count = len(_SEEN_FAILURE_HASHES[task_key])
+
+    escalated = attempts_count >= max_attempts
 
     # Save lesson to memory file
     base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
@@ -77,14 +96,15 @@ async def reflexion_repair(
         os.makedirs(os.path.dirname(lesson_path), exist_ok=True)
         with open(lesson_path, "a", encoding="utf-8") as f:
             f.write(f"\n- TASK: {task[:50]}\n  LESSON: {report.lesson}\n")
-
     except Exception as exc:
-        # Explicit non-fatal exception suppression
         _ = str(exc)
 
     return {
         "report": report.to_markdown(),
-        "patch_plan": report.minimal_patch_plan,
+        "patch_plan": report.minimal_patch_plan if not escalated else "DEADLOCK IMMUNITY ESCALATION: Halt retry loop and escalate with diagnostic diff.",
         "lesson": report.lesson,
-        "attempts": 1,
+        "attempts": attempts_count,
+        "is_duplicate_attempt": is_duplicate_loop,
+        "deadlock_escalated": escalated,
+        "state_hash": state_sig,
     }
