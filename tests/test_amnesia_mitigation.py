@@ -54,10 +54,11 @@ def test_trajectory_guardian_amnesia_detection_and_blocking():
 def test_amnesia_benchmark_simulation_suite():
     report = run_amnesia_simulation_suite()
     assert isinstance(report, AmnesiaBenchmarkReport)
-    assert report.total_trials == 3
+    assert report.total_trials == 5
     assert report.baseline_amnesia_escape_rate_pct == 100.0
     assert report.guardian_amnesia_escape_rate_pct == 0.0
     assert report.amnesia_reduction_pct == 100.0
+    assert report.mean_steplocked_density_pct >= 50.0
 
 
 def test_mcp_tool_density_enforcement():
