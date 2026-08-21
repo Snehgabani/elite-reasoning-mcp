@@ -44,6 +44,10 @@ from core.cognitive.leverage.web_research import live_web_search as _run_live_we
 from core.cognitive.leverage.zero_escape_fsm import ZeroEscapeFSM, LifecycleState
 from core.cognitive.leverage.dynamic_tool_router import DynamicToolRouter
 from core.cognitive.leverage.cognitive_trinity import _TRINITY_MANAGER
+from core.cognitive.leverage.stealth_scraper import _STEALTH_SCRAPER
+from core.cognitive.leverage.vector_memory_bridge import _VECTOR_MEMORY_BRIDGE
+from core.cognitive.leverage.watchdog_notifier import _WATCHDOG_NOTIFIER
+from core.cognitive.leverage.duckdb_analytics_bridge import _DUCKDB_ANALYTICS_BRIDGE
 
 
 def register(mcp, store=None, profile=None) -> None:
@@ -482,4 +486,67 @@ def register(mcp, store=None, profile=None) -> None:
             test_exit_code=test_exit_code,
             claims_text=claims_text,
         )
+        return json.dumps(res, indent=2)
+
+    @mcp.tool()
+    def stealth_scrape_url(url: str) -> str:
+        """
+        Stealth Web Scraper & Fit-Markdown Extractor (Crawl4AI/Trafilatura).
+        Extracts clean, anti-bot fit-markdown from documentation and web pages (<180MB RAM).
+        """
+        res = _STEALTH_SCRAPER.scrape_fit_markdown(url=url)
+        return json.dumps(res, indent=2)
+
+    @mcp.tool()
+    def vector_memory_search(query: str, top_k: int = 3) -> str:
+        """
+        Sovereign Semantic Vector Memory Search (sqlite-vec + FastEmbed).
+        Retrieves semantically relevant invariant skills and patterns in-process (<10MB RAM).
+        """
+        res = _VECTOR_MEMORY_BRIDGE.search_skills(query=query, top_k=top_k)
+        return json.dumps(res, indent=2)
+
+    @mcp.tool()
+    def vector_memory_index(skill_name: str, pattern: str, invariant_rule: str) -> str:
+        """
+        Sovereign Semantic Vector Memory Indexer (sqlite-vec).
+        Embeds and indexes new skill cards into local vector memory.
+        """
+        res = _VECTOR_MEMORY_BRIDGE.index_skill(
+            skill_name=skill_name, pattern=pattern, invariant_rule=invariant_rule
+        )
+        return json.dumps(res, indent=2)
+
+    @mcp.tool()
+    def post_task_telemetry(
+        task_id: str,
+        status: str,
+        current_node: str,
+        progress_pct: int,
+        prm_score: float = 1.0,
+        details: str = "",
+        notify_desktop: bool = False,
+    ) -> str:
+        """
+        macOS Watchdog Notifier & Telemetry Publisher.
+        Publishes task heartbeat to live_status.json and triggers native macOS notifications.
+        """
+        res = _WATCHDOG_NOTIFIER.record_telemetry(
+            task_id=task_id,
+            status=status,
+            current_node=current_node,
+            progress_pct=progress_pct,
+            prm_score=prm_score,
+            details=details,
+            notify_desktop=notify_desktop,
+        )
+        return json.dumps(res, indent=2)
+
+    @mcp.tool()
+    def query_sovereign_analytics(sql_query: str, parquet_path: str | None = None) -> str:
+        """
+        Zero-RAM Columnar SQL Analytics Engine (DuckDB).
+        Executes analytical SQL queries across Parquet datasets, SQLite tables, and logs (<2.5GB RAM cap).
+        """
+        res = _DUCKDB_ANALYTICS_BRIDGE.execute_sql(query=sql_query, parquet_path=parquet_path)
         return json.dumps(res, indent=2)
