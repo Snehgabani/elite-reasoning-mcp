@@ -27,7 +27,7 @@ Last updated: 2026-08-22
 - [ ] Extract legacy composition from `mcp_server.py` and finish reducing the remaining server module.
 - [ ] Decompose persistence and add migration backup/rollback fixtures.
 - [x] Move graph/model/sync/scientific dependencies behind `legacy` and add an isolated minimal-wheel core smoke gate.
-- [x] Add isolated installed-wheel validation on Linux, macOS, and Windows for Python 3.11 and 3.13.
+- [ ] Land isolated installed-wheel validation on Linux, macOS, and Windows for Python 3.11 and 3.13 (implementation prepared; GitHub App lacks workflow-write permission).
 - [ ] Build the manifest-driven multi-arm evaluation harness and frozen task corpus.
 - [ ] Complete adversarial security, memory-poisoning, and corruption suites.
 - [ ] Run the design-partner and external-replication program.

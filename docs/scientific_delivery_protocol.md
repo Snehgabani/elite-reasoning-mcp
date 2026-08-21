@@ -194,7 +194,7 @@ A lower level cannot be used to claim a higher-level outcome. For example, AST p
 - Primary endpoint: every public verification check passes the same integration tests through registry dispatch.
 - Harm endpoint: output schema and five-tool discovery remain unchanged.
 - Intervention: typed registry, restricted command adapter, and separate API schemas.
-- Status: assessment in progress.
+- Result: adopted; registry unit tests, public MCP integration tests, strict typing, and the full release gate pass with the same five-tool output contract.
 
 ## 7. Stop conditions
 

@@ -27,7 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Stopped the core profile from importing and registering the legacy cognitive catalog before discarding it.
 - Added a dedicated core-server finalization path so default startup never constructs legacy identity, collaboration, sync, resource, or cognitive surfaces.
 - Made `core.cognitive` compatibility exports lazy so deterministic checks do not load the graph engine.
-- Moved graph, model-provider, sync-server, SciPy, and NetworkX dependencies behind the explicit `legacy` extra; release gates now exercise a minimal installed core wheel without them on Linux, macOS, and Windows.
+- Moved graph, model-provider, sync-server, SciPy, and NetworkX dependencies behind the explicit `legacy` extra; the local release gate now exercises a minimal isolated core wheel without them.
 - Kept release fixture-pilot output in a temporary artifact so validation no longer dirties the tracked benchmark report.
 
 ## [2.8.0] - 2026-08-21
