@@ -121,12 +121,16 @@ class EliteCognitiveEngine:
         selected_mods = topology.get("selected_atomic_modules") or topology.get("selected_modules") or []
 
         from core.reasoning.task_contract import compile_task_contract
+        from core.cognitive.trajectory_guardian import GLOBAL_TRAJECTORY_GUARDIAN
 
         contract = compile_task_contract(task, int(complexity) if isinstance(complexity, int) else 0)
+        gate_token = GLOBAL_TRAJECTORY_GUARDIAN.record_pre_edit_contract(task_id, task)
+        recency_envelope = GLOBAL_TRAJECTORY_GUARDIAN.build_recency_directive(task_id)
+
         quality_score = 1.0 if (prm_passed and logic_valid) else 0.5
         mandatory_chaining_directive = (
             "🚨 MANDATORY STEP-LOCKED LIFECYCLE DIRECTIVE (DO NOT BYPASS):\n"
-            "1. Checkpoint 1 [PRE-EDIT]  : Active constraints compiled in task_contract below.\n"
+            f"1. Checkpoint 1 [PRE-EDIT]  : Active constraints compiled. Gate token: {gate_token.token}\n"
             "2. Checkpoint 2 [DURING-EDIT]: After modifying any file/code, you MUST call `elite_verify(check='syntax', code=...)` and `elite_verify(check='cegis', code=...)`.\n"
             "3. Checkpoint 3 [POST-EDIT]  : You MUST call `elite_verify(check='tests', command='pytest ...')` before replying.\n"
             "4. HARD INVARIANT: You are strictly forbidden from delivering final text to the user without a passing `elite_verify` receipt."
@@ -137,8 +141,10 @@ class EliteCognitiveEngine:
             "task_type": task_type,
             "status": "SUCCESS",
             "scaffold_status": "scaffolded",
+            "gate_token": gate_token.token,
             "mandatory_chaining_directive": mandatory_chaining_directive,
-            "note": "This MCP enforces invariants and compiles checkable task contracts. Verify execution evidence with elite_verify.",
+            "recency_step_lock": recency_envelope,
+            "note": "This legacy path records checkpoint state and compiles a task contract. The host must report edits/checks; verify evidence with elite_verify.",
             "complexity": complexity,
             "intent": intent,
             "route": route_mode,
