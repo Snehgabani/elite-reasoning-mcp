@@ -1,20 +1,25 @@
 """
-Non-Coder Leverage CLI & Interactive TUI (Elite Leverage Engine).
-Empowers product managers, non-technical founders, and builders to compile
-checkable task contracts and verify AI outputs with zero code knowledge.
+Non-Coder AI Leverage CLI & Contract Verification Suite.
+Translates technical AST, git diff, and verification receipts into
+human-readable, non-technical cards for product managers and founders.
 """
 
 from __future__ import annotations
 
 import argparse
 import sys
+from typing import List, Optional
 from core.contracts.compiler import ContractCompiler
+from core.contracts.models import Requirement, RequirementKind
+from core.search.branch_pruner import prune_candidate_branches
+from core.verification.cegis import CEGISPropertyVerifier
+from core.verification.diagnostics import extract_diagnostic_slice
 from core.verification.models import VerificationStatus
 from core.verification.registry import GLOBAL_VERIFIER_REGISTRY
 
 
 def format_contract_card(prompt: str) -> str:
-    """Formats a clear, non-technical contract card from any user instruction."""
+    """Compiles a user prompt into a high-visibility plain-English contract card."""
     compiler = ContractCompiler()
     contract = compiler.compile(prompt)
 
@@ -91,6 +96,80 @@ def format_verification_receipt(prompt: str, draft: str) -> str:
     return "\n".join(lines)
 
 
+def format_fuzz_card(code: str) -> str:
+    """Evaluates code draft with CEGIS property fuzzing and generates resilience scorecard."""
+    verifier = CEGISPropertyVerifier()
+    req = Requirement(
+        id="REQ-NONCODER-FUZZ",
+        kind=RequirementKind.ROBUSTNESS,
+        source_text="CEGIS property check",
+        interpretation="Handle boundary collections and empty input states",
+    )
+    res = verifier.verify(req, code)
+    lines = [
+        "╔══════════════════════════════════════════════════════════════════════╗",
+        "║            🧬 ELITE CEGIS PROPERTY FUZZING SCORECARD                 ║",
+        "╚══════════════════════════════════════════════════════════════════════╝",
+        f"🏁 Resilience Status : {'✅ CERTIFIED ROBUST' if res.status == VerificationStatus.PASS else '🚨 EDGE CASE CRASH DETECTED'}",
+        "",
+        f"📋 FINDINGS: {res.reason}",
+    ]
+    if res.status != VerificationStatus.PASS:
+        lines.append("")
+        lines.append("💡 COPY-PASTE TO YOUR AI AGENT:")
+        lines.append(f"  'Your code fails on boundary inputs. Reason: {res.reason}. Please add bounds guards.'")
+    lines.append("══════════════════════════════════════════════════════════════════════")
+    return "\n".join(lines)
+
+
+def format_diagnostic_card(error_text: str, source_code: Optional[str] = None) -> str:
+    """Parses a messy error traceback into a 1-line plain-English repair prompt."""
+    diag = extract_diagnostic_slice(error_text, source_code)
+    lines = [
+        "╔══════════════════════════════════════════════════════════════════════╗",
+        "║            🔍 ELITE ERROR DIAGNOSTIC SLICE (REFLEXION)               ║",
+        "╚══════════════════════════════════════════════════════════════════════╝",
+        f"📍 Location : {diag.failing_file or 'Unknown file'} (line {diag.failing_line_number or '?'})",
+        f"⚠️ Error    : {diag.error_type} ({diag.error_message})",
+        "",
+        "💡 1-CLICK COPY-PASTE REPAIR PROMPT FOR YOUR AI AGENT:",
+        f"  'Fix {diag.error_type} in {diag.failing_file or 'code'} around line {diag.failing_line_number or '?'}. {diag.suggested_invariant_fix}'",
+        "══════════════════════════════════════════════════════════════════════",
+    ]
+    return "\n".join(lines)
+
+
+def format_prune_card(prompt: str, candidates: List[str]) -> str:
+    """Ranks multiple candidate AI code drafts and picks the winning champion."""
+    compiler = ContractCompiler()
+    contract = compiler.compile(prompt)
+    result = prune_candidate_branches(contract, candidates)
+
+    lines = [
+        "╔══════════════════════════════════════════════════════════════════════╗",
+        "║            🌲 ELITE SPECULATIVE DRAFT PRUNER                         ║",
+        "╚══════════════════════════════════════════════════════════════════════╝",
+        f"📊 Total Candidates Evaluated : {result.total_candidates}",
+        f"✂️ Pruned Defective Branches  : {result.pruned_candidates}",
+        f"🏆 Champion Candidate Branch   : {result.champion_branch.branch_id if result.champion_branch else 'None'}",
+        "",
+        "📋 CANDIDATE BRANCH BREAKDOWN:",
+    ]
+    for b in result.evaluated_branches:
+        status_icon = "❌ PRUNED" if b.is_pruned else "✅ SURVIVED"
+        champ_tag = (
+            " 🏆 (CHAMPION)" if result.champion_branch and b.branch_id == result.champion_branch.branch_id else ""
+        )
+        lines.append(
+            f"  • {b.branch_id}: {status_icon}{champ_tag} (Passed: {b.passed_count}, Failed: {b.failed_count})"
+        )
+        if b.prune_reason:
+            lines.append(f"    Reason: {b.prune_reason}")
+
+    lines.append("══════════════════════════════════════════════════════════════════════")
+    return "\n".join(lines)
+
+
 def main():
     parser = argparse.ArgumentParser(description="Elite Reasoning MCP Non-Coder Leverage Suite")
     subparsers = parser.add_subparsers(dest="command")
@@ -104,6 +183,20 @@ def main():
     verify_p.add_argument("--prompt", required=True, help="Original prompt or requirement")
     verify_p.add_argument("--draft", required=True, help="AI response or code draft")
 
+    # Fuzz command
+    fuzz_p = subparsers.add_parser("fuzz", help="Stress-test code with CEGIS property fuzzing")
+    fuzz_p.add_argument("--code", required=True, help="Python code snippet to fuzz")
+
+    # Diagnose command
+    diag_p = subparsers.add_parser("diagnose", help="Slice an error traceback into a 1-line AI repair prompt")
+    diag_p.add_argument("--error", required=True, help="Raw error or traceback text")
+    diag_p.add_argument("--code", help="Optional source code snippet")
+
+    # Prune command
+    prune_p = subparsers.add_parser("prune", help="Evaluate multiple candidate drafts and pick the champion")
+    prune_p.add_argument("--prompt", required=True, help="Original prompt or task requirement")
+    prune_p.add_argument("--candidates", nargs="+", required=True, help="List of candidate draft codes or files")
+
     # Interactive mode
     subparsers.add_parser("interactive", help="Launch interactive step-by-step assistant")
 
@@ -113,9 +206,15 @@ def main():
         print(format_contract_card(args.prompt))
     elif args.command == "verify":
         print(format_verification_receipt(args.prompt, args.draft))
+    elif args.command == "fuzz":
+        print(format_fuzz_card(args.code))
+    elif args.command == "diagnose":
+        print(format_diagnostic_card(args.error, args.code))
+    elif args.command == "prune":
+        print(format_prune_card(args.prompt, args.candidates))
     elif args.command == "interactive" or len(sys.argv) == 1:
         print("=" * 70)
-        print("🌟 Welcome to Elite Assistant (Zero-Code AI Verification)")
+        print("🌟 Welcome to Elite Assistant (Zero-Code AI Verification & Leverage)")
         print("=" * 70)
         try:
             prompt = input("Enter your task / requirement: ").strip()
