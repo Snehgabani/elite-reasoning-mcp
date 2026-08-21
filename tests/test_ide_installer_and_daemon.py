@@ -1,7 +1,5 @@
 import json
-import pytest
-from pathlib import Path
-from core.orchestration.ide_installer import MultiIDEInstaller, IDEConfigTarget
+from core.orchestration.ide_installer import MultiIDEInstaller
 from core.eval.benchmark_daemon import BenchmarkDaemon
 from core.eval.launchd_manager import LaunchdManager
 

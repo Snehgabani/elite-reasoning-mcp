@@ -175,6 +175,6 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/*" = ["F401", "F841", "E402", "I001"]  # tests use inline imports and temp vars
-"core/cognitive/**" = ["F401", "F841", "E402", "I001"]  # cognitive loop and leverage submodules
-"core/tools/cognitive_tools.py" = ["F401", "F841", "E402", "I001"]
+"tests/*" = ["F841", "E402", "I001"]  # tests use inline temp vars
+"core/cognitive/**" = ["F841", "E402", "I001"]
+"core/tools/cognitive_tools.py" = ["F841", "E402", "I001"]

@@ -1,6 +1,4 @@
-import os
 import re
-import pytest
 import yaml
 from pathlib import Path
 

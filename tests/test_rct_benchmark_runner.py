@@ -1,9 +1,7 @@
-import pytest
 from core.eval.statistical_significance import (
     compute_cohens_d,
     compute_mcnemar_exact,
     compute_wilcoxon_signed_rank,
-    evaluate_statistical_scorecard,
 )
 from core.eval.rct_runner import DoubleBlindRCTRunner
 

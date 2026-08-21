@@ -8,7 +8,6 @@ for cheap/low-intelligence language models (e.g. 7B/8B, GPT-4o-mini, Flash-Lite)
 from __future__ import annotations
 
 import json
-import re
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
@@ -132,8 +131,9 @@ class SmallModelAdapter:
             direct = json.loads(clean_text)
             if isinstance(direct, dict):
                 return direct
-        except Exception:
-            pass
+        except (json.JSONDecodeError, ValueError) as exc:
+            # Non-fatal: fallback to coercion engine repair
+            _ = exc
 
         parsed = self.coercion_engine.parse_and_repair(raw_output)
         if "step_index" not in parsed:

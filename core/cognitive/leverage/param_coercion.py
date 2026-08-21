@@ -10,7 +10,7 @@ from __future__ import annotations
 import ast
 import json
 import re
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional
 
 
 class ParameterCoercionEngine:
@@ -63,8 +63,9 @@ class ParameterCoercionEngine:
         try:
             json.loads(text)
             return text
-        except Exception:
-            pass
+        except (json.JSONDecodeError, ValueError) as exc:
+            # Non-fatal: proceed to regex repair fallback
+            _ = exc
 
         # 1. Replace trailing commas: ,} -> } and ,] -> ]
         text = re.sub(r",\s*([\]}])", r"\1", text)
@@ -84,8 +85,9 @@ class ParameterCoercionEngine:
         try:
             json.loads(text)
             return text
-        except Exception:
-            pass
+        except (json.JSONDecodeError, ValueError) as exc:
+            # Non-fatal: proceed to ast fallback
+            _ = exc
 
         # 6. If single quotes are used, convert cleanly via ast.literal_eval if safe
         try:
@@ -95,8 +97,9 @@ class ParameterCoercionEngine:
             parsed = ast.literal_eval(cleaned_ast)
             if isinstance(parsed, (dict, list)):
                 return json.dumps(parsed)
-        except Exception:
-            pass
+        except (SyntaxError, ValueError) as exc:
+            # Non-fatal: proceed to unparsed return
+            _ = exc
 
         return text
 
@@ -111,8 +114,9 @@ class ParameterCoercionEngine:
             if isinstance(res, dict):
                 return res
             return {"payload": res}
-        except Exception:
-            pass
+        except (json.JSONDecodeError, ValueError) as exc:
+            # Non-fatal: proceed to ast fallback
+            _ = exc
 
         # Last-ditch AST literal_eval fallback
         try:
@@ -123,8 +127,9 @@ class ParameterCoercionEngine:
             if isinstance(res, dict):
                 return res
             return {"payload": res}
-        except Exception:
-            pass
+        except (SyntaxError, ValueError) as exc:
+            # Non-fatal: proceed to structured salvage
+            _ = exc
 
         # Structured salvage
         return {
@@ -238,8 +243,9 @@ class ParameterCoercionEngine:
                     parsed = json.loads(cleaned)
                     if isinstance(parsed, list):
                         return parsed
-                except Exception:
-                    pass
+                except (json.JSONDecodeError, ValueError) as exc:
+                    # Non-fatal: proceed to comma split fallback
+                    _ = exc
             if "," in cleaned:
                 return [item.strip() for item in cleaned.split(",") if item.strip()]
             if cleaned:

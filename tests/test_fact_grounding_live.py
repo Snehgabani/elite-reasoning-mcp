@@ -1,4 +1,3 @@
-import pytest
 from core.evidence.query_planner import QueryPlanner
 from core.evidence.fact_grounder import FActScoreGrounder
 from core.evidence.grounded_search import EvidenceQuote, GroundedEvidence
