@@ -205,6 +205,16 @@ A lower level cannot be used to claim a higher-level outcome. For example, AST p
 - Intervention: schema v7 ledger, integrity-checked backup/restore primitives, and doctor version diagnostics.
 - Result: adopted; successful upgrade, forced rollback, retention, and corrupt-source rejection fixtures pass.
 
+### Cycle CORE-006 — Mid-turn MCP amnesia
+
+- Observation: IDE models often call the MCP once at task start, then stop using it after edits or context growth.
+- Mechanism: a one-time instruction decays in attention; MCP itself cannot initiate another host call.
+- Hypothesis: repeating a typed next-checkpoint directive after every MCP response, plus durable status recovery and a final evidence gate, will make omissions detectable and make compliant chaining easier.
+- Primary endpoints: premature outcomes return `REPEAT`; every incomplete response has `stop_final_response=true`; a compliant real-gateway trajectory reaches `checkpoint=done`.
+- Harm endpoints: non-code tasks do not receive irrelevant coding checkpoints; stale evidence reopens the earliest invalid checkpoint; existing Git hooks are never overwritten.
+- Intervention: `continuation` state machine, `/goal` MCP prompt, server/tool instructions, host-native rules, continuity monitoring, and layered optional repository checks.
+- Assessment: real five-tool simulations pass for prepare-only amnesia, premature finalization, 20-turn context dilution, compliant chaining, and post-verification mutation. This demonstrates server detection/recovery semantics, not autonomous control over third-party host models.
+
 ## 7. Stop conditions
 
 Stop or revise an intervention when:

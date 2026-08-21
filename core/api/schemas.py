@@ -41,6 +41,7 @@ class PrepareResult(BaseModel):
     evidence_requirements: list[str]
     memory_context: list[dict[str, Any]]
     capability_warnings: list[str]
+    continuation: dict[str, Any] = Field(default_factory=dict)
     warnings: list[str] = Field(default_factory=list)
 
 
@@ -49,6 +50,7 @@ class ProgressResult(BaseModel):
     run_id: str
     workflow_status: str
     steps: list[WorkflowStep]
+    continuation: dict[str, Any] = Field(default_factory=dict)
     warnings: list[str] = Field(default_factory=list)
 
 
@@ -67,6 +69,7 @@ class VerifyResult(BaseModel):
     evidence: list[EvidenceRecord] = Field(default_factory=list)
     limitations: list[str] = Field(default_factory=list)
     data: dict[str, Any]
+    continuation: dict[str, Any] = Field(default_factory=dict)
     warnings: list[str] = Field(default_factory=list)
 
 

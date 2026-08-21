@@ -40,6 +40,8 @@ async def test_stdio_protocol_advertises_runtime_version_and_typed_errors(tmp_pa
         async with ClientSession(read, write) as session:
             initialized = await session.initialize()
             tools = await session.list_tools()
+            prompts = await session.list_prompts()
+            goal_prompt = await session.get_prompt("goal", {"objective": "Fix authentication with tests"})
             secret_run_id = "sk-12345678901234567890"
             invalid = await session.call_tool("elite_progress", {"run_id": secret_run_id})
             prepared = await session.call_tool(
@@ -48,7 +50,13 @@ async def test_stdio_protocol_advertises_runtime_version_and_typed_errors(tmp_pa
             )
 
     assert initialized.serverInfo.version == package_version()
+    assert initialized.instructions is not None
+    assert "continuation" in initialized.instructions
+    assert "checkpoint=done" in initialized.instructions
     assert {tool.name for tool in tools.tools} == CORE_TOOLS
+    assert {prompt.name for prompt in prompts.prompts} == {"goal"}
+    assert "Fix authentication with tests" in goal_prompt.messages[0].content.text
+    assert "continuation" in goal_prompt.messages[0].content.text
     assert all(tool.annotations is not None and tool.annotations.title for tool in tools.tools)
     assert invalid.isError is True
     assert "validation_error" in invalid.content[0].text

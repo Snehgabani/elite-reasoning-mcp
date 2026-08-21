@@ -32,6 +32,7 @@ Last updated: 2026-08-22
 - [x] Build a manifest-driven five-arm analysis harness and 250-task frozen corpus that reports `NOT_RUN` until independent matched outcomes are supplied.
 - [x] Add an offline installed-product demo with a deterministic fail-then-pass verification transition.
 - [x] Add previewable, confirmation-gated atomic IDE initialization and redacted workflow-evidence export.
+- [x] Add continuous checkpoint directives, `/goal`, durable context recovery, host rules, continuity metrics, and real-gateway amnesia simulations.
 - [ ] Complete adversarial security, memory-poisoning, and corruption suites.
 - [ ] Run the design-partner and external-replication program.
 

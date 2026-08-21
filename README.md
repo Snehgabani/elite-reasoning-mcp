@@ -149,41 +149,38 @@ mcpServers:
       ELITE_TOOL_PROFILE: core
 ```
 
-### Activate the Pipeline
+### Activate the Continuous Pipeline
+
+If your client exposes MCP prompts, start a task with `/goal <your objective>`. The `goal` prompt anchors a durable `run_id` and tells the host to follow the `continuation` object returned after every Elite call.
 
 Add this to your IDE's system prompt (e.g., `~/.gemini/GEMINI.md` or Cursor Rules):
 
 ```markdown
 ## ⚡ RULE #0 — ELITE MCP PIPELINE
 
-For every non-trivial prompt, call this first:
+For every non-trivial prompt, call `elite_prepare(user_prompt="<exact message>", persist=true)` first and retain `run_id`.
 
-elite_prepare(user_prompt="<the user's exact message>")
+After EVERY Elite response, inspect `continuation`:
 
-Use ONLY `allowed_tools`, in `playbook` order. Do not pick other MCP tools.
+- If `stop_final_response=true`, do not answer yet.
+- Call `required_tool` with `required_args`, replacing placeholders with current code, repository root, tests, or final draft.
+- Repair `FAIL`, `UNKNOWN`, `NOT_CHECKED`, `REPEAT`, and stale evidence; then follow the new continuation.
+- If context becomes long or the next step is forgotten, call `elite_progress(action="status", run_id="<saved run id>")` to recover it.
+- Answer only when `checkpoint="done"` and `stop_final_response=false`.
 
-If the playbook requires evidence:
-elite_verify(check="evidence", query="<question>")
-
-Do the host_work step (write the answer or patch).
-
-Then the independent gate:
-elite_verify(check="outcomes", run_id="<run id>", draft="<your draft>")
-
-If action=REPEAT: fix unmet outcomes and verify again. Do not answer the user yet.
-If action=DONE: you may answer.
-
-Skip tool calls for trivial acknowledgements like "ok", "thanks", "yes", "no".
+For coding tasks the normal sequence is prepare → syntax after the first edit → Git scope → executed tests → outcomes. Skip the pipeline only for trivial acknowledgements such as "ok" or "thanks".
 ```
 
-**That's it.** Restart your IDE and every conversation automatically benefits from the reasoning pipeline.
+> **Enforcement boundary:** MCP cannot make a host model issue another call after the model stops using tools. Continuation directives, `/goal`, IDE rules, durable recovery, final evidence gates, and optional repository hooks reduce omission risk in layers; they are not an absolute host-level guarantee.
+
+Restart the IDE after changing its MCP configuration or host rules.
 
 ---
 
 ## 🚀 Features
 
-### 🧠 Evidence-Gated Workflow
-When the IDE calls `elite_prepare`, the server creates a durable plan with risk-aware validation gates, trusted memory context, and a compact typed response. `elite_progress` rejects out-of-order completion and terminal claims without evidence. Verification calls distinguish `PASS`, `FAIL`, `UNKNOWN`, and `NOT_CHECKED`; evidence IDs are bound to a SHA-256 digest of the exact draft, code, query, command, or Git working-tree snapshot checked. Tested code workflows cannot return `DONE` from prose such as “pytest passed”: they require persisted command evidence bound to the current repository state, and scope policies include tracked and untracked changed files.
+### 🧠 Evidence-Gated Continuous Workflow
+`elite_prepare` creates a durable contract and returns a `continuation` directive. Every later `elite_progress` and `elite_verify` response repeats the exact next checkpoint, so the instruction is refreshed after edits instead of appearing only at the beginning. Coding tasks advance through syntax, Git scope, executed tests, and outcomes; context-diluted sessions can recover the next call with `elite_progress(action="status")`. Verification distinguishes `PASS`, `FAIL`, `UNKNOWN`, and `NOT_CHECKED`, binds evidence to exact subject/repository digests, and reopens stale checkpoints after post-verification edits.
 
 ### 🛡️ Anti-Pattern Memory
 Past mistakes are recorded with root-cause analysis and automatically surfaced when similar patterns appear. Your AI literally learns from its errors.

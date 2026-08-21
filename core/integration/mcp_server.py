@@ -54,8 +54,11 @@ def create_mcp_server(brain_dir: str, tool_profile: str | None = None) -> FastMC
     mcp = FastMCP(
         "EliteReasoning",
         instructions=(
-            "Checkable task contracts, quote-grounded web evidence, and local verification "
-            "for coding agents. This server does not generate the user's answer."
+            "Checkable task contracts and local verification for coding agents. This server does not generate the "
+            "user's answer. For every non-trivial task call elite_prepare once, retain run_id, and inspect the "
+            "continuation object after EVERY Elite response. When continuation.stop_final_response is true, call "
+            "continuation.required_tool with continuation.required_args before answering. Deliver the final response "
+            "only at checkpoint=done. MCP cannot force another host call; the client must honor this lifecycle."
         ),
         website_url="https://github.com/Snehgabani/elite-reasoning-mcp",
     )

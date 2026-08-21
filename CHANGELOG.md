@@ -22,6 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Redacted `export-evidence RUN_ID` CLI for durable workflow audit records.
 - Product hardening roadmap covering the evidence-first core, architecture, evaluation, security, and adoption milestones.
 - Manifest-driven contract extraction and five-arm analysis harnesses that compute observed metrics only and return `NOT_RUN` instead of simulating missing model outcomes.
+- Durable continuation directives on prepare, progress, and verify responses; `/goal` MCP prompt; context-dilution recovery; stale-checkpoint reopening; and local prepare-only/continuation metrics.
+- Real five-tool simulated-IDE trajectories covering prepare-only amnesia, premature finalization, 20-turn dilution, compliant chaining, and post-verification edits.
 
 ### Changed
 - Reclassified the bundled seven-case comparison as an internal fixture pilot rather than an RCT.

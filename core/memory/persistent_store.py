@@ -1821,8 +1821,31 @@ class EliteStore:
             (cutoff,),
         )
         invocation_count, average_latency_ms, max_latency_ms = c.fetchone()
-        c.execute("SELECT status, COUNT(*) FROM workflow_runs GROUP BY status")
+        c.execute("SELECT status, COUNT(*) FROM workflow_runs WHERE created_at >= ? GROUP BY status", (cutoff,))
         workflow_statuses = {row[0]: row[1] for row in c.fetchall()}
+        c.execute("SELECT COUNT(*) FROM workflow_runs WHERE created_at >= ?", (cutoff,))
+        workflow_count = int(c.fetchone()[0] or 0)
+        c.execute(
+            """SELECT COUNT(*) FROM workflow_runs r WHERE r.created_at >= ?
+               AND NOT EXISTS (SELECT 1 FROM workflow_evidence e WHERE e.run_id = r.run_id)""",
+            (cutoff,),
+        )
+        prepare_only = int(c.fetchone()[0] or 0)
+        c.execute(
+            """SELECT COUNT(DISTINCT r.run_id) FROM workflow_runs r
+               JOIN workflow_evidence e ON e.run_id = r.run_id
+               WHERE r.created_at >= ? AND e.check_kind IN ('syntax', 'diff', 'tests')""",
+            (cutoff,),
+        )
+        mid_work_runs = int(c.fetchone()[0] or 0)
+        c.execute(
+            """SELECT COUNT(DISTINCT r.run_id) FROM workflow_runs r
+               JOIN workflow_evidence e ON e.run_id = r.run_id
+               WHERE r.created_at >= ? AND e.check_kind = 'outcomes'
+               AND e.verification_status = 'PASS'""",
+            (cutoff,),
+        )
+        verified_complete_runs = int(c.fetchone()[0] or 0)
         c.execute("SELECT quarantined, COUNT(*) FROM memory_items GROUP BY quarantined")
         memory_counts = {"trusted": 0, "quarantined": 0}
         for quarantined, count in c.fetchall():
@@ -1835,6 +1858,17 @@ class EliteStore:
             "average_latency_ms": round(float(average_latency_ms or 0), 2),
             "max_latency_ms": int(max_latency_ms or 0),
             "workflow_statuses": workflow_statuses,
+            "continuity": {
+                "workflow_runs": workflow_count,
+                "prepare_only_runs": prepare_only,
+                "runs_with_mid_work_checks": mid_work_runs,
+                "verified_complete_runs": verified_complete_runs,
+                "post_prepare_continuation_rate": round(
+                    (workflow_count - prepare_only) / workflow_count, 3
+                )
+                if workflow_count
+                else None,
+            },
             "memory_items": memory_counts,
         }
 

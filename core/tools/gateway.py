@@ -13,6 +13,7 @@ from pydantic import Field
 
 from core.api.schemas import AdminResult, MemoryResult, PrepareResult, ProgressResult, VerifyResult, WorkflowStep
 from core.orchestration.capabilities import build_capability_registry
+from core.orchestration.continuity import next_continuation
 from core.orchestration.workflow_run import build_workflow_run
 from core.runtime import runtime_identity
 from core.tools.doctor import build_doctor_report
@@ -121,15 +122,26 @@ def _persist_checked_result(store, run_id: str, result: VerifyResult) -> VerifyR
 
 
 def register(mcp, store, profile) -> None:
-    """Register the five public v2 gateway tools."""
+    """Register the five public v2 gateway tools and continuity prompt."""
     verifier_registry = build_core_verifier_registry(store)
+
+    @mcp.prompt(name="goal")
+    def goal_prompt(objective: str) -> str:
+        """Anchor a durable goal and continuous verification lifecycle."""
+        return (
+            f"GOAL: {objective}\n\n"
+            "Start by calling elite_prepare with this exact goal and persist=true. Retain run_id. "
+            "After every Elite response inspect continuation. If stop_final_response=true, call required_tool "
+            "with required_args before answering. Continue until checkpoint=done. If context becomes long or "
+            "you are unsure what comes next, call elite_progress(action='status', run_id=<saved run_id>)."
+        )
 
     @mcp.tool(name="elite_prepare", annotations=_PREPARE_ANNOTATIONS)
     def elite_prepare(
         user_prompt: Annotated[str, Field(min_length=1, max_length=16000)],
         persist: bool = True,
     ) -> PrepareResult:
-        """Call first on every non-trivial prompt. Returns the only tools you may use, in order, plus the outcome benchmark. Not the answer."""
+        """Start a non-trivial task. Retain run_id and obey the returned continuation after each later Elite call. Not the answer."""
         run = build_workflow_run(user_prompt, store=store, persist=persist)
         warnings = []
         if not persist:
@@ -161,6 +173,19 @@ def register(mcp, store, profile) -> None:
             evidence_requirements=[str(item) for item in run.get("evidence_requirements", [])],
             memory_context=list(run.get("memory_context", [])),
             capability_warnings=[str(item) for item in run.get("capability_warnings", [])],
+            continuation=(
+                next_continuation(store, str(run["run_id"])).to_dict()
+                if persist
+                else {
+                    "run_id": str(run["run_id"]),
+                    "phase": "EPHEMERAL",
+                    "checkpoint": "verify_outcomes",
+                    "required_tool": "elite_verify",
+                    "required_args": {"check": "outcomes", "draft": "<final draft>", "query": user_prompt},
+                    "instruction": "This run is not durable. Verify the final draft directly before answering.",
+                    "stop_final_response": True,
+                }
+            ),
             warnings=warnings,
         )
 
@@ -172,7 +197,7 @@ def register(mcp, store, profile) -> None:
         step_status: Literal["", "pending", "running", "passed", "failed", "skipped", "blocked"] = "",
         evidence: Annotated[str, Field(max_length=2000)] = "",
     ) -> ProgressResult:
-        """Read or update durable workflow progress with validation evidence."""
+        """Resume durable state after context dilution; returns the exact next required checkpoint in continuation."""
         normalized_action = action.strip().lower()
         if normalized_action == "update":
             allowed_statuses = {"pending", "running", "passed", "failed", "skipped", "blocked"}
@@ -213,6 +238,7 @@ def register(mcp, store, profile) -> None:
             run_id=run_id,
             workflow_status=str(run.get("status", "planned")),
             steps=_workflow_steps(run),
+            continuation=next_continuation(store, run_id).to_dict(),
         )
 
     @mcp.tool(name="elite_verify", annotations=_VERIFY_ANNOTATIONS)
@@ -241,7 +267,7 @@ def register(mcp, store, profile) -> None:
         allowed_files: Annotated[list[str] | None, Field(max_length=100)] = None,
         forbid_dependency_changes: bool = False,
     ) -> VerifyResult:
-        """Verify health, constraints, syntax, tests, Git scope, outcomes, or grounded evidence."""
+        """Run one check, persist evidence by run_id, then follow the returned continuation before answering."""
         normalized_check = check.strip().lower()
         if normalized_check == "doctor":
             return VerifyResult(check="doctor", data=build_doctor_report(store, profile=profile, mcp=mcp))
@@ -283,7 +309,11 @@ def register(mcp, store, profile) -> None:
                 evidence_payload=execution.evidence_payload,
                 limitations=list(execution.limitations),
             )
-            return _persist_checked_result(store, run_id, checked)
+            checked = _persist_checked_result(store, run_id, checked)
+            if run_id.strip():
+                checked.continuation = next_continuation(store, run_id.strip()).to_dict()
+                checked.data["continuation"] = checked.continuation
+            return checked
         supported = ", ".join(("doctor", "capabilities", *verifier_registry.names()))
         raise validation_error(f"unsupported check; choose one of: {supported}.")
 

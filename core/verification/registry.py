@@ -200,7 +200,25 @@ def _gate_outcomes(
     unmet: list[str] = []
     accepted_ids: list[str] = []
     kinds = {item.kind for item in contract.constraints}
+    deliverable = str(getattr(contract, "deliverable", "")).lower()
+    is_code = bool(kinds & {"run_tests", "scope_files"}) or any(
+        term in deliverable for term in ("patch", "code", "validation log")
+    )
     current_snapshot_digest = ""
+
+    if is_code:
+        syntax_records = store.list_workflow_evidence(run_id.strip(), check_kind="syntax", limit=20)
+        syntax = next((item for item in syntax_records if item.get("verification_status") == "PASS"), None)
+        if syntax is None:
+            unmet.append("syntax: no passing mid-work syntax evidence is attached to this workflow")
+        elif project_root.strip():
+            expected_syntax_snapshot = str((syntax.get("payload") or {}).get("repository_snapshot_digest") or "")
+            if expected_syntax_snapshot:
+                _, current_syntax_snapshot, limitation = _repository_snapshot(project_root)
+                if limitation or current_syntax_snapshot != expected_syntax_snapshot:
+                    unmet.append("syntax: repository state changed after syntax verification")
+            else:
+                unmet.append("syntax: evidence is not bound to a repository snapshot")
 
     if "run_tests" in kinds:
         test_records = store.list_workflow_evidence(run_id.strip(), check_kind="tests", limit=20)
@@ -240,6 +258,13 @@ def _gate_outcomes(
             scope_result = verify_git_diff(project_root=project_root, allowed_files=allowed)
             if scope_result.status is not VerificationStatus.PASS:
                 unmet.append(f"scope_files: {scope_result.reason}")
+            diff_records = store.list_workflow_evidence(run_id.strip(), check_kind="diff", limit=20)
+            diff_evidence = next((item for item in diff_records if item.get("verification_status") == "PASS"), None)
+            current_diff_digest = subject_digest("git_worktree_snapshot", scope_result.snapshot_material)
+            if diff_evidence is None:
+                unmet.append("scope_files: no passing mid-work Git scope evidence is attached to this workflow")
+            elif diff_evidence.get("subject_digest") != current_diff_digest:
+                unmet.append("scope_files: repository state changed after Git scope verification")
 
     gated = dict(data)
     if unmet:
@@ -356,15 +381,28 @@ class SyntaxVerifier:
             raise VerificationInputError("code or draft is required for check=syntax.")
         result = validate_syntax(target, request.language or "python")
         data = result.to_dict()
+        _, repository_snapshot_digest, repository_limitation = _repository_snapshot(request.project_root)
+        data["repository_snapshot_digest"] = repository_snapshot_digest
         return VerificationExecution(
             check=self.name,
             status=status_from_bool(bool(data.get("passed"))),
             data=data,
             subject_kind=f"source:{request.language or 'python'}",
-            subject=target,
+            subject=f"{target}\0{repository_snapshot_digest}",
             producer="core.cognitive.leverage.deterministic_gates.validate_syntax",
-            evidence_payload=data,
-            limitations=("Syntax and selected static rules do not prove runtime correctness or security.",),
+            evidence_payload={
+                "passed": bool(data.get("passed")),
+                "issues": list(data.get("issues") or []),
+                "repository_snapshot_digest": repository_snapshot_digest,
+            },
+            limitations=tuple(
+                item
+                for item in (
+                    "Syntax and selected static rules do not prove runtime correctness or security.",
+                    repository_limitation,
+                )
+                if item
+            ),
         )
 
 

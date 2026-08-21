@@ -171,6 +171,20 @@ async def test_outcomes_require_fresh_persisted_test_and_repository_evidence(tmp
     )
     assert missing.data["action"] == "REPEAT"
     assert any("no independently executed" in item for item in missing.data["unmet"])
+    assert any("syntax" in item for item in missing.data["unmet"])
+
+    syntax = await verify(
+        check="syntax",
+        run_id=prepared.run_id,
+        code=(repo / "app.py").read_text(encoding="utf-8"),
+        project_root=str(repo),
+    )
+    assert syntax.verification_status.value == "PASS"
+    assert syntax.continuation["checkpoint"] == "verify_repository_scope"
+
+    diff = await verify(check="diff", run_id=prepared.run_id, project_root=str(repo))
+    assert diff.verification_status.value == "PASS"
+    assert diff.continuation["checkpoint"] == "run_tests"
 
     tests = await verify(
         check="tests",
@@ -180,6 +194,7 @@ async def test_outcomes_require_fresh_persisted_test_and_repository_evidence(tmp
     )
     assert tests.verification_status.value == "PASS"
     assert tests.data["repository_snapshot_digest"].startswith("sha256:")
+    assert tests.continuation["checkpoint"] == "verify_outcomes"
     stored = mcp._elite_store.list_workflow_evidence(prepared.run_id, "tests")
     assert stored[0]["id"] == tests.evidence[0].id
 
@@ -197,6 +212,8 @@ async def test_outcomes_require_fresh_persisted_test_and_repository_evidence(tmp
     )
     assert complete.data["action"] == "DONE"
     assert complete.data["evidence_gate"]["accepted_evidence_ids"] == [tests.evidence[0].id]
+    assert complete.continuation["checkpoint"] == "done"
+    assert complete.continuation["stop_final_response"] is False
 
     (repo / "app.py").write_text("def value():\n    return 3\n", encoding="utf-8")
     stale = await verify(
@@ -211,7 +228,7 @@ async def test_gateway_exposes_privacy_safe_local_monitoring(tmp_path):
     mcp = create_mcp_server(str(tmp_path / "brain"))
     tools = mcp._tool_manager._tools
 
-    await tools["elite_prepare"].fn(user_prompt="Build a monitored feature.", persist=True)
+    prepared = await tools["elite_prepare"].fn(user_prompt="Build a monitored feature.", persist=True)
     monitoring = await tools["elite_admin"].fn(action="monitoring")
 
     assert monitoring.data["local_only"] is True
@@ -219,6 +236,15 @@ async def test_gateway_exposes_privacy_safe_local_monitoring(tmp_path):
     assert summary["tool_invocations"] >= 1
     assert "workflow_statuses" in summary
     assert "memory_items" in summary
+    assert summary["continuity"]["prepare_only_runs"] == 1
+    assert summary["continuity"]["post_prepare_continuation_rate"] == 0.0
+
+    await tools["elite_verify"].fn(
+        check="syntax", run_id=prepared.run_id, code="def monitored() -> bool:\n    return True\n"
+    )
+    continued = await tools["elite_admin"].fn(action="monitoring")
+    assert continued.data["operational_summary"]["continuity"]["runs_with_mid_work_checks"] == 1
+    assert continued.data["operational_summary"]["continuity"]["post_prepare_continuation_rate"] == 1.0
 
 
 @pytest.mark.asyncio
