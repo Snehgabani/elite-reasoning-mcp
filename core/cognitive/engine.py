@@ -19,6 +19,7 @@ from core.cognitive.leverage.logic_verifier import LogicVerifier
 from core.cognitive.leverage.prm_verifier import ProcessRewardModel
 from core.cognitive.leverage.self_discover import compose_reasoning_topology as _compose_topology
 from core.cognitive.leverage.task_watcher import TaskTracker
+from core.cognitive.leverage.zero_escape_fsm import ZeroEscapeFSM, LifecycleState
 
 # Loop imports
 from core.cognitive.loop.core.classifier import classify_prompt
@@ -128,7 +129,18 @@ class EliteCognitiveEngine:
 
         logic_valid = logic_check.get("valid", True)
 
-        # Phase 7: Compute Execution Layers
+        # Zero-Escape State Machine Initialization
+        fsm = ZeroEscapeFSM(task_id)
+
+        # Phase 7: Compute Execution Layers & FSM State Progressions
+        selected_mods = topology.get("selected_atomic_modules") or topology.get("selected_modules") or []
+        fsm.transition(LifecycleState.TOPOLOGY_COMPOSED, proof_payload=json.dumps(selected_mods))
+
+        if enable_bias_scan and bias_report:
+            fsm.transition(LifecycleState.BIAS_SCANNED, proof_payload=json.dumps(bias_report))
+
+        fsm.transition(LifecycleState.INVARIANT_VERIFIED, proof_payload=f"PRM:{prm_score}:LOGIC:{logic_valid}")
+
         layers_executed = [
             "1. MetaCognitiveRouter",
             "2. BiasScanner",
@@ -139,6 +151,7 @@ class EliteCognitiveEngine:
             "7. ExpertPanelDebate",
             "8. CryptographicPoWGenerator",
             "9. CalibrationTracker",
+            "10. ZeroEscapeFSM",
         ]
 
         # Phase 8: Cryptographic Proof of Work
@@ -156,7 +169,6 @@ class EliteCognitiveEngine:
             + (0.10 if logic_valid else 0.0)
             + (0.05 if len(relevant_lessons) >= 0 else 0),
         )
-        selected_mods = topology.get("selected_atomic_modules") or topology.get("selected_modules") or []
 
         result = {
             "task_id": task_id,
@@ -182,6 +194,7 @@ class EliteCognitiveEngine:
                 "valid": (len(verification_hash) == 64),
                 "timestamp_unix": int(time.time()),
             },
+            "zero_escape_fsm": fsm.export_proof_manifest(),
         }
 
         # Telemetry: Finish task

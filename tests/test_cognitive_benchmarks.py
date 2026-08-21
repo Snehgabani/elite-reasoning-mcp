@@ -172,3 +172,35 @@ def test_fact_score_evaluation():
     assert res.total_claims >= 2
     assert res.fact_score >= 0.50
     assert res.duration_ms < 50.0
+
+
+def test_zero_escape_fsm_transitions_and_rejection():
+    """Verify ZeroEscapeFSM prevents unauthorized jumps and blocks premature closure."""
+    import pytest
+    from core.cognitive.leverage.zero_escape_fsm import ZeroEscapeFSM, LifecycleState, SecurityInvariantError, PrematureClosureError
+
+    fsm = ZeroEscapeFSM(task_id="test-task-123")
+    assert fsm.current_state == LifecycleState.INIT
+
+    # Transition 1: Valid transition to TOPOLOGY_COMPOSED
+    fsm.transition(LifecycleState.TOPOLOGY_COMPOSED, proof_payload="topology_json")
+    assert fsm.current_state == LifecycleState.TOPOLOGY_COMPOSED
+
+    # Invariant Violation: Direct jump to COMPLETE / ATTESTED must raise SecurityInvariantError
+    with pytest.raises(SecurityInvariantError):
+        fsm.transition(LifecycleState.ATTESTED, proof_payload="fake_jump")
+
+    # Invariant Violation: Premature closure check before mandatory stages
+    with pytest.raises(PrematureClosureError):
+        fsm.verify_completion_eligibility(required_stages=[LifecycleState.INIT, LifecycleState.INVARIANT_VERIFIED])
+
+    # Valid progression to INVARIANT_VERIFIED and ATTESTED
+    fsm.transition(LifecycleState.INVARIANT_VERIFIED, proof_payload="ast_prm_ok")
+    fsm.transition(LifecycleState.PATCH_SYNTHESIZED, proof_payload="diff_hmac")
+    fsm.transition(LifecycleState.TEST_VERIFIED, proof_payload="tests_pass")
+    fsm.transition(LifecycleState.ATTESTED, proof_payload="completion_proof")
+
+    eligibility = fsm.verify_completion_eligibility()
+    assert eligibility["can_complete"] is True
+    assert eligibility["status"] == "ATTESTED_COMPLETE"
+    assert len(eligibility["terminal_hmac"]) == 64

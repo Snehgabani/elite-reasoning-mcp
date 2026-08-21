@@ -41,7 +41,8 @@ async def test_execute_mix_pipeline():
     res = await _COGNITIVE_ENGINE.execute_mix("Build an immutable distributed event ledger")
     assert res["status"] == "SUCCESS"
     assert len(res["proof_of_work"]["verification_hash"]) == 64
-    assert len(res["layers_executed"]) == 9
+    assert len(res["layers_executed"]) >= 9
+    assert "10. ZeroEscapeFSM" in res["layers_executed"]
     assert res["prm_passed"] is True
 
 
