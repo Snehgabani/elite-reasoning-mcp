@@ -118,6 +118,8 @@ class VerifyResult(BaseModel):
     status: Literal["ok"] = "ok"
     check: str
     data: dict[str, Any]
+    gate_token: str = ""
+    recency_step_lock: dict[str, Any] = Field(default_factory=dict)
     warnings: list[str] = Field(default_factory=list)
 
 
@@ -308,13 +310,27 @@ def register(mcp, store, profile) -> None:
     ) -> VerifyResult:
         """Verify health, capabilities, draft constraints, syntax, allowlisted tests, or quote-grounded evidence."""
         normalized_check = check.strip().lower()
+
+        def _make_verify_result(chk: str, res_data: dict[str, Any], passed_flag: bool = True) -> VerifyResult:
+            from core.cognitive.trajectory_guardian import GLOBAL_TRAJECTORY_GUARDIAN
+
+            sid = run_id or "default"
+            gate_tok = GLOBAL_TRAJECTORY_GUARDIAN.record_verification_check(sid, chk, passed=passed_flag)
+            recency = GLOBAL_TRAJECTORY_GUARDIAN.build_recency_directive(sid)
+            return VerifyResult(
+                check=chk,
+                data=res_data,
+                gate_token=gate_tok.token if gate_tok else "",
+                recency_step_lock=recency,
+            )
+
         if normalized_check == "doctor":
-            return VerifyResult(check="doctor", data=build_doctor_report(store, profile=profile, mcp=mcp))
+            return _make_verify_result("doctor", build_doctor_report(store, profile=profile, mcp=mcp))
         if normalized_check == "capabilities":
             registry = build_capability_registry()
-            return VerifyResult(
-                check="capabilities",
-                data={
+            return _make_verify_result(
+                "capabilities",
+                {
                     "active_ide": registry.active_ide,
                     "warnings": list(registry.warnings),
                     "mcps": [cap.name for cap in registry.by_kind("mcp", recommendable_only=False)],
@@ -342,16 +358,17 @@ def register(mcp, store, profile) -> None:
             if normalized_check == "outcomes":
                 if not draft.strip():
                     raise validation_error("outcomes check needs draft.")
-                return VerifyResult(check="outcomes", data=verify_outcomes(draft, contract))
+                outcomes_res = verify_outcomes(draft, contract)
+                return _make_verify_result("outcomes", outcomes_res)
             report = check_draft(draft, contract)
-            return VerifyResult(check="constraints", data=report.to_dict())
+            return _make_verify_result("constraints", report.to_dict(), passed_flag=report.passed)
         if normalized_check == "evidence":
             from core.evidence.grounded_search import grounded_evidence
 
             if not query.strip():
                 raise validation_error("query is required for check=evidence.")
             evidence = await grounded_evidence(query.strip())
-            return VerifyResult(check="evidence", data=evidence.to_dict())
+            return _make_verify_result("evidence", evidence.to_dict())
         if normalized_check == "syntax":
             from core.cognitive.leverage.deterministic_gates import validate_syntax
 
@@ -359,10 +376,10 @@ def register(mcp, store, profile) -> None:
             if not target.strip():
                 raise validation_error("code or draft is required for check=syntax.")
             result = validate_syntax(target, language or "python")
-            return VerifyResult(check="syntax", data=result.to_dict())
+            return _make_verify_result("syntax", result.to_dict(), passed_flag=result.passed)
         if normalized_check == "tests":
             data = _run_allowlisted_command(command)
-            return VerifyResult(check="tests", data=data)
+            return _make_verify_result("tests", data, passed_flag=data.get("exit_code") == 0)
         if normalized_check == "grounding":
             from core.evidence.grounded_search import grounded_evidence, grounding_check
 
@@ -372,7 +389,7 @@ def register(mcp, store, profile) -> None:
             evidence = await grounded_evidence(query.strip())
             report = grounding_check(draft, evidence)
             report["evidence"] = evidence.to_dict()
-            return VerifyResult(check="grounding", data=report)
+            return _make_verify_result("grounding", report)
         if normalized_check == "cegis":
             from core.contracts.models import Requirement, RequirementKind
             from core.verification.cegis import CEGISPropertyVerifier
@@ -387,7 +404,7 @@ def register(mcp, store, profile) -> None:
                 interpretation="Handle boundary collections and invariants",
             )
             v_res = CEGISPropertyVerifier().verify(dummy_req, target)
-            return VerifyResult(check="cegis", data=v_res.model_dump())
+            return _make_verify_result("cegis", v_res.model_dump(), passed_flag=v_res.status.value == "pass")
         if normalized_check == "diagnostics":
             from core.verification.diagnostics import extract_diagnostic_slice
 
@@ -397,7 +414,7 @@ def register(mcp, store, profile) -> None:
                     "query, draft, or command containing error text is required for check=diagnostics."
                 )
             slice_res = extract_diagnostic_slice(err_text, source_code=code or draft)
-            return VerifyResult(check="diagnostics", data=slice_res.model_dump())
+            return _make_verify_result("diagnostics", slice_res.model_dump())
         if normalized_check == "types":
             from core.contracts.models import Requirement, RequirementKind
             from core.verification.type_checker import TypeInvariantVerifier
@@ -412,7 +429,7 @@ def register(mcp, store, profile) -> None:
                 interpretation="All public functions have explicit return type annotations",
             )
             v_res = TypeInvariantVerifier().verify(dummy_req, target)
-            return VerifyResult(check="types", data=v_res.model_dump())
+            return _make_verify_result("types", v_res.model_dump(), passed_flag=v_res.status.value == "pass")
         if normalized_check == "outline":
             from core.search.symbol_indexer import extract_symbol_outline
 
@@ -420,7 +437,7 @@ def register(mcp, store, profile) -> None:
             if not target.strip():
                 raise validation_error("code or draft is required for check=outline.")
             res = extract_symbol_outline(target, filename=query or "snippet.py")
-            return VerifyResult(check="outline", data=res.model_dump())
+            return _make_verify_result("outline", res.model_dump())
         if normalized_check == "callgraph":
             from core.search.symbol_indexer import extract_call_graph
 
@@ -428,7 +445,7 @@ def register(mcp, store, profile) -> None:
             if not target.strip():
                 raise validation_error("code or draft is required for check=callgraph.")
             res = extract_call_graph(target, filename=query or "snippet.py")
-            return VerifyResult(check="callgraph", data=res.model_dump())
+            return _make_verify_result("callgraph", res.model_dump())
         raise validation_error(
             "check must be doctor, capabilities, constraints, evidence, syntax, tests, grounding, cegis, diagnostics, types, outline, or callgraph."
         )
