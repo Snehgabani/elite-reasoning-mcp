@@ -1,7 +1,7 @@
 {
-  "timestamp": "2026-08-21T18:56:25Z",
+  "timestamp": "2026-08-21T19:08:24Z",
   "tool_profile": "core",
-  "startup_duration_sec": 1.1788,
+  "startup_duration_sec": 1.3227,
   "rss_memory_mb": 98.94,
   "total_imported_modules_count": 835,
   "core_tool_count": 5,

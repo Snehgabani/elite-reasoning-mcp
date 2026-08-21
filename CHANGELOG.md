@@ -5,7 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.8.0] - 2026-08-21
+## [2.9.1] - 2026-08-22
+
+### Added
+- **Product Hardening & Validation Milestone**: Implemented 10 workstreams (WS1–WS10) shifting architecture to a verifiable local contract & evidence control plane.
+- **Typed Contract Compiler (`core/contracts/`)**: Deterministic compiler extracting explicit constraints with character source spans (`REQUIRED_CONTENT`, `FORBIDDEN_CONTENT`, `ALLOWED_FILES`, `TEST_COMMAND`).
+- **Four-State Verifier Registry & Built-ins (`core/verification/`)**: `PASS`, `FAIL`, `UNKNOWN`, and `NOT_CHECKED` states evaluated by `ConstraintVerifier`, `PythonSyntaxVerifier`, `GitDiffScopeVerifier`, and hardened non-shell `TestCommandVerifier`.
+- **Subject-Digest Invalidation (`EvidenceCompletenessVerifier`)**: Cryptographic SHA-256 binding invalidates stale evidence or post-test draft changes.
+- **Trusted Memory Lifecycle (`core/memory/`)**: Anti-poisoning control plane with 7-stage trust lifecycle, unverified quarantine, and zero-retention physical deletion (`forget`).
+- **Deterministic Offline CLI Demo (`elite-reasoning-mcp demo`)**: Demonstrates complete contract compilation and verification in `<1ms` with 0 network calls.
+- **Scientific Evaluation Platform (`scripts/run_ablation_eval.py`)**: 5-arm ablation study over 250 frozen tasks with McNemar paired testing.
+- **Verifier Plugin SDK & Repo Policy Engine (`core/plugins/`, `core/policy/`)**: Extensible verifier protocol and `.elite-policy.yml` repository governance.
+- **Database MigrationLedger (`core/persistence/database.py`)**: Forward schema migrations with automatic pre-migration atomic backups and safe rollback.
+
+## [2.9.0] - 2026-08-21
 
 ### Added
 - Personalized **playbook** on `elite_prepare`: ordered `allowed_tools`, expected outcomes, and `repeat_until`.
