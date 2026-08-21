@@ -22,14 +22,14 @@ from typing import Any, Dict, List, Optional, Set
 class LifecycleState(str, Enum):
     """The formal, non-bypassable lifecycle states of an autonomous agent task."""
 
-    INIT = "INIT"                              # Task initialized, no actions taken
-    TOPOLOGY_COMPOSED = "TOPOLOGY_COMPOSED"    # Self-Discover reasoning DAG composed
-    BIAS_SCANNED = "BIAS_SCANNED"              # Cognitive bias & evidence-gap evaluated
+    INIT = "INIT"  # Task initialized, no actions taken
+    TOPOLOGY_COMPOSED = "TOPOLOGY_COMPOSED"  # Self-Discover reasoning DAG composed
+    BIAS_SCANNED = "BIAS_SCANNED"  # Cognitive bias & evidence-gap evaluated
     INVARIANT_VERIFIED = "INVARIANT_VERIFIED"  # AST & PRM step invariants certified
-    PATCH_SYNTHESIZED = "PATCH_SYNTHESIZED"    # Minimal diff generated with HMAC
-    TEST_VERIFIED = "TEST_VERIFIED"            # Pytest or environment reproduction passed
-    GROUNDING_EVALUATED = "GROUNDING_EVALUATED"# FActScore / multi-domain corroborated
-    ATTESTED = "ATTESTED"                      # Ready for final release / terminal completion
+    PATCH_SYNTHESIZED = "PATCH_SYNTHESIZED"  # Minimal diff generated with HMAC
+    TEST_VERIFIED = "TEST_VERIFIED"  # Pytest or environment reproduction passed
+    GROUNDING_EVALUATED = "GROUNDING_EVALUATED"  # FActScore / multi-domain corroborated
+    ATTESTED = "ATTESTED"  # Ready for final release / terminal completion
 
 
 class SecurityInvariantError(Exception):
@@ -85,9 +85,21 @@ class ZeroEscapeFSM:
     # Actions strictly permitted per state
     STATE_ACTION_ALLOWLIST: Dict[LifecycleState, Set[str]] = {
         LifecycleState.INIT: {"elite_reason", "execute_mix", "compose_reasoning_topology"},
-        LifecycleState.TOPOLOGY_COMPOSED: {"elite_reason", "execute_mix", "prm_verify_step", "verify_argument", "bias_scan"},
+        LifecycleState.TOPOLOGY_COMPOSED: {
+            "elite_reason",
+            "execute_mix",
+            "prm_verify_step",
+            "verify_argument",
+            "bias_scan",
+        },
         LifecycleState.BIAS_SCANNED: {"prm_verify_step", "verify_argument", "devils_advocate", "red_team_attack"},
-        LifecycleState.INVARIANT_VERIFIED: {"repo_search", "fuzz_symbol", "cegis_repair", "evaluate_fact_score", "storm_research"},
+        LifecycleState.INVARIANT_VERIFIED: {
+            "repo_search",
+            "fuzz_symbol",
+            "cegis_repair",
+            "evaluate_fact_score",
+            "storm_research",
+        },
         LifecycleState.PATCH_SYNTHESIZED: {"apply_reasoning_diff", "run_test_harness", "pytest_verify"},
         LifecycleState.GROUNDING_EVALUATED: {"distill_skill", "mine_epistemic_divergence", "apply_reasoning_diff"},
         LifecycleState.TEST_VERIFIED: {"distill_skill", "publish_release", "attest_completion"},
@@ -96,7 +108,9 @@ class ZeroEscapeFSM:
 
     def __init__(self, task_id: str, secret_key: Optional[bytes] = None):
         self.task_id = task_id
-        self.secret_key = secret_key or os.getenv("ELITE_HMAC_SECRET", "default-zero-escape-secret-key-32b").encode("utf-8")
+        self.secret_key = secret_key or os.getenv("ELITE_HMAC_SECRET", "default-zero-escape-secret-key-32b").encode(
+            "utf-8"
+        )
         self.current_state = LifecycleState.INIT
         self.history: List[StateAttestation] = []
         self._record_transition(LifecycleState.INIT, proof_payload="task_initialized")
@@ -105,7 +119,9 @@ class ZeroEscapeFSM:
         msg = f"{self.task_id}:{stage.value}:{proof_hash}:{timestamp}".encode("utf-8")
         return hmac.new(self.secret_key, msg, hashlib.sha256).hexdigest()
 
-    def _record_transition(self, target_state: LifecycleState, proof_payload: str, metadata: Optional[Dict[str, Any]] = None) -> StateAttestation:
+    def _record_transition(
+        self, target_state: LifecycleState, proof_payload: str, metadata: Optional[Dict[str, Any]] = None
+    ) -> StateAttestation:
         ts = int(time.time())
         proof_hash = hashlib.sha256(proof_payload.encode("utf-8")).hexdigest()
         token = self._generate_hmac(target_state, proof_hash, ts)
@@ -121,7 +137,9 @@ class ZeroEscapeFSM:
         self.history.append(attestation)
         return attestation
 
-    def transition(self, target_state: LifecycleState, proof_payload: str, metadata: Optional[Dict[str, Any]] = None) -> StateAttestation:
+    def transition(
+        self, target_state: LifecycleState, proof_payload: str, metadata: Optional[Dict[str, Any]] = None
+    ) -> StateAttestation:
         """
         Attempts a state transition in the FSM.
         Strictly rejects unauthorized jumps, backwards transitions, or skipped invariants.

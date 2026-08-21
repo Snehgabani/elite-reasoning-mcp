@@ -177,7 +177,12 @@ def test_fact_score_evaluation():
 def test_zero_escape_fsm_transitions_and_rejection():
     """Verify ZeroEscapeFSM prevents unauthorized jumps and blocks premature closure."""
     import pytest
-    from core.cognitive.leverage.zero_escape_fsm import ZeroEscapeFSM, LifecycleState, SecurityInvariantError, PrematureClosureError
+    from core.cognitive.leverage.zero_escape_fsm import (
+        ZeroEscapeFSM,
+        LifecycleState,
+        SecurityInvariantError,
+        PrematureClosureError,
+    )
 
     fsm = ZeroEscapeFSM(task_id="test-task-123")
     assert fsm.current_state == LifecycleState.INIT
@@ -228,7 +233,9 @@ def test_dynamic_tool_router():
     assert "mcp-server-neon:inspect_database" in [r.tool_name for r in recs_db]
 
     # Browser automation cross-MCP routing
-    recs_browser = router.route_task("Perform stealth browser scraping with Playwright and check Lighthouse Core Web Vitals")
+    recs_browser = router.route_task(
+        "Perform stealth browser scraping with Playwright and check Lighthouse Core Web Vitals"
+    )
     assert recs_browser[0].category == "STEALTH_BROWSER_RESEARCH"
     assert "playwright-elite:stealth_scrape" in [r.tool_name for r in recs_browser]
 
@@ -250,7 +257,9 @@ def test_cognitive_trinity_flow():
     mgr = CognitiveTrinityManager()
 
     # Stage 1: Initiate Workflow
-    init_res = mgr.initiate_workflow(task="Implement robust SQLite connection pool with thread safety", task_id="test-cid-1")
+    init_res = mgr.initiate_workflow(
+        task="Implement robust SQLite connection pool with thread safety", task_id="test-cid-1"
+    )
     assert init_res["status"] == "WORKFLOW_INITIATED"
     contract = init_res["contract"]
     assert contract["contract_id"] == "test-cid-1"
@@ -274,7 +283,7 @@ def test_cognitive_trinity_flow():
     assert "HALT COMPLETION" in fail_res["reflexion_instruction"]
 
     # Stage 3b: Verification Success on Clean Code (Certified Attestation)
-    clean_code = "def get_connection(db_path: str):\n    \"\"\"Thread-safe connection provider.\"\"\"\n    import sqlite3\n    return sqlite3.connect(db_path)"
+    clean_code = 'def get_connection(db_path: str):\n    """Thread-safe connection provider."""\n    import sqlite3\n    return sqlite3.connect(db_path)'
     pass_res = mgr.verify_and_attest(contract_id="test-cid-1", evidence_code=clean_code, test_exit_code=0)
     assert pass_res["status"] == "ATTESTED_COMPLETE"
     assert pass_res["can_complete"] is None or pass_res["terminal_completion_authorized"] is True

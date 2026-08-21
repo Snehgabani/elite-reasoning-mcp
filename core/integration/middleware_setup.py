@@ -11,6 +11,7 @@ Usage (in mcp_server.py):
 import asyncio
 import functools
 import logging
+
 try:
     from mcp.server.fastmcp import FastMCP
 except ImportError:

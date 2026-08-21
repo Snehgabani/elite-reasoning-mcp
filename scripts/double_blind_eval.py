@@ -39,9 +39,9 @@ class TrialItem:
     task_id: str
     category: str
     prompt: str
-    control_output: str      # Unassisted baseline
-    treatment_output: str    # Amplified via Elite MCP
-    verification_test: str   # Isolated executable test assert
+    control_output: str  # Unassisted baseline
+    treatment_output: str  # Amplified via Elite MCP
+    verification_test: str  # Isolated executable test assert
 
 
 # Rigorous, non-contaminated test dataset across the 5 critical failure domains
@@ -180,7 +180,9 @@ class DoubleBlindReferee:
         Cryptographically randomizes presentation order (A/B or B/A) and strips stylistic fingerprints.
         Returns: (Presented_1, Presented_2, is_swapped)
         """
-        seed = int(hashlib.sha256(self.salt + candidate_a.encode("utf-8") + candidate_b.encode("utf-8")).hexdigest()[:8], 16)
+        seed = int(
+            hashlib.sha256(self.salt + candidate_a.encode("utf-8") + candidate_b.encode("utf-8")).hexdigest()[:8], 16
+        )
         rng = random.Random(seed)
         is_swapped = rng.choice([True, False])
 
@@ -303,7 +305,9 @@ def run_double_blind_trial():
     cohens_d = (mean_treat - mean_ctrl) / pooled_sd
 
     # Bradley-Terry Delta Elo
-    delta_elo = round(400.0 * math.log10(max(treatment_wins, 1) / max(control_wins, 0.001))) if control_wins > 0 else 1480
+    delta_elo = (
+        round(400.0 * math.log10(max(treatment_wins, 1) / max(control_wins, 0.001))) if control_wins > 0 else 1480
+    )
 
     print("\n" + "=" * 75)
     print(f"✅ DOUBLE-BLIND EVALUATION COMPLETE — Report: {os.path.abspath('DOUBLE_BLIND_SCORECARD.md')}")
@@ -317,7 +321,7 @@ def run_double_blind_trial():
 - **Protocol**: Symmetric Position-Debiased, Cryptographically Salted Double-Blind RCT
 - **Total Paired Trials**: {total}
 - **Treatment (Elite MCP Amplification) Wins**: **{treatment_wins} ({win_rate:.1f}%)**
-- **Control (Unassisted Baseline) Wins**: **{control_wins} ({control_wins/total*100:.1f}%)**
+- **Control (Unassisted Baseline) Wins**: **{control_wins} ({control_wins / total * 100:.1f}%)**
 - **Ties / Indeterminate**: **{ties}**
 - **Standardized Effect Size (Cohen's d)**: **{cohens_d:.2f} (Huge Effect)**
 - **Bradley-Terry Latent Skill (Delta Elo)**: **+{delta_elo} Elo**

@@ -194,9 +194,7 @@ def playbook_card(contract: TaskContract) -> dict[str, Any]:
     allowed = allowed_tools_for(contract)
     return {
         "allowed_tools": list(allowed),
-        "forbidden": (
-            "Do not call any other MCP tool. Do not call the same tool twice unless verify returned REPEAT."
-        ),
+        "forbidden": ("Do not call any other MCP tool. Do not call the same tool twice unless verify returned REPEAT."),
         "playbook": [step.to_dict() for step in steps],
         "expected_outcomes": [item.to_dict() for item in outcomes],
         "repeat_until": "elite_verify(check='outcomes') returns action=DONE",

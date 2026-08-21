@@ -101,7 +101,9 @@ async def reflexion_repair(
 
     return {
         "report": report.to_markdown(),
-        "patch_plan": report.minimal_patch_plan if not escalated else "DEADLOCK IMMUNITY ESCALATION: Halt retry loop and escalate with diagnostic diff.",
+        "patch_plan": report.minimal_patch_plan
+        if not escalated
+        else "DEADLOCK IMMUNITY ESCALATION: Halt retry loop and escalate with diagnostic diff.",
         "lesson": report.lesson,
         "attempts": attempts_count,
         "is_duplicate_attempt": is_duplicate_loop,

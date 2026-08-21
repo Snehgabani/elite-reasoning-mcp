@@ -85,7 +85,9 @@ def check_constraint(draft: str, constraint: CheckableConstraint) -> ConstraintR
         ok = not _has_terms(text, constraint.terms, minimum=1) if constraint.terms else True
         if any(marker in lower for marker in _FAKE_SUCCESS_MARKERS):
             ok = False
-        return ConstraintResult(constraint.id, kind, ok, "forbidden content absent" if ok else "forbidden content found")
+        return ConstraintResult(
+            constraint.id, kind, ok, "forbidden content absent" if ok else "forbidden content found"
+        )
 
     if kind == "max_words":
         count = _word_count(text)

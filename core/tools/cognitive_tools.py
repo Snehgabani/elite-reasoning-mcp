@@ -515,9 +515,7 @@ def register(mcp, store=None, profile=None) -> None:
         Sovereign Semantic Vector Memory Indexer (sqlite-vec).
         Embeds and indexes new skill cards into local vector memory.
         """
-        res = _VECTOR_MEMORY_BRIDGE.index_skill(
-            skill_name=skill_name, pattern=pattern, invariant_rule=invariant_rule
-        )
+        res = _VECTOR_MEMORY_BRIDGE.index_skill(skill_name=skill_name, pattern=pattern, invariant_rule=invariant_rule)
         return json.dumps(res, indent=2)
 
     @mcp.tool()

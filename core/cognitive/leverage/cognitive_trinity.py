@@ -73,7 +73,9 @@ class CognitiveTrinityManager:
     """
 
     def __init__(self, secret_key: Optional[bytes] = None):
-        self.secret_key = secret_key or os.getenv("ELITE_HMAC_SECRET", "sovereign-trinity-secret-key-32b").encode("utf-8")
+        self.secret_key = secret_key or os.getenv("ELITE_HMAC_SECRET", "sovereign-trinity-secret-key-32b").encode(
+            "utf-8"
+        )
         self.router = DynamicToolRouter()
         self.prm = ProcessRewardModel()
         self.fact_scorer = FActScoreEvaluator()
@@ -111,20 +113,24 @@ class CognitiveTrinityManager:
         step_idx = 3
         for r in recs:
             if r.tool_name not in {"elite_reason"}:
-                ordered_sequence.append({
-                    "step": step_idx,
-                    "tool": r.tool_name,
-                    "purpose": r.rationale,
-                    "arguments": r.suggested_arguments,
-                })
+                ordered_sequence.append(
+                    {
+                        "step": step_idx,
+                        "tool": r.tool_name,
+                        "purpose": r.rationale,
+                        "arguments": r.suggested_arguments,
+                    }
+                )
                 step_idx += 1
 
-        ordered_sequence.append({
-            "step": step_idx,
-            "tool": "verify_and_attest_benchmark",
-            "purpose": "Independent verification gate; certifies benchmark completion",
-            "arguments": {"contract_id": cid, "evidence_payload": "<execution_summary>"},
-        })
+        ordered_sequence.append(
+            {
+                "step": step_idx,
+                "tool": "verify_and_attest_benchmark",
+                "purpose": "Independent verification gate; certifies benchmark completion",
+                "arguments": {"contract_id": cid, "evidence_payload": "<execution_summary>"},
+            }
+        )
 
         mandate = [
             "Execute tools in strictly declared step order (1 -> N).",

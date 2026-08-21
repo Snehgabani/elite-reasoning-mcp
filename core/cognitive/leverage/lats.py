@@ -26,8 +26,7 @@ class LATSSearchEngine:
             "best_state": "",
             "status": "not_a_search",
             "summary": (
-                "LATS tree search is not executed here. Generate a real candidate and "
-                "call elite_verify(check='tests')."
+                "LATS tree search is not executed here. Generate a real candidate and call elite_verify(check='tests')."
             ),
             "solution": None,
         }

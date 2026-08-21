@@ -26,7 +26,7 @@ def audit_lens_1_ast_invariants() -> bool:
     print_header("1. AST Syntax Invariant Verification (Zero SyntaxErrors)")
     py_files = list(ROOT.glob("core/**/*.py")) + list(ROOT.glob("tests/**/*.py")) + list(ROOT.glob("scripts/**/*.py"))
     print(f"Parsing AST trees for {len(py_files)} Python source files...")
-    
+
     passed = 0
     errors = []
     for f in py_files:
@@ -36,7 +36,7 @@ def audit_lens_1_ast_invariants() -> bool:
             passed += 1
         except SyntaxError as exc:
             errors.append((str(f), str(exc)))
-            
+
     print(f"✅ AST Check Passed: {passed}/{len(py_files)} files 100% syntactically valid.")
     if errors:
         for err in errors:
@@ -60,6 +60,7 @@ def audit_lens_2_owasp_security() -> bool:
 def audit_lens_3_type_safety() -> bool:
     print_header("3. Focused Pyright Static Type Soundness")
     from scripts.release_check import FOCUSED_PYRIGHT
+
     cmd = ["uv", "run", "--extra", "dev", "pyright", "--pythonpath", sys.executable, *FOCUSED_PYRIGHT]
     res = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True)
     if res.returncode == 0:
@@ -113,7 +114,9 @@ def audit_lens_6_mcp_latency_and_surface() -> bool:
 
     # Warmup and Latency Benchmark
     t0 = time.perf_counter()
-    res = asyncio.run(_COGNITIVE_ENGINE.execute_mix("Audit system architecture latency and invariance", task_type="debugging"))
+    res = asyncio.run(
+        _COGNITIVE_ENGINE.execute_mix("Audit system architecture latency and invariance", task_type="debugging")
+    )
     dur_ms = (time.perf_counter() - t0) * 1000.0
 
     print(f"• Cognitive Engine Latency (execute_mix): {dur_ms:.2f}ms (Budget: <50ms)")
@@ -130,7 +133,7 @@ def main():
     print("\n" + "#" * 80)
     print("🚀 EXECUTING COMPREHENSIVE SCIENCE-GRADE E2E REPOSITORY AUDIT")
     print("#" * 80)
-    
+
     results = [
         ("AST Invariant Verification", audit_lens_1_ast_invariants()),
         ("OWASP Security & Bandit", audit_lens_2_owasp_security()),
@@ -139,18 +142,18 @@ def main():
         ("Double-Blind Non-Contaminated RCT", audit_lens_5_double_blind_rct()),
         ("FastMCP Protocol & Latency", audit_lens_6_mcp_latency_and_surface()),
     ]
-    
+
     print("\n" + "=" * 80)
     print("📊 FINAL AUDIT SCORECARD ACROSS ALL 6 LENSES")
     print("=" * 80)
-    
+
     all_passed = True
     for name, passed in results:
         status_str = "✅ PASSED (100% Invariant)" if passed else "❌ FAILED"
         print(f"  • {name:<42} {status_str}")
         if not passed:
             all_passed = False
-            
+
     print("=" * 80)
     if all_passed:
         print("🎉 REPOSITORY IS 100% SCIENCE-GRADE CERTIFIED ACROSS ALL LENSES.")

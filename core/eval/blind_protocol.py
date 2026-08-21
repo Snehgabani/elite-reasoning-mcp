@@ -293,6 +293,7 @@ def run_blind_suite(split: str = "holdout") -> dict[str, Any]:
     following_delta = (sum(treatment_ok) / len(treatment_ok)) - (sum(baseline_ok) / len(baseline_ok))
     token_b = sum(int(row["tokens_baseline"]) for row in rows) or 1
     token_t = sum(int(row["tokens_treatment"]) for row in rows)
+
     # Built-in fixtures have no live web; citation delta is 0 unless drafts hallucinate URLs.
     def _is_fake_url_present(text: str) -> bool:
         for match in re.findall(r"https?://[^\s)>\]]+", text or ""):

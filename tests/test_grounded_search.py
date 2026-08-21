@@ -52,7 +52,7 @@ async def test_grounding_check_flags_hallucinated_citations():
 
     evidence = await grounded_evidence("schema tax tools", search_fn=search, read_fn=read)
     report = grounding_check(
-        'Made up. See https://fake.example/made-up',
+        "Made up. See https://fake.example/made-up",
         evidence,
     )
     assert report["passed"] is False

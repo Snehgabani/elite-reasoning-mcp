@@ -124,7 +124,9 @@ def _complexity(prompt: str) -> int:
 
 
 def _extract_files(prompt: str) -> tuple[str, ...]:
-    found = re.findall(r"(?:files?:\s*|only\s+|in\s+)([\w./-]+\.(?:py|ts|js|tsx|jsx|md|toml|yml|yaml|json))", prompt, flags=re.I)
+    found = re.findall(
+        r"(?:files?:\s*|only\s+|in\s+)([\w./-]+\.(?:py|ts|js|tsx|jsx|md|toml|yml|yaml|json))", prompt, flags=re.I
+    )
     found += re.findall(r"`([\w./-]+\.(?:py|ts|js|tsx|jsx|md|toml|yml|yaml|json))`", prompt)
     seen: list[str] = []
     for item in found:
