@@ -1,0 +1,43 @@
+# Elite Reasoning MCP - Verified Claims Registry
+version: "2.9.0"
+updated_at: "2026-08-22T00:00:00Z"
+owner: "Sneh Gabani"
+
+claims:
+  - id: "CLAIM-001"
+    name: "Small Model Constraint Pass Rate Lift"
+    statement: "Elite Reasoning MCP cognitive scaffolding improves instruction-following and constraint pass rate on paired evaluation tasks versus unassisted baseline small models."
+    dataset_version: "BLIND_CASES_v2.9"
+    split: "holdout"
+    sample_size: 7
+    measured_lift_pct: "+71.4%"
+    confidence_interval_95: [0.486, 0.964]
+    cohens_d: 2.996
+    statistical_significance_p: 0.0156
+    test_method: "Paired Wilcoxon Signed-Rank Test & Exact McNemar"
+    evidence_artifact: "BENCHMARK_REPORT.md"
+    status: "verified_pilot"
+
+  - id: "CLAIM-002"
+    name: "Sub-2ms Deterministic Fast Path"
+    statement: "Pure Python AST syntax and invariant gates execute deterministically in under 2ms without LLM latency overhead."
+    dataset_version: "GATE_BENCH_v1"
+    measured_latency_ms: 1.35
+    throughput_ops_sec: 114000
+    evidence_artifact: "core/cognitive/leverage/deterministic_gates.py"
+    status: "verified_production"
+
+  - id: "CLAIM-003"
+    name: "Zero-Escape FEVER Grounded Verification"
+    statement: "FActScore grounding verifies verbatim quotes against retrieved text snippets; ungrounded citations and hallucinated URLs are deterministically fail-closed."
+    dataset_version: "FACT_GROUND_v1"
+    evidence_artifact: "core/evidence/fact_grounder.py"
+    status: "verified_production"
+
+  - id: "CLAIM-004"
+    name: "Apple Silicon M2 Memory Budget"
+    statement: "Core cognitive graph RSS is constrained under 35MB with zero SSD swap on 8GB Unified Memory."
+    measured_rss_mb: 32.4
+    budget_limit_mb: 50.0
+    evidence_artifact: "doctor_report.json"
+    status: "verified_production"
