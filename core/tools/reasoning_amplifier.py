@@ -167,7 +167,7 @@ def register(mcp, store: EliteStore):
 | Alternatives Considered | {score_components.get("alternatives", 0)}/25 |
 | Domain Specificity | {score_components.get("domain_specificity", 0)}/25 |
 | Claim Clarity | {score_components.get("claim_clarity", 0)}/25 |
-{f"| Anti-Pattern Penalty | {score_components.get('anti_pattern_check', 0)} |" if 'anti_pattern_check' in score_components else ""}
+{f"| Anti-Pattern Penalty | {score_components.get('anti_pattern_check', 0)} |" if "anti_pattern_check" in score_components else ""}
 
 ## **TOTAL: {total}/100**
 ## **{verdict}**

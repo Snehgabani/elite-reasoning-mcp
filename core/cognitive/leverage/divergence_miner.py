@@ -27,11 +27,7 @@ class EpistemicDivergenceMiner:
         sentences = re.split(r"[.!?]\s+", text)
         return [s.strip() for s in sentences if len(s.strip()) > 15 and not s.strip().startswith("#")]
 
-    def compute_divergence(
-        self,
-        perspectives: Dict[str, str],
-        topic: str = "General Decision"
-    ) -> Dict[str, Any]:
+    def compute_divergence(self, perspectives: Dict[str, str], topic: str = "General Decision") -> Dict[str, Any]:
         """
         Computes formal divergence entropy and generates actionable Pareto synthesis.
         """
@@ -52,13 +48,13 @@ class EpistemicDivergenceMiner:
         consensus_invariants = [
             f"Enforce deterministic AST safety barriers and input sanitization for {topic}.",
             "Maintain strict latency budgets (<250ms) and bounded memory usage (<50MB RSS).",
-            "Establish verifiable test reproduction harnesses before executing destructive changes."
+            "Establish verifiable test reproduction harnesses before executing destructive changes.",
         ]
 
         # Extract divergence points
         divergence_points = [
             "Conservative isolation (heavy sandboxing, higher latency) vs Optimistic fast-path execution (sub-5ms).",
-            "Full static verification depth vs Dynamic runtime monitoring with telemetry auto-rescue."
+            "Full static verification depth vs Dynamic runtime monitoring with telemetry auto-rescue.",
         ]
 
         # Construct falsification matrix

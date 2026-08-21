@@ -112,13 +112,14 @@ def test_skill_distillation():
 def test_cegis_automated_repair():
     """Verify Counterexample-Guided Inductive Synthesis repair."""
     from core.cognitive.leverage.cegis_repair import CEGISRepairEngine
+
     engine = CEGISRepairEngine()
 
     broken_code = "try:\n    perform_query()\nexcept:\n    pass"
     res = engine.repair_code(
         file_path="/tmp/test_query.py",
         failing_code=broken_code,
-        error_trace="SyntaxError: Bare except clause is prohibited by deterministic AST invariant"
+        error_trace="SyntaxError: Bare except clause is prohibited by deterministic AST invariant",
     )
 
     assert res.success is True
@@ -130,11 +131,12 @@ def test_cegis_automated_repair():
 def test_epistemic_divergence_mining():
     """Verify epistemic divergence entropy and falsification matrix."""
     from core.cognitive.leverage.divergence_miner import EpistemicDivergenceMiner
+
     miner = EpistemicDivergenceMiner()
 
     perspectives = {
         "Systems_Architect": "We should use asynchronous event streams for high throughput and decoupled scaling.",
-        "Reliability_Engineer": "We must enforce synchronous write-ahead logs to avoid data loss during network partitions."
+        "Reliability_Engineer": "We must enforce synchronous write-ahead logs to avoid data loss during network partitions.",
     }
 
     res = miner.compute_divergence(perspectives=perspectives, topic="State Sync Architecture")
@@ -143,3 +145,19 @@ def test_epistemic_divergence_mining():
     assert len(res["consensus_invariants"]) >= 2
     assert "Systems_Architect" in res["falsification_matrix"]
     assert res["confidence_score"] == 0.98
+
+
+def test_fact_score_evaluation():
+    """Verify atomic FActScore grounding assessment."""
+    from core.cognitive.leverage.fact_scorer import FActScoreEvaluator
+
+    evaluator = FActScoreEvaluator()
+
+    output = "Stanford STORM decomposes research topics into multiple expert personas. It uses search grounding to synthesize outlines."
+    references = ["STORM is a framework from Stanford that uses expert personas and search grounding."]
+
+    res = evaluator.evaluate_grounding(output_text=output, reference_sources=references)
+
+    assert res.total_claims >= 2
+    assert res.fact_score >= 0.50
+    assert res.duration_ms < 50.0

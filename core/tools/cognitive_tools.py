@@ -33,6 +33,7 @@ from core.cognitive.leverage.task_watcher import get_live_status as _get_live_st
 from core.cognitive.leverage.temporal_check import temporal_verify as _run_temporal_verify
 from core.cognitive.leverage.cegis_repair import CEGISRepairEngine
 from core.cognitive.leverage.divergence_miner import EpistemicDivergenceMiner
+from core.cognitive.leverage.fact_scorer import FActScoreEvaluator
 from core.cognitive.leverage.skill_distiller import SkillDistiller
 from core.cognitive.leverage.storm_engine import StormResearchEngine
 from core.cognitive.leverage.think_on_graph import ThinkOnGraphEngine
@@ -358,12 +359,7 @@ def register(mcp, store=None, profile=None) -> None:
         return json.dumps(card.to_dict(), indent=2)
 
     @mcp.tool()
-    async def cegis_repair(
-        file_path: str,
-        failing_code: str,
-        error_trace: str,
-        max_iterations: int = 3
-    ) -> str:
+    async def cegis_repair(file_path: str, failing_code: str, error_trace: str, max_iterations: int = 3) -> str:
         """
         Executes Counterexample-Guided Inductive Synthesis (CEGIS) automated bug repair.
         Synthesizes isolated test harnesses, discovers invariant-preserving patches,
@@ -371,18 +367,12 @@ def register(mcp, store=None, profile=None) -> None:
         """
         engine = CEGISRepairEngine()
         res = engine.repair_code(
-            file_path=file_path,
-            failing_code=failing_code,
-            error_trace=error_trace,
-            max_iterations=max_iterations
+            file_path=file_path, failing_code=failing_code, error_trace=error_trace, max_iterations=max_iterations
         )
         return json.dumps(res.to_dict(), indent=2)
 
     @mcp.tool()
-    async def mine_epistemic_divergence(
-        perspectives_json: str,
-        topic: str = "General Decision"
-    ) -> str:
+    async def mine_epistemic_divergence(perspectives_json: str, topic: str = "General Decision") -> str:
         """
         Extracts epistemic consensus vs divergence across multi-agent deliberations.
         Calculates stance Shannon entropy, identifies trade-off hotspots, and establishes
@@ -396,3 +386,14 @@ def register(mcp, store=None, profile=None) -> None:
         miner = EpistemicDivergenceMiner()
         res = miner.compute_divergence(perspectives=perspectives, topic=topic)
         return json.dumps(res, indent=2)
+
+    @mcp.tool()
+    async def evaluate_fact_score(output_text: str, reference_sources: Optional[List[str]] = None) -> str:
+        """
+        Evaluates atomic FActScore and epistemic grounding.
+        Deconstructs response text into atomic verifiable claims, computes entity grounding ratio,
+        and flags ungrounded assertions.
+        """
+        evaluator = FActScoreEvaluator()
+        res = evaluator.evaluate_grounding(output_text=output_text, reference_sources=reference_sources or [])
+        return json.dumps(res.to_dict(), indent=2)

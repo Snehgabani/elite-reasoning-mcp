@@ -14,13 +14,14 @@ from typing import Any, Dict, List, Optional
 from core.cognitive.leverage.deterministic_gates import (
     validate_syntax,
     validate_security_invariants,
-    generate_diff_hmac
+    generate_diff_hmac,
 )
 
 
 @dataclass
 class CEGISRepairResult:
     """Outcome of a Counterexample-Guided Inductive Synthesis repair run."""
+
     success: bool
     reproduced_failure: bool
     repaired_code: Optional[str]
@@ -54,7 +55,9 @@ class CEGISRepairEngine:
     """
 
     def __init__(self, secret_key: Optional[bytes] = None):
-        self.secret_key = secret_key or os.getenv("ELITE_HMAC_SECRET", "default-secret-32-bytes-long!!!").encode("utf-8")
+        self.secret_key = secret_key or os.getenv("ELITE_HMAC_SECRET", "default-secret-32-bytes-long!!!").encode(
+            "utf-8"
+        )
 
     def synthesize_reproduction_test(self, code: str, error_trace: str) -> str:
         """Constructs an isolated, minimal executable pytest test harness."""
@@ -75,11 +78,7 @@ def test_reproduction_harness():
 """
 
     def repair_code(
-        self,
-        file_path: str,
-        failing_code: str,
-        error_trace: str,
-        max_iterations: int = 3
+        self, file_path: str, failing_code: str, error_trace: str, max_iterations: int = 3
     ) -> CEGISRepairResult:
         """Executes the complete CEGIS repair loop."""
         start_time = time.perf_counter()
@@ -118,7 +117,7 @@ def test_reproduction_harness():
                 iterations=1,
                 reproduction_test=repro_test,
                 issues=[],
-                duration_ms=duration_ms
+                duration_ms=duration_ms,
             )
         else:
             return CEGISRepairResult(
@@ -129,5 +128,5 @@ def test_reproduction_harness():
                 iterations=max_iterations,
                 reproduction_test=repro_test,
                 issues=val_res.issues + sec_res.issues,
-                duration_ms=duration_ms
+                duration_ms=duration_ms,
             )
