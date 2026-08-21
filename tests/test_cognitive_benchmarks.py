@@ -107,3 +107,39 @@ def test_skill_distillation():
     assert card.category == "debugging_immunity"
     assert len(card.solution_protocol) >= 3
     assert card.confidence == 1.0
+
+
+def test_cegis_automated_repair():
+    """Verify Counterexample-Guided Inductive Synthesis repair."""
+    from core.cognitive.leverage.cegis_repair import CEGISRepairEngine
+    engine = CEGISRepairEngine()
+
+    broken_code = "try:\n    perform_query()\nexcept:\n    pass"
+    res = engine.repair_code(
+        file_path="/tmp/test_query.py",
+        failing_code=broken_code,
+        error_trace="SyntaxError: Bare except clause is prohibited by deterministic AST invariant"
+    )
+
+    assert res.success is True
+    assert "except Exception as e:" in res.repaired_code
+    assert res.diff_hmac is not None
+    assert res.duration_ms < 100.0
+
+
+def test_epistemic_divergence_mining():
+    """Verify epistemic divergence entropy and falsification matrix."""
+    from core.cognitive.leverage.divergence_miner import EpistemicDivergenceMiner
+    miner = EpistemicDivergenceMiner()
+
+    perspectives = {
+        "Systems_Architect": "We should use asynchronous event streams for high throughput and decoupled scaling.",
+        "Reliability_Engineer": "We must enforce synchronous write-ahead logs to avoid data loss during network partitions."
+    }
+
+    res = miner.compute_divergence(perspectives=perspectives, topic="State Sync Architecture")
+
+    assert res["divergence_entropy"] > 0.0
+    assert len(res["consensus_invariants"]) >= 2
+    assert "Systems_Architect" in res["falsification_matrix"]
+    assert res["confidence_score"] == 0.98

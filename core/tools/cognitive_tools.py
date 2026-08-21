@@ -31,6 +31,8 @@ from core.cognitive.leverage.skeleton_of_thought import skeleton_of_thought_gene
 from core.cognitive.leverage.storm_research import deep_research_report as _run_deep_research_report
 from core.cognitive.leverage.task_watcher import get_live_status as _get_live_status
 from core.cognitive.leverage.temporal_check import temporal_verify as _run_temporal_verify
+from core.cognitive.leverage.cegis_repair import CEGISRepairEngine
+from core.cognitive.leverage.divergence_miner import EpistemicDivergenceMiner
 from core.cognitive.leverage.skill_distiller import SkillDistiller
 from core.cognitive.leverage.storm_engine import StormResearchEngine
 from core.cognitive.leverage.think_on_graph import ThinkOnGraphEngine
@@ -354,3 +356,43 @@ def register(mcp, store=None, profile=None) -> None:
             task=task, solution_summary=solution_summary, task_id=task_id, quality_score=quality_score
         )
         return json.dumps(card.to_dict(), indent=2)
+
+    @mcp.tool()
+    async def cegis_repair(
+        file_path: str,
+        failing_code: str,
+        error_trace: str,
+        max_iterations: int = 3
+    ) -> str:
+        """
+        Executes Counterexample-Guided Inductive Synthesis (CEGIS) automated bug repair.
+        Synthesizes isolated test harnesses, discovers invariant-preserving patches,
+        and provides HMAC-SHA256 authenticated diff authorization.
+        """
+        engine = CEGISRepairEngine()
+        res = engine.repair_code(
+            file_path=file_path,
+            failing_code=failing_code,
+            error_trace=error_trace,
+            max_iterations=max_iterations
+        )
+        return json.dumps(res.to_dict(), indent=2)
+
+    @mcp.tool()
+    async def mine_epistemic_divergence(
+        perspectives_json: str,
+        topic: str = "General Decision"
+    ) -> str:
+        """
+        Extracts epistemic consensus vs divergence across multi-agent deliberations.
+        Calculates stance Shannon entropy, identifies trade-off hotspots, and establishes
+        formal testable falsification conditions.
+        """
+        try:
+            perspectives = json.loads(perspectives_json)
+        except Exception:
+            perspectives = {"Analysis": perspectives_json}
+
+        miner = EpistemicDivergenceMiner()
+        res = miner.compute_divergence(perspectives=perspectives, topic=topic)
+        return json.dumps(res, indent=2)

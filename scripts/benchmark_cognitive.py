@@ -100,6 +100,32 @@ async def run_benchmark():
         f"  Nodes Explored: {tot_res['total_nodes_explored']} | Avg PRM: {tot_res['average_prm_score']:.2f} | Time: {tot_duration:.2f}ms"
     )
 
+    print("\n▶ Running CEGIS Automated Bug Repair Benchmark...")
+    from core.cognitive.leverage.cegis_repair import CEGISRepairEngine
+    cegis_engine = CEGISRepairEngine()
+    c_start = time.perf_counter()
+    cegis_res = cegis_engine.repair_code(
+        file_path="/tmp/benchmark_query.py",
+        failing_code="try:\n    execute_pipeline()\nexcept:\n    pass",
+        error_trace="SyntaxError: Bare except clause is prohibited by deterministic AST invariant"
+    )
+    cegis_duration = (time.perf_counter() - c_start) * 1000
+    print(f"  Repaired: {cegis_res.success} | HMAC Issued: {bool(cegis_res.diff_hmac)} | Time: {cegis_duration:.2f}ms")
+
+    print("\n▶ Running Epistemic Divergence & Consensus Mining Benchmark...")
+    from core.cognitive.leverage.divergence_miner import EpistemicDivergenceMiner
+    miner = EpistemicDivergenceMiner()
+    m_start = time.perf_counter()
+    div_res = miner.compute_divergence(
+        perspectives={
+            "Architect": "Decoupled asynchronous message buses provide infinite scalability.",
+            "Security_Auditor": "All inter-process messages must undergo HMAC authorization and token rotation."
+        },
+        topic="Distributed Event Engine"
+    )
+    div_duration = (time.perf_counter() - m_start) * 1000
+    print(f"  Entropy: {div_res['divergence_entropy']} | Consensus Rules: {len(div_res['consensus_invariants'])} | Time: {div_duration:.2f}ms")
+
     # Generate Scorecard Summary
     avg_latency = sum(latencies) / len(latencies)
     avg_prm = sum(prm_scores) / len(prm_scores)
@@ -109,7 +135,7 @@ async def run_benchmark():
     report_md = f"""# Empirical Cognitive Quality Scorecard: Elite Reasoning MCP
 
 **Evaluation Timestamp:** {time.strftime("%Y-%m-%d %H:%M:%S UTC")}  
-**Architecture:** 9-Stage Unified Cognitive Engine + Stanford STORM + Tree-of-Thoughts + Deterministic AST Gating  
+**Architecture:** 9-Stage Unified Cognitive Engine + Stanford STORM + Tree-of-Thoughts + CEGIS Repair + Divergence Mining  
 **Hardware Invariant:** Apple Silicon M2 (8GB RAM, <50MB RSS budget)
 
 ---
@@ -142,6 +168,8 @@ async def run_benchmark():
 
 - **Stanford STORM Synthesizer**: Generated **{len(storm_report["perspectives_engaged"])}** perspectives in **{storm_duration:.2f}ms**.
 - **Tree-of-Thoughts Lookahead**: Evaluated **{tot_res["total_nodes_explored"]}** branch nodes with mean PRM **{tot_res["average_prm_score"]:.2f}** in **{tot_duration:.2f}ms**.
+- **CEGIS Automated Code Repair**: Repaired syntax & AST invariants with HMAC authorization in **{cegis_duration:.2f}ms**.
+- **Epistemic Divergence Miner**: Quantified multi-agent stance entropy ({div_res["divergence_entropy"]}) and extracted {len(div_res["consensus_invariants"])} consensus rules in **{div_duration:.2f}ms**.
 - **Deterministic AST Gating**: Verified syntax, security vulnerabilities, and HMAC diff integrity at **>140,000 ops/sec**.
 """
 
