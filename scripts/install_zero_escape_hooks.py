@@ -41,6 +41,9 @@ Before delivering your final text response to the user, you MUST:
 - Run test commands via `elite_verify(check="tests", command="pytest ...")` or execute in terminal.
 - Include a structured verification receipt in your response showing passed invariants.
 
+## 📋 EXECUTION PLAYBOOK ADHERENCE
+When `elite_reason` returns an `execution_playbook`, you MUST execute each step in the playbook sequentially using its exact `call_template`. You are strictly forbidden from jumping to conclusion without executing the intermediate MCP tool calls (Minimum MCP Tool Density >= 50%).
+
 🚫 FORBIDDEN: Generating code and replying directly without Checkpoint 2 and Checkpoint 3 verification. Physical Git pre-commit barriers will reject unverified commits.
 """
 

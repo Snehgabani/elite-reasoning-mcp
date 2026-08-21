@@ -136,6 +136,44 @@ class EliteCognitiveEngine:
             "4. HARD INVARIANT: You are strictly forbidden from delivering final text to the user without a passing `elite_verify` receipt."
         )
 
+        execution_playbook = [
+            {
+                "step": 1,
+                "phase": "PRE_EDIT_CONTRACT",
+                "tool": "elite-reasoning-mcp:elite_reason",
+                "action": "Compile contract & issue gate token",
+                "status": "COMPLETED",
+            },
+            {
+                "step": 2,
+                "phase": "CODE_EDIT",
+                "tool": "replace_file_content / write_to_file",
+                "action": "Apply source modifications",
+                "status": "PENDING",
+            },
+            {
+                "step": 3,
+                "phase": "MID_VERIFY_SYNTAX",
+                "tool": "elite-reasoning-mcp:elite_verify",
+                "call_template": "call_mcp_tool(ServerName='elite-reasoning-mcp', ToolName='elite_verify', Arguments={'check': 'syntax', 'code': '<code_or_draft>'})",
+                "status": "MANDATORY_NEXT",
+            },
+            {
+                "step": 4,
+                "phase": "MID_VERIFY_CEGIS",
+                "tool": "elite-reasoning-mcp:elite_verify",
+                "call_template": "call_mcp_tool(ServerName='elite-reasoning-mcp', ToolName='elite_verify', Arguments={'check': 'cegis', 'code': '<code_or_draft>'})",
+                "status": "MANDATORY_AFTER_SYNTAX",
+            },
+            {
+                "step": 5,
+                "phase": "POST_EDIT_TESTS",
+                "tool": "elite-reasoning-mcp:elite_verify",
+                "call_template": "call_mcp_tool(ServerName='elite-reasoning-mcp', ToolName='elite_verify', Arguments={'check': 'tests', 'command': 'pytest ...'})",
+                "status": "MANDATORY_BEFORE_REPLY",
+            },
+        ]
+
         result = {
             "task_id": task_id,
             "task_type": task_type,
@@ -143,6 +181,7 @@ class EliteCognitiveEngine:
             "scaffold_status": "scaffolded",
             "gate_token": gate_token.token,
             "mandatory_chaining_directive": mandatory_chaining_directive,
+            "execution_playbook": execution_playbook,
             "recency_step_lock": recency_envelope,
             "note": "This MCP enforces invariants and compiles checkable task contracts. Verify execution evidence with elite_verify.",
             "complexity": complexity,

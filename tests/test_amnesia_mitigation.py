@@ -4,6 +4,7 @@ Unit and integration tests for TrajectoryGuardian and Anti-Amnesia step-locking.
 
 from __future__ import annotations
 
+import pytest
 from core.cognitive.trajectory_guardian import (
     TrajectoryGuardian,
     TrajectoryStage,
@@ -57,3 +58,45 @@ def test_amnesia_benchmark_simulation_suite():
     assert report.baseline_amnesia_escape_rate_pct == 100.0
     assert report.guardian_amnesia_escape_rate_pct == 0.0
     assert report.amnesia_reduction_pct == 100.0
+
+
+def test_mcp_tool_density_enforcement():
+    guardian = TrajectoryGuardian()
+    sid = "density_test_session"
+
+    # Step 1: Start
+    guardian.record_pre_edit_contract(sid, "Build feature")
+
+    # Step 2: 4 file edits
+    for i in range(4):
+        guardian.record_file_edit(sid, f"file_{i}.py")
+
+    # Only 1 MCP call (contract), but 4 native calls -> density = 1/5 = 20%
+    state = guardian.get_or_create_session(sid)
+    assert state.calculate_mcp_density() == 0.2
+
+    # Step 3: Run verifications across the edits
+    guardian.record_verification_check(sid, "syntax", passed=True)
+    guardian.record_verification_check(sid, "cegis", passed=True)
+    guardian.record_verification_check(sid, "tests", passed=True)
+
+    # Now: 4 MCP calls (contract + syntax + cegis + tests), 4 native calls -> density = 4/8 = 50%
+    assert state.calculate_mcp_density() == 0.5
+    ok, msg = guardian.validate_completion_attestation(sid)
+    assert ok is True
+
+
+@pytest.mark.asyncio
+async def test_execution_playbook_generation():
+    from core.cognitive.engine import _MIX_ENGINE
+
+    res = await _MIX_ENGINE.execute_mix("Add new FastAPI endpoint with JWT auth", task_type="hard_problem")
+    assert "execution_playbook" in res
+    playbook = res["execution_playbook"]
+    assert len(playbook) >= 4
+
+    phases = [p["phase"] for p in playbook]
+    assert "PRE_EDIT_CONTRACT" in phases
+    assert "MID_VERIFY_SYNTAX" in phases
+    assert "POST_EDIT_TESTS" in phases
+    assert any("call_mcp_tool" in str(p.get("call_template", "")) for p in playbook)
