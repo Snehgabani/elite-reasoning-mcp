@@ -11,7 +11,7 @@ import os
 import subprocess
 import sys
 import time
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 
 BRAIN_DIR = os.environ.get("ELITE_BRAIN_DIR", os.path.expanduser("~/.elite-reasoning/brain"))
@@ -41,7 +41,7 @@ class WatchdogNotifier:
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
                 )
-            except Exception:
+            except (OSError, subprocess.SubprocessError):
                 pass
 
     def record_telemetry(
@@ -70,7 +70,7 @@ class WatchdogNotifier:
         try:
             with open(LIVE_STATUS_FILE, "w", encoding="utf-8") as f:
                 json.dump(payload, f, indent=2)
-        except Exception:
+        except OSError:
             pass
 
         if notify_desktop or status in {"ATTESTED_COMPLETE", "INVARIANT_VIOLATION", "DEADLOCK_HALT"}:
@@ -86,3 +86,5 @@ class WatchdogNotifier:
 
 
 _WATCHDOG_NOTIFIER = WatchdogNotifier()
+
+__all__ = ["WatchdogNotifier", "_WATCHDOG_NOTIFIER", "BRAIN_DIR", "LIVE_STATUS_FILE"]

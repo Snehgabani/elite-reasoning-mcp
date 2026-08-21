@@ -5,7 +5,6 @@ Unit tests for Anti-Falsification and Cryptographic Authenticity Attestation.
 from __future__ import annotations
 
 import ast
-from pathlib import Path
 from core.cognitive.leverage.anti_falsification import (
     AntiFalsificationScanner,
     CodebaseAuthenticityAuditor,

@@ -10,17 +10,15 @@ from __future__ import annotations
 
 import hashlib
 import hmac
-import json
 import os
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
 from core.cognitive.leverage.deterministic_gates import validate_security_invariants, validate_syntax
 from core.cognitive.leverage.dynamic_tool_router import DynamicToolRouter
 from core.cognitive.leverage.fact_scorer import FActScoreEvaluator
 from core.cognitive.leverage.prm_verifier import ProcessRewardModel
-from core.cognitive.leverage.zero_escape_fsm import LifecycleState, ZeroEscapeFSM
 
 
 @dataclass
@@ -165,9 +163,6 @@ class CognitiveTrinityManager:
         STAGE 2: Defines explicit deterministic acceptance criteria and invariant benchmarks.
         """
         bid = f"bench-{contract_id}"
-        contract = self._active_contracts.get(contract_id)
-        task_text = task or (contract.task if contract else "Unknown task")
-
         invariants = [
             "Deterministic AST Syntax Validity (0 SyntaxErrors)",
             "OWASP Top-10 Invariant Compliance (0 eval/exec/dangerous calls)",
@@ -221,6 +216,9 @@ class CognitiveTrinityManager:
         benchmark = self._active_benchmarks.get(contract_id)
         failures = []
 
+        if not benchmark:
+            failures.append(f"No active benchmark established for contract '{contract_id}'.")
+
         # 1. Evaluate Code Invariants if code is provided
         if evidence_code:
             syn_check = validate_syntax(evidence_code)
@@ -240,8 +238,9 @@ class CognitiveTrinityManager:
         if claims_text:
             fscore_res = self.fact_scorer.evaluate_grounding(claims_text, reference_sources or [])
             grounding_score = fscore_res.fact_score
-            if grounding_score < 0.70:
-                failures.append(f"FActScore Grounding below threshold: {grounding_score:.2f} < 0.70")
+            min_grounding = benchmark.target_quality_score if benchmark else 0.70
+            if grounding_score < min_grounding:
+                failures.append(f"FActScore Grounding below threshold: {grounding_score:.2f} < {min_grounding:.2f}")
 
         # 4. Zero-Escape Decision Boundary
         if failures:

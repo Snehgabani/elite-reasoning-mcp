@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 import os
 import subprocess
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 
 SCRAPE_PYTHON = os.path.expanduser("~/.hermes/venvs/scrape/bin/python")
@@ -87,3 +87,5 @@ except Exception as e:
 
 
 _STEALTH_SCRAPER = StealthScraperEngine()
+
+__all__ = ["StealthScraperEngine", "_STEALTH_SCRAPER", "SCRAPE_PYTHON"]

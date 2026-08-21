@@ -6,10 +6,9 @@ for in-process semantic memory indexing and vector search (<10MB RAM).
 
 from __future__ import annotations
 
-import json
 import os
 import subprocess
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 
 SOVEREIGN_SEARCH_BIN = os.path.expanduser("~/.local/bin/sovereign-search")
@@ -99,3 +98,5 @@ class VectorMemoryBridge:
 
 
 _VECTOR_MEMORY_BRIDGE = VectorMemoryBridge()
+
+__all__ = ["VectorMemoryBridge", "_VECTOR_MEMORY_BRIDGE", "SOVEREIGN_SEARCH_BIN", "SOVEREIGN_MEMORY_DIR"]

@@ -6,7 +6,6 @@ over Parquet datasets, SQLite tables, and JSONL agent traces without RAM spikes 
 
 from __future__ import annotations
 
-import json
 import os
 import subprocess
 from typing import Any, Dict, Optional
@@ -60,3 +59,5 @@ class DuckDBAnalyticsBridge:
 
 
 _DUCKDB_ANALYTICS_BRIDGE = DuckDBAnalyticsBridge()
+
+__all__ = ["DuckDBAnalyticsBridge", "_DUCKDB_ANALYTICS_BRIDGE", "SOVEREIGN_ANALYTICS_BIN"]
