@@ -54,3 +54,9 @@ def test_unified_mcp_server_registration():
     assert "repo_search" in tools
     assert "apply_reasoning_diff" in tools
     assert "god_tier_reasoning" in tools
+    assert "storm_research" in tools
+    assert "tree_of_thoughts_search" in tools
+    assert "distill_skill" in tools
+    assert "cegis_repair" in tools
+    assert "mine_epistemic_divergence" in tools
+    assert "evaluate_fact_score" in tools
