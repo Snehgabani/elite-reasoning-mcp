@@ -77,6 +77,11 @@ class HippoRAGAssociativeEngine:
         except Exception as e:
             logger.warning("Unexpected error loading HippoRAG graph from SQLite: %s", e)
 
+    def remove_node(self, node_id: str) -> None:
+        """Removes a node and revokes all connected edges (atomic provenance pruning)."""
+        self._in_memory_nodes.pop(node_id, None)
+        self._in_memory_edges = [e for e in self._in_memory_edges if e[0] != node_id and e[1] != node_id]
+
     def associative_recall(
         self,
         query: str,
@@ -84,28 +89,51 @@ class HippoRAGAssociativeEngine:
         alpha: float = 0.5,
         max_iterations: int = 20,
         decay_lambda: float = 0.0001,
+        max_nodes_bound: int = 500,
     ) -> AssociativeRecallResult:
         t0 = time.perf_counter()
         query_terms = [t.lower().strip() for t in query.split() if len(t.strip()) > 2]
 
         all_nodes = list(self._in_memory_nodes.keys())
-        n = len(all_nodes)
-        if n == 0:
+        n_total = len(all_nodes)
+        if n_total == 0:
             return AssociativeRecallResult(
                 query=query, seed_nodes_count=0, total_graph_nodes=0, ranked_memories=[], latency_ms=0.0
             )
 
+        # 1. Identify seed nodes with quarantine damping
+        raw_seed_scores: Dict[str, float] = {}
+        for nid, data in self._in_memory_nodes.items():
+            text_corpus = f"{nid} {data['label']} {' '.join(str(v) for v in data['properties'].values())}".lower()
+            match_count = sum(1.0 for term in query_terms if term in text_corpus)
+            if match_count > 0:
+                # Quarantine & Trust Damping: unapproved or low-trust nodes receive 0.2x seed energy
+                is_quarantined = bool(data["properties"].get("quarantined", False))
+                trust_score = float(data["properties"].get("trust_score", 1.0))
+                damping = 0.2 if (is_quarantined or trust_score < 0.8) else 1.0
+                raw_seed_scores[nid] = match_count * damping
+
+        # 2. Bounded 2-hop subgraph expansion if graph exceeds max_nodes_bound
+        if n_total > max_nodes_bound and raw_seed_scores:
+            active_nodes = set(raw_seed_scores.keys())
+            # 1-hop
+            for src, dst, _, _ in self._in_memory_edges:
+                if src in active_nodes or dst in active_nodes:
+                    active_nodes.add(src)
+                    active_nodes.add(dst)
+                if len(active_nodes) >= max_nodes_bound:
+                    break
+            all_nodes = [nid for nid in all_nodes if nid in active_nodes][:max_nodes_bound]
+
+        n = len(all_nodes)
         node_to_idx = {nid: idx for idx, nid in enumerate(all_nodes)}
         idx_to_node = {idx: nid for idx, nid in enumerate(all_nodes)}
 
-        # 1. Identify seed teleport vector p0
         p0 = [0.0] * n
         seed_count = 0
-        for nid, data in self._in_memory_nodes.items():
-            text_corpus = f"{nid} {data['label']} {' '.join(str(v) for v in data['properties'].values())}".lower()
-            match_score = sum(1.0 for term in query_terms if term in text_corpus)
-            if match_score > 0:
-                p0[node_to_idx[nid]] = match_score
+        for nid, score in raw_seed_scores.items():
+            if nid in node_to_idx:
+                p0[node_to_idx[nid]] = score
                 seed_count += 1
 
         total_p0 = sum(p0)
@@ -114,7 +142,7 @@ class HippoRAGAssociativeEngine:
         else:
             p0 = [1.0 / n] * n
 
-        # 2. Build adjacency outgoing transition matrix
+        # 3. Build adjacency outgoing transition matrix
         adj: Dict[int, List[int]] = {i: [] for i in range(n)}
         for src, dst, _, _ in self._in_memory_edges:
             if src in node_to_idx and dst in node_to_idx:

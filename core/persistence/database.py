@@ -8,9 +8,48 @@ import sqlite3
 import tempfile
 import time
 from pathlib import Path
-from typing import Callable, Dict, Optional
+from typing import Callable, Dict, Optional, TypeVar
+
+T = TypeVar("T")
 
 CURRENT_SCHEMA_VERSION = 7
+
+
+def open_sqlite_connection(
+    path: str | Path,
+    timeout: float = 5.0,
+    wal_mode: bool = True,
+) -> sqlite3.Connection:
+    """Opens an optimized, concurrency-resilient SQLite connection."""
+    conn = sqlite3.connect(str(path), timeout=timeout)
+    conn.execute(f"PRAGMA busy_timeout = {int(timeout * 1000)};")
+    if wal_mode:
+        conn.execute("PRAGMA journal_mode = WAL;")
+    conn.execute("PRAGMA synchronous = NORMAL;")
+    return conn
+
+
+def execute_with_retry(
+    fn: Callable[[], T],
+    max_retries: int = 5,
+    initial_backoff: float = 0.02,
+    max_backoff: float = 0.5,
+) -> T:
+    """Executes a database operation with exponential backoff on lock contention."""
+    attempt = 0
+    backoff = initial_backoff
+    while True:
+        try:
+            return fn()
+        except sqlite3.OperationalError as exc:
+            attempt += 1
+            if "locked" in str(exc).lower() or "busy" in str(exc).lower():
+                if attempt >= max_retries:
+                    raise
+                time.sleep(backoff)
+                backoff = min(backoff * 2.0, max_backoff)
+            else:
+                raise
 
 
 def sqlite_integrity_ok(path: str | Path) -> bool:

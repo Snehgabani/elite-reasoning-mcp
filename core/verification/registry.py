@@ -384,7 +384,22 @@ class SyntaxVerifier:
         target = request.code or request.draft
         if not target.strip():
             raise VerificationInputError("code or draft is required for check=syntax.")
-        result = validate_syntax(target, request.language or "python")
+        lang = (request.language or "python").lower().strip()
+        if lang in ("python", "py"):
+            stripped = target.strip()
+            if stripped.startswith(("# ", "## ", "### ", "```", "---", "<!DOCTYPE", "<html", "* ", "- ")):
+                lang = "markdown"
+            elif (stripped.startswith("{") and stripped.endswith("}")) or (
+                stripped.startswith("[") and stripped.endswith("]")
+            ):
+                import json
+
+                try:
+                    json.loads(stripped)
+                    lang = "json"
+                except Exception:
+                    pass
+        result = validate_syntax(target, lang)
         data = result.to_dict()
         _, repository_snapshot_digest, repository_limitation = _repository_snapshot(request.project_root)
         data["repository_snapshot_digest"] = repository_snapshot_digest
@@ -392,7 +407,7 @@ class SyntaxVerifier:
             check=self.name,
             status=status_from_bool(bool(data.get("passed"))),
             data=data,
-            subject_kind=f"source:{request.language or 'python'}",
+            subject_kind=f"source:{lang}",
             subject=f"{target}\0{repository_snapshot_digest}",
             producer="core.cognitive.leverage.deterministic_gates.validate_syntax",
             evidence_payload={
