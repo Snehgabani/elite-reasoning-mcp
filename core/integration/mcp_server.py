@@ -6,8 +6,10 @@ import shutil
 import subprocess
 import sys
 import uuid
-
-from mcp.server.fastmcp import FastMCP
+try:
+    from mcp.server.fastmcp import FastMCP
+except ImportError:
+    from fastmcp import FastMCP  # type: ignore[no-redef]
 
 from core.identity.user_profile import UserProfile
 from core.logging_config import get_logger

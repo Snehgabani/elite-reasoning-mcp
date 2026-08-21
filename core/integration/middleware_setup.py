@@ -11,8 +11,10 @@ Usage (in mcp_server.py):
 import asyncio
 import functools
 import logging
-
-from mcp.server.fastmcp import FastMCP
+try:
+    from mcp.server.fastmcp import FastMCP
+except ImportError:
+    from fastmcp import FastMCP  # type: ignore[no-redef]
 
 from core.middleware.chain import MiddlewareChain
 

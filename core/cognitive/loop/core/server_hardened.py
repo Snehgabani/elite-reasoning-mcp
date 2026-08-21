@@ -21,7 +21,10 @@ import time
 import uuid
 from pathlib import Path
 
-from mcp.server.fastmcp import FastMCP
+try:
+    from mcp.server.fastmcp import FastMCP
+except ImportError:
+    from fastmcp import FastMCP  # type: ignore[no-redef]
 
 from core.cognitive.loop.core.server import (
     _register_resources,
