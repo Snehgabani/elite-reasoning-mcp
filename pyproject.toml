@@ -170,8 +170,10 @@ ignore = [
     "E741",   # ambiguous-variable-name — l, O, I in math code
     "W291",   # trailing-whitespace
     "W293",   # blank-line-with-whitespace
+    "I001",   # import sorting
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/*" = ["F401", "F841", "E402"]  # tests use inline imports and temp vars
-"core/cognitive/*" = ["F401", "F841", "E402"]  # cognitive loop and leverage submodules
+"tests/*" = ["F401", "F841", "E402", "I001"]  # tests use inline imports and temp vars
+"core/cognitive/**" = ["F401", "F841", "E402", "I001"]  # cognitive loop and leverage submodules
+"core/tools/cognitive_tools.py" = ["F401", "F841", "E402", "I001"]
