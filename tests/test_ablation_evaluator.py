@@ -3,9 +3,8 @@ from scripts.run_ablation_eval import run_ablation_study
 
 
 def test_five_arm_ablation_study():
-    corpus_path = Path(
-        "/Users/snehgabani/.gemini/antigravity/scratch/elite-system/evals/contracts/frozen_corpus_250.json"
-    )
+    repo_root = Path(__file__).resolve().parent.parent
+    corpus_path = repo_root / "evals/contracts/frozen_corpus_250.json"
     results = run_ablation_study(corpus_path)
 
     assert results["sample_size"] == 250

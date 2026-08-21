@@ -43,9 +43,7 @@ def run_evaluation_manifest(manifest_path: Path) -> Dict[str, Any]:
 
 
 def main():
-    manifest_path = Path(
-        "/Users/snehgabani/.gemini/antigravity/scratch/elite-system/evals/manifests/eval_manifest_v1.json"
-    )
+    manifest_path = Path(__file__).resolve().parent.parent / "evals/manifests/eval_manifest_v1.json"
     results = run_evaluation_manifest(manifest_path)
     print(json.dumps(results, indent=2))
 

@@ -75,5 +75,5 @@ def run_ablation_study(corpus_path: Path) -> Dict[str, Any]:
 
 
 if __name__ == "__main__":
-    p = Path("/Users/snehgabani/.gemini/antigravity/scratch/elite-system/evals/contracts/frozen_corpus_250.json")
+    p = Path(__file__).resolve().parent.parent / "evals/contracts/frozen_corpus_250.json"
     print(json.dumps(run_ablation_study(p), indent=2))

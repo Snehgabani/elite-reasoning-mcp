@@ -3,9 +3,8 @@ from scripts.run_evaluation import run_evaluation_manifest
 
 
 def test_evaluation_runner_manifest():
-    manifest_path = Path(
-        "/Users/snehgabani/.gemini/antigravity/scratch/elite-system/evals/manifests/eval_manifest_v1.json"
-    )
+    repo_root = Path(__file__).resolve().parent.parent
+    manifest_path = repo_root / "evals/manifests/eval_manifest_v1.json"
     results = run_evaluation_manifest(manifest_path)
 
     assert results["total_tasks"] == 2
