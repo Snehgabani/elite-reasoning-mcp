@@ -15,12 +15,6 @@ jobs:
       contents: write
       pull-requests: write
     steps:
-      - name: Dependabot metadata
-        id: metadata
-        uses: dependabot/fetch-metadata@d7227f167399f65f78253211eed25f113ba72e39 # v2
-        with:
-          github-token: "${{ secrets.GITHUB_TOKEN }}"
-
       - name: Auto-approve Dependabot PR
         run: gh pr review --approve "$PR_URL"
         env:
