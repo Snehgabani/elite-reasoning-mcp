@@ -139,17 +139,22 @@ Add this to your IDE's system prompt (e.g., `~/.gemini/GEMINI.md` or Cursor Rule
 ```markdown
 ## ⚡ RULE #0 — ELITE MCP PIPELINE
 
-For non-trivial build, debug, research, audit, or release tasks, start with:
+For every non-trivial prompt, call this first:
 
 elite_prepare(user_prompt="<the user's exact message>")
 
-Update each step with evidence before claiming completion:
+Use ONLY `allowed_tools`, in `playbook` order. Do not pick other MCP tools.
 
-elite_progress(run_id="<run id>", action="update", step_index=1, step_status="passed", evidence="<proof>")
+If the playbook requires evidence:
+elite_verify(check="evidence", query="<question>")
 
-Before shipping, call:
+Do the host_work step (write the answer or patch).
 
-elite_verify(check="doctor")
+Then the independent gate:
+elite_verify(check="outcomes", run_id="<run id>", draft="<your draft>")
+
+If action=REPEAT: fix unmet outcomes and verify again. Do not answer the user yet.
+If action=DONE: you may answer.
 
 Skip tool calls for trivial acknowledgements like "ok", "thanks", "yes", "no".
 ```
@@ -200,19 +205,13 @@ The explicit `legacy` profile retains `export_eval_harness` for optional Promptf
 ```
 Your Task
     ↓
-elite_prepare (typed workflow contract)
+elite_prepare  →  playbook + expected outcomes + allowed_tools
     ↓
-┌──────────────────────────────────────────────┐
-│  Intent and risk      → bounded workflow     │
-│  Trusted memory       → scoped context       │
-│  Prevention engine    → phase guidance       │
-│  Validation gates     → evidence requirements │
-│  Typed output         → stable MCP contract  │
-└──────────────────────────────────────────────┘
+host follows playbook (usually 1–2 elite_verify calls, then host_work)
     ↓
-elite_progress (ordered evidence updates)
+elite_verify(check="outcomes")  →  DONE or REPEAT
     ↓
-elite_verify / elite_admin (release + monitoring)
+if REPEAT: fix unmet items and verify again (do not answer yet)
     ↓
 ┌──────────────────────────────────────────────┐
 │ Local-first telemetry and memory boundaries    │
@@ -229,9 +228,9 @@ The default v2 profile intentionally exposes five task-oriented tools. This impr
 
 | Tool | Description |
 |:-----|:------------|
-| `elite_prepare` | Create a durable, evidence-gated workflow contract for a task. |
-| `elite_progress` | Read or update ordered workflow steps with evidence requirements. |
-| `elite_verify` | Run release doctor or IDE capability verification. |
+| `elite_prepare` | First call every non-trivial prompt. Personalized playbook, expected outcomes, allowed tools. Not the answer. |
+| `elite_progress` | Optional flight recorder. Not required to finish if outcomes verify. |
+| `elite_verify` | Independent gate. `check=outcomes` returns REPEAT or DONE. Also evidence/syntax/tests. |
 | `elite_memory` | Search, write, approve low-trust memory, or permanently forget a local memory item. |
 | `elite_admin` | Inspect runtime identity, privacy policy, and local aggregate monitoring. |
 

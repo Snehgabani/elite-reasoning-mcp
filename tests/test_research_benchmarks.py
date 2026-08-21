@@ -46,14 +46,14 @@ def test_roi_budget_recommends_research_grade_for_benchmarks():
     policy = recommend_budget_tier("compare research papers and benchmarks for coding agents")
 
     assert policy.tier == "research_grade"
-    assert "evidence_check" in policy.required_checks
+    assert "elite_verify:evidence" in policy.required_checks
 
 
 def test_roi_budget_recommends_high_risk_for_security_production():
     policy = recommend_budget_tier("fix production authentication migration", complexity=4)
 
     assert policy.tier == "high_risk"
-    assert "check_anti_patterns" in policy.required_checks
+    assert "elite_verify:constraints" in policy.required_checks
 
 
 def test_budget_policy_markdown_is_actionable():

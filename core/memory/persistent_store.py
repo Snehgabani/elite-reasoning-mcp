@@ -716,6 +716,7 @@ class EliteStore:
             "ALTER TABLE prevention_rules ADD COLUMN false_positive_count INTEGER DEFAULT 0",
             "ALTER TABLE prevention_rules ADD COLUMN true_positive_count INTEGER DEFAULT 0",
             "ALTER TABLE prevention_rules ADD COLUMN last_triggered_at REAL",
+            "ALTER TABLE workflow_runs ADD COLUMN task_contract TEXT DEFAULT '{}'",
         ]
         for alt in r2_alterations:
             try:
@@ -1813,6 +1814,7 @@ class EliteStore:
         evidence = json.dumps(run.get("evidence_requirements", []))
         validation = json.dumps(run.get("validation_gates", []))
         memory_context = json.dumps(run.get("memory_context", []))
+        task_contract = json.dumps(run.get("task_contract") or {})
 
         with self.transaction():
             conn = self._connect()
@@ -1821,8 +1823,8 @@ class EliteStore:
                 """INSERT OR REPLACE INTO workflow_runs
                    (run_id, user_prompt, intent, complexity, budget_tier, status,
                     confidence, evidence_requirements, validation_gates,
-                    memory_context, created_at, updated_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    memory_context, task_contract, created_at, updated_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     run_id,
                     # A workflow can be persisted automatically by a tool
@@ -1837,6 +1839,7 @@ class EliteStore:
                     evidence,
                     validation,
                     memory_context,
+                    task_contract,
                     str(run.get("created_at") or now),
                     now,
                 ),
@@ -1867,7 +1870,7 @@ class EliteStore:
         c.execute(
             """SELECT run_id, user_prompt, intent, complexity, budget_tier, status,
                       confidence, evidence_requirements, validation_gates,
-                      memory_context, created_at, updated_at
+                      memory_context, created_at, updated_at, task_contract
                FROM workflow_runs WHERE run_id = ?""",
             (run_id,),
         )
@@ -1903,6 +1906,13 @@ class EliteStore:
             except (TypeError, json.JSONDecodeError):
                 return []
 
+        def _load_object(value: object) -> dict:
+            try:
+                parsed = json.loads(value or "{}") if not isinstance(value, dict) else value
+                return parsed if isinstance(parsed, dict) else {}
+            except (TypeError, json.JSONDecodeError):
+                return {}
+
         return {
             "run_id": row[0],
             "user_prompt": row[1],
@@ -1916,6 +1926,7 @@ class EliteStore:
             "memory_context": _loads(row[9]),
             "created_at": row[10],
             "updated_at": row[11],
+            "task_contract": _load_object(row[12] if len(row) > 12 else "{}"),
             "steps": steps,
         }
 

@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.8.0] - 2026-08-21
+
+### Added
+- Personalized **playbook** on `elite_prepare`: ordered `allowed_tools`, expected outcomes, and `repeat_until`.
+- Independent `elite_verify(check="outcomes")` gate that returns `action=REPEAT` or `DONE`. The host model does not score itself.
+
+### Changed
+- Initiation path is still one tool (`elite_prepare`) so the catalog does not grow. Extra tools would make selection worse.
+
+## [2.3.0] - 2026-08-21
+
+### Added
+- Checkable **task contracts** (`compile_task_contract`) so cheap/small host models get instance-specific yes/no constraints instead of a generic ritual.
+- Quote-grounded web evidence (`elite_verify(check="evidence")`) that returns verbatim spans with URLs, or `degraded=true` — never fabricated citations.
+- Binary constraint / syntax / allowlisted-test / grounding checks on `elite_verify`.
+- Double-blind outcome protocol (`core/eval/blind_protocol.py`): paired constraint pass rate, McNemar, Cohen's κ, position-swap pairwise, pre-registered ship rule.
+
+### Changed
+- `elite_prepare` now returns `goal`, `constraints`, `next_action`, and `task_contract` for the host model to follow.
+- Tool budgets on the core surface point at `elite_verify` / `elite_memory` instead of missing legacy tool names.
+- `execute_mix` and LATS no longer emit fake `SUCCESS` / `return 42` / proof-of-work hashes. They return a scaffold or an honest no-search status.
+- Prevention middleware injects one-line reminders instead of banner boxes.
+
+### Fixed
+- Self-RAG no longer appends a fake arXiv URL when retrieval fails.
+- Constitutional judge no longer inflates scores by +0.08 and labeling the result corrected.
+
 ## [2.2.0] - 2026-08-21
 
 ### Added

@@ -39,11 +39,10 @@ def test_deterministic_gates_security_owasp():
 @pytest.mark.asyncio
 async def test_execute_mix_pipeline():
     res = await _COGNITIVE_ENGINE.execute_mix("Build an immutable distributed event ledger")
-    assert res["status"] == "SUCCESS"
-    assert len(res["proof_of_work"]["verification_hash"]) == 64
-    assert len(res["layers_executed"]) >= 9
-    assert "10. ZeroEscapeFSM" in res["layers_executed"]
-    assert res["prm_passed"] is True
+    assert res["status"] == "scaffolded"
+    assert res["task_contract"]["goal"]
+    assert res["next_action"] in {"none", "evidence", "verify_constraints", "verify_tests"}
+    assert "proof_of_work" not in res
 
 
 def test_unified_mcp_server_registration():

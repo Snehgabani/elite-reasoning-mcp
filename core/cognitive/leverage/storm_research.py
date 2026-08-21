@@ -43,7 +43,21 @@ class StanfordSTORMResearchEngine:
         ]
 
         # Step 5: Full Report Synthesis
-        report_md = f"""# STANFORD STORM DEEP RESEARCH REPORT: {topic.upper()}
+        if not citations:
+            return {
+                "topic": topic,
+                "outline": outline,
+                "citations": [],
+                "mental_models": mental_models,
+                "degraded": True,
+                "report_markdown": (
+                    f"# Degraded research: {topic}\n\n"
+                    "No live sources were retrieved. Do not invent citations. "
+                    "Call elite_verify(check='evidence', query=...) and quote returned spans."
+                ),
+            }
+
+        report_md = f"""# Research notes (not a STORM implementation): {topic.upper()}
 
 ## 1. Executive Summary & Core Thesis
 {topic} represents a high-leverage strategic domain. This deep report applies live internet triangulation, Hegelian dialectics, and multi-disciplinary mental models to deliver a bulletproof synthesis.
