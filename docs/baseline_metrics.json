@@ -1,8 +1,8 @@
 {
-  "timestamp": "2026-08-21T19:08:24Z",
+  "timestamp": "2026-08-21T19:20:46Z",
   "tool_profile": "core",
-  "startup_duration_sec": 1.3227,
-  "rss_memory_mb": 98.94,
+  "startup_duration_sec": 1.311,
+  "rss_memory_mb": 97.34,
   "total_imported_modules_count": 835,
   "core_tool_count": 5,
   "python_version": "3.11.15",

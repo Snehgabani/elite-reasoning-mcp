@@ -29,16 +29,13 @@ def measure_core_baseline():
     imported_after = set(sys.modules.keys()) - initial_modules
 
     # Measure memory RSS
-    rss_mb = 0.0
     try:
         import resource
 
         usage = resource.getrusage(resource.RUSAGE_SELF)
         # On macOS, ru_maxrss is in bytes; on Linux in KB
-        if sys.platform == "darwin":
-            rss_mb = usage.ru_maxrss / (1024 * 1024)
-        else:
-            rss_mb = usage.ru_maxrss / 1024
+        divisor = 1024 * 1024 if sys.platform == "darwin" else 1024
+        rss_mb = usage.ru_maxrss / divisor
     except (ImportError, AttributeError, OSError, ValueError):
         rss_mb = 0.0
 
