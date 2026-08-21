@@ -201,7 +201,7 @@ class ParameterCoercionEngine:
                 try:
                     return int(float(cleaned))
                 except ValueError:
-                    pass
+                    return default
         return default
 
     @staticmethod
@@ -213,7 +213,7 @@ class ParameterCoercionEngine:
             try:
                 return float(cleaned)
             except ValueError:
-                pass
+                return default
         return default
 
     @staticmethod

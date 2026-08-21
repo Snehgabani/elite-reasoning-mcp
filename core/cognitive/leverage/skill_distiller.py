@@ -6,8 +6,11 @@ Distills generalized patterns into permanent, reusable skills and memory lessons
 
 import hashlib
 import json
+import logging
 import os
 from typing import Any, Dict, List, Optional
+
+logger = logging.getLogger(__name__)
 
 
 class SkillCard:
@@ -110,9 +113,8 @@ class SkillDistiller:
         try:
             with open(target_file, "w", encoding="utf-8") as f:
                 json.dump(card.to_dict(), f, indent=2)
-        except OSError:
-            # Best-effort disk persistence; disk failure should not abort reasoning flow
-            pass
+        except OSError as exc:
+            logger.warning("Failed to persist distilled skill %s to disk: %s", skill_id, exc)
 
         return card
 
@@ -127,7 +129,6 @@ class SkillDistiller:
                 try:
                     with open(fpath, "r", encoding="utf-8") as f:
                         skills.append(json.load(f))
-                except OSError:
-                    # Ignore unreadable or corrupted skill files
-                    pass
+                except (OSError, json.JSONDecodeError) as exc:
+                    logger.debug("Skipping unreadable or invalid skill file %s: %s", fpath, exc)
         return skills

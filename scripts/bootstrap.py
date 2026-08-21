@@ -18,9 +18,8 @@ def bootstrap(brain_dir: str, include_demo_mcps: bool = False):
     brain_path.mkdir(parents=True, mode=0o700, exist_ok=True)
     try:
         os.chmod(brain_path, 0o700)
-    except OSError:
-        # Non-fatal exception intentionally suppressed
-        pass
+    except OSError as exc:
+        logger.debug("Non-fatal chmod failed on %s: %s", brain_path, exc)
 
     # 1. Setup Quarantine directory
     quarantine_path = brain_path / "skills" / ".quarantine"
@@ -41,9 +40,8 @@ def bootstrap(brain_dir: str, include_demo_mcps: bool = False):
         mcp_config_path.write_text(json.dumps(default_mcp_payload, indent=2))
         try:
             os.chmod(mcp_config_path, 0o600)
-        except OSError:
-            # Non-fatal exception intentionally suppressed
-            pass
+        except OSError as exc:
+            logger.debug("Non-fatal chmod failed on %s: %s", mcp_config_path, exc)
     else:
         logger.info("mcp_servers.json already exists. Skipping.")
 
