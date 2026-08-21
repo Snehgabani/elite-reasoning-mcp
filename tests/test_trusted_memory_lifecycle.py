@@ -35,7 +35,7 @@ def test_trusted_memory_quarantine_and_approval():
 
     # 5. Sensitive lesson cannot become active
     sensitive = svc.propose_lesson(
-        content="API_KEY=sk_secret_12345",
+        content="CONFIDENTIAL_CONFIG=internal_secret_only",
         is_sensitive=True,
     )
     assert sensitive.trust_state == TrustState.QUARANTINED
