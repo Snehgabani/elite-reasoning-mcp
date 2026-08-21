@@ -23,6 +23,7 @@ class RequirementKind(str, Enum):
     TEST_COMMAND = "test_command"
     SECURITY = "security"
     PERFORMANCE = "performance"
+    ROBUSTNESS = "robustness"
     CITATION_GROUNDING = "citation_grounding"
     DIRECT_ANSWER = "direct_answer"
     HUMAN_APPROVAL = "human_approval"
