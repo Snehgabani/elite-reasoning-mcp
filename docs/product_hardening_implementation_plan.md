@@ -31,6 +31,7 @@ Last updated: 2026-08-22
 - [ ] Land isolated installed-wheel validation on Linux, macOS, and Windows for Python 3.11 and 3.13 (implementation prepared; GitHub App lacks workflow-write permission).
 - [ ] Build the manifest-driven multi-arm evaluation harness and frozen task corpus.
 - [x] Add an offline installed-product demo with a deterministic fail-then-pass verification transition.
+- [x] Add previewable, confirmation-gated atomic IDE initialization and redacted workflow-evidence export.
 - [ ] Complete adversarial security, memory-poisoning, and corruption suites.
 - [ ] Run the design-partner and external-replication program.
 

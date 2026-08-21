@@ -95,6 +95,13 @@ elite-reasoning-mcp doctor --json
 # Run an offline bad-draft → corrected-draft verification demo
 elite-reasoning-mcp demo
 
+# Preview, then atomically install, an IDE configuration
+elite-reasoning-mcp init --ide cursor --dry-run
+elite-reasoning-mcp init --ide cursor --yes
+
+# Export redacted evidence from a durable workflow
+elite-reasoning-mcp export-evidence <run_id> --json
+
 # Preview a safe standalone upgrade command
 elite-reasoning-mcp upgrade --dry-run
 ```

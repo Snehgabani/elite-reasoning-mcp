@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Restricted test-command adapter with an environment allowlist and explicit timeout behavior.
 - Public API response schemas separated from MCP gateway registration.
 - Offline `elite-reasoning-mcp demo` command showing source-linked contract compilation and evidence-bound bad-draft → corrected-draft verification through the installed five-tool server.
+- Confirmation-gated `init --ide` preview/install flow with valid no-argument core commands, malformed-config refusal, existing-key preservation, atomic writes, and owner-only permissions.
+- Redacted `export-evidence RUN_ID` CLI for durable workflow audit records.
 - Product hardening roadmap covering the evidence-first core, architecture, evaluation, security, and adoption milestones.
 
 ### Changed

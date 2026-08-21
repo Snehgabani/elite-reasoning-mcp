@@ -22,6 +22,7 @@ from core.runtime import (
     SUPPORTED_TOOL_PROFILES,
     package_version,
     resolve_tool_profile,
+    runtime_identity,
 )
 from core.tools.error_boundary import smart_wrap
 
@@ -1332,6 +1333,14 @@ def main(argv: list[str] | None = None) -> int:
     )
     demo_parser = subcommands.add_parser("demo", help="Run an offline end-to-end core verification demo.")
     demo_parser.add_argument("--json", action="store_true", help="Emit machine-readable JSON.")
+    init_parser = subcommands.add_parser("init", help="Preview or install one IDE MCP configuration.")
+    init_parser.add_argument("--ide", required=True, help="Cursor, Claude Desktop, Windsurf, Zed, or Antigravity.")
+    init_parser.add_argument("--dry-run", action="store_true", help="Print the merged config without writing it.")
+    init_parser.add_argument("--yes", action="store_true", help="Confirm the atomic configuration write.")
+    init_parser.add_argument("--json", action="store_true", help="Emit machine-readable JSON.")
+    export_parser = subcommands.add_parser("export-evidence", help="Export redacted evidence for one workflow run.")
+    export_parser.add_argument("run_id", help="Persisted workflow run ID.")
+    export_parser.add_argument("--json", action="store_true", help="Emit machine-readable JSON.")
     upgrade_parser = subcommands.add_parser("upgrade", help="Upgrade the standalone package explicitly.")
     upgrade_parser.add_argument("--yes", action="store_true", help="Confirm the package-manager upgrade command.")
     upgrade_parser.add_argument("--dry-run", action="store_true", help="Print the upgrade command without running it.")
@@ -1351,7 +1360,49 @@ def main(argv: list[str] | None = None) -> int:
             return 2
         return subprocess.run(command, check=False).returncode
 
+    if args.command == "init":
+        from core.orchestration.ide_installer import IDEConfigError, MultiIDEInstaller
+
+        installer = MultiIDEInstaller(binary_path=runtime_identity()["entrypoint"])
+        try:
+            target = installer.target_for(args.ide)
+            if args.dry_run:
+                result = installer.preview_target(target)
+            elif args.yes:
+                result = installer.install_to_target(target)
+            else:
+                print("Refusing to modify IDE configuration without --yes. Use --dry-run to preview.", file=sys.stderr)
+                return 2
+        except IDEConfigError as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+        print(json.dumps(result, indent=2, sort_keys=True) if args.json or args.dry_run else f"Installed {result['ide']}: {result['path']}")
+        return 0
+
     server = create_mcp_server(args.brain_dir, tool_profile=args.tool_profile)
+    if args.command == "export-evidence":
+        store = getattr(server, "_elite_store")
+        run = store.get_workflow_run(args.run_id)
+        if run is None:
+            print("Workflow run was not found.", file=sys.stderr)
+            return 2
+        evidence = store.list_workflow_evidence(args.run_id, limit=200)
+        report = {
+            "schema_version": "1.0",
+            "run_id": args.run_id,
+            "workflow_status": run.get("status"),
+            "created_at": run.get("created_at"),
+            "updated_at": run.get("updated_at"),
+            "evidence_count": len(evidence),
+            "evidence": evidence,
+        }
+        if args.json:
+            print(json.dumps(report, indent=2, sort_keys=True))
+        else:
+            print(f"# Workflow Evidence: {args.run_id}\n\nStatus: `{report['workflow_status']}`\n\nEvidence records: {len(evidence)}")
+            for item in evidence:
+                print(f"- `{item['verification_status']}` {item['check_kind']} — `{item['id']}`")
+        return 0
     if args.command == "demo":
         report = asyncio.run(_run_demo(server))
         print(json.dumps(report, indent=2, sort_keys=True) if args.json else _demo_markdown(report))

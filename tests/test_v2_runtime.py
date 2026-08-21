@@ -6,6 +6,7 @@ from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
 from core.integration.mcp_server import main
+from core.memory.persistent_store import EliteStore
 from core.runtime import package_version, runtime_identity
 
 CORE_TOOLS = {
@@ -58,12 +59,50 @@ async def test_stdio_protocol_advertises_runtime_version_and_typed_errors(tmp_pa
     assert prepared.structuredContent["status"] == "ok"
 
 
-def test_cli_reports_version_doctor_and_safe_upgrade_preview(tmp_path, capsys):
+def test_cli_exports_redacted_typed_workflow_evidence(tmp_path, capsys):
+    brain = tmp_path / "brain"
+    store = EliteStore(str(brain))
+    store.record_workflow_run(
+        {"run_id": "wf_export", "user_prompt": "test", "intent": "build"},
+        [],
+    )
+    assert store.record_workflow_evidence(
+        "wf_export",
+        "tests",
+        {
+            "id": "ev_export",
+            "verification_status": "PASS",
+            "subject_digest": "sha256:subject",
+            "artifact_digest": "sha256:artifact",
+            "producer": "test",
+            "payload": {"executed": True},
+            "limitations": [],
+            "collected_at": "2026-08-22T00:00:00Z",
+        },
+    )
+
+    assert main(["--brain-dir", str(brain), "export-evidence", "wf_export", "--json"]) == 0
+    exported = json.loads(capsys.readouterr().out)
+    assert exported["run_id"] == "wf_export"
+    assert exported["evidence_count"] == 1
+    assert exported["evidence"][0]["id"] == "ev_export"
+
+
+def test_cli_reports_version_doctor_and_safe_upgrade_preview(tmp_path, capsys, monkeypatch):
     assert main(["--version"]) == 0
     assert capsys.readouterr().out.strip() == package_version()
 
     assert main(["upgrade", "--dry-run"]) == 0
     assert "upgrade elite-reasoning-mcp" in capsys.readouterr().out
+
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    assert main(["init", "--ide", "cursor"]) == 2
+    assert "without --yes" in capsys.readouterr().err
+    assert main(["init", "--ide", "cursor", "--dry-run"]) == 0
+    preview = json.loads(capsys.readouterr().out)
+    assert preview["status"] == "preview"
+    assert preview["config"]["mcpServers"]["elite-reasoning"]["args"] == []
+    assert not (tmp_path / "home/.cursor/mcp.json").exists()
 
     assert main(["--brain-dir", str(tmp_path / "brain"), "demo", "--json"]) == 0
     demo = json.loads(capsys.readouterr().out)
