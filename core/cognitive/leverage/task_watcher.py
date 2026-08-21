@@ -14,14 +14,14 @@ import time
 from datetime import datetime
 from typing import Any, Dict
 
-MIX_DIR = os.path.expanduser("~/.mix-mcp")
-TASKS_DIR = os.path.join(MIX_DIR, "tasks")
-STATUS_FILE = os.path.join(MIX_DIR, "live_status.json")
-LOG_FILE = os.path.join(MIX_DIR, "watcher.log")
-DB_PATH = os.path.join(MIX_DIR, "brain", "singularity.db")
+ELITE_DIR = os.environ.get("ELITE_BRAIN_DIR", os.path.expanduser("~/.elite-reasoning/brain"))
+TASKS_DIR = os.path.join(ELITE_DIR, "tasks")
+STATUS_FILE = os.path.join(ELITE_DIR, "live_status.json")
+LOG_FILE = os.path.join(ELITE_DIR, "watcher.log")
+DB_PATH = os.path.join(ELITE_DIR, "singularity.db")
 
 os.makedirs(TASKS_DIR, exist_ok=True)
-os.makedirs(os.path.join(MIX_DIR, "brain"), exist_ok=True)
+os.makedirs(ELITE_DIR, exist_ok=True)
 
 
 def notify_user(title: str, message: str, subtitle: str = ""):

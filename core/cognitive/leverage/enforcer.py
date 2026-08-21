@@ -18,7 +18,7 @@ class GatedEnforcer:
     """The Zero-Escape Enforcer: Physically prevents unauthorized file writes."""
 
     def __init__(self, brain_dir: Optional[str] = None):
-        self.brain_dir = brain_dir or os.path.expanduser("~/.mix-mcp/brain")
+        self.brain_dir = brain_dir or os.environ.get("ELITE_BRAIN_DIR", os.path.expanduser("~/.elite-reasoning/brain"))
         os.makedirs(self.brain_dir, exist_ok=True)
 
     def apply_diff(
