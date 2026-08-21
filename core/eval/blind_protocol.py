@@ -12,8 +12,10 @@ from __future__ import annotations
 
 import math
 import random
+import re
 from dataclasses import dataclass
 from typing import Any, Iterable, Literal, Sequence
+from urllib.parse import urlparse
 
 from core.reasoning.constraint_check import check_draft
 from core.reasoning.task_contract import compile_task_contract
@@ -292,7 +294,14 @@ def run_blind_suite(split: str = "holdout") -> dict[str, Any]:
     token_b = sum(int(row["tokens_baseline"]) for row in rows) or 1
     token_t = sum(int(row["tokens_treatment"]) for row in rows)
     # Built-in fixtures have no live web; citation delta is 0 unless drafts hallucinate URLs.
-    halluc_b = sum(1 for row in rows if "https://fake.example" in _case_baseline(row["case_id"]))
+    def _is_fake_url_present(text: str) -> bool:
+        for match in re.findall(r"https?://[^\s)>\]]+", text or ""):
+            parsed = urlparse(match)
+            if parsed.hostname == "fake.example" or parsed.netloc == "fake.example":
+                return True
+        return False
+
+    halluc_b = sum(1 for row in rows if _is_fake_url_present(_case_baseline(row["case_id"])))
     halluc_t = 0
     decision = ship_decision(
         following_delta=following_delta,
