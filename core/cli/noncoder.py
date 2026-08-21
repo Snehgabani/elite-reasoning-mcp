@@ -170,6 +170,75 @@ def format_prune_card(prompt: str, candidates: List[str]) -> str:
     return "\n".join(lines)
 
 
+def format_outline_card(file_path: str) -> str:
+    """Extracts typed interface outline and formats token reduction summary."""
+    from pathlib import Path
+    from core.search.symbol_indexer import extract_symbol_outline
+
+    path = Path(file_path)
+    if not path.exists():
+        return f"❌ Error: File `{file_path}` does not exist."
+
+    content = path.read_text(encoding="utf-8")
+    res = extract_symbol_outline(content, filename=path.name)
+
+    lines = [
+        "╔══════════════════════════════════════════════════════════════════════╗",
+        "║            ⚡ AST SYMBOL OUTLINE (TOKEN COMPRESSOR)                  ║",
+        "╚══════════════════════════════════════════════════════════════════════╝",
+        f"📄 File Path         : {file_path}",
+        f"📊 Raw Lines         : {res.total_raw_lines}",
+        f"✂️ Outline Lines     : {res.total_outline_lines}",
+        f"📉 Token Reduction   : {res.token_reduction_pct}% savings",
+        f"🏛️ Classes ({len(res.classes)}) / Functions ({len(res.functions)})",
+        "",
+        "📋 SKELETON INTERFACE (ZERO-BODY AST):",
+        "----------------------------------------------------------------------",
+        res.skeleton_code,
+        "══════════════════════════════════════════════════════════════════════",
+    ]
+    return "\n".join(lines)
+
+
+def format_callgraph_card(file_path: str, symbol: Optional[str] = None) -> str:
+    """Builds directional call graph and calculates blast radius impact."""
+    from pathlib import Path
+    from core.search.symbol_indexer import extract_call_graph
+
+    path = Path(file_path)
+    if not path.exists():
+        return f"❌ Error: File `{file_path}` does not exist."
+
+    content = path.read_text(encoding="utf-8")
+    cg = extract_call_graph(content, filename=path.name)
+
+    lines = [
+        "╔══════════════════════════════════════════════════════════════════════╗",
+        "║            🔍 DIRECTIONAL CALL GRAPH & BLAST RADIUS                  ║",
+        "╚══════════════════════════════════════════════════════════════════════╝",
+        f"📄 File Path        : {file_path}",
+        f"📊 Total Symbols    : {cg.total_symbols}",
+    ]
+
+    if symbol:
+        blast = cg.get_blast_radius(symbol)
+        node = cg.nodes.get(symbol)
+        lines.append(f"🎯 Target Symbol    : {symbol}")
+        lines.append(f"💥 Blast Radius ({len(blast)} callers) : {', '.join(blast) if blast else 'None (Leaf)'}")
+        if node:
+            lines.append(f"📞 Callees Called   : {', '.join(node.callees) if node.callees else 'None'}")
+    else:
+        lines.append("")
+        lines.append("📋 SYMBOL CALL GRAPH MAPPING:")
+        for sym_name, node in cg.nodes.items():
+            lines.append(f"  • {sym_name} (L{node.defined_at_line}):")
+            lines.append(f"      Calls   -> {', '.join(node.callees) if node.callees else '(none)'}")
+            lines.append(f"      CalledBy<- {', '.join(node.callers) if node.callers else '(none)'}")
+
+    lines.append("══════════════════════════════════════════════════════════════════════")
+    return "\n".join(lines)
+
+
 def main():
     parser = argparse.ArgumentParser(description="Elite Reasoning MCP Non-Coder Leverage Suite")
     subparsers = parser.add_subparsers(dest="command")
@@ -197,6 +266,17 @@ def main():
     prune_p.add_argument("--prompt", required=True, help="Original prompt or task requirement")
     prune_p.add_argument("--candidates", nargs="+", required=True, help="List of candidate draft codes or files")
 
+    # Outline command
+    outline_p = subparsers.add_parser(
+        "outline", help="Extract typed interface outline from Python file (90%+ token saving)"
+    )
+    outline_p.add_argument("file", help="Path to Python source file")
+
+    # Callgraph command
+    cg_p = subparsers.add_parser("callgraph", help="Extract directional call-graph and calculate blast radius")
+    cg_p.add_argument("file", help="Path to Python source file")
+    cg_p.add_argument("--symbol", help="Optional symbol name to calculate blast radius impact")
+
     # Install hooks command
     subparsers.add_parser("install-hooks", help="Install physical Git pre-commit barrier and IDE rules")
 
@@ -215,6 +295,10 @@ def main():
         print(format_diagnostic_card(args.error, args.code))
     elif args.command == "prune":
         print(format_prune_card(args.prompt, args.candidates))
+    elif args.command == "outline":
+        print(format_outline_card(args.file))
+    elif args.command == "callgraph":
+        print(format_callgraph_card(args.file, args.symbol))
     elif args.command == "install-hooks":
         from pathlib import Path
         from scripts.install_zero_escape_hooks import install_zero_escape_system

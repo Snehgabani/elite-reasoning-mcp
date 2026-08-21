@@ -45,3 +45,13 @@ def test_trusted_memory_quarantine_and_approval():
     # 6. Physical forget deletion
     assert svc.forget(unverified.id) is True
     assert len(svc.get_active_memories(project_id="proj_alpha")) == 1  # Only global left
+
+
+def test_trusted_memory_associative_recall():
+    svc = TrustedMemoryService()
+    svc.propose_lesson("PostgreSQL indexing strategy on user_id", scope=MemoryScope.GLOBAL, is_verified=True)
+    svc.propose_lesson("Redis caching for JWT tokens", scope=MemoryScope.GLOBAL, is_verified=True)
+
+    recalled = svc.associative_recall("PostgreSQL index", top_k=1)
+    assert len(recalled) == 1
+    assert "PostgreSQL" in recalled[0].content

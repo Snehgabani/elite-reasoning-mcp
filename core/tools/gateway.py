@@ -256,6 +256,8 @@ def register(mcp, store, profile) -> None:
             "cegis",
             "diagnostics",
             "types",
+            "outline",
+            "callgraph",
         ] = "doctor",
         query: Annotated[str, Field(max_length=2000)] = "",
         draft: Annotated[str, Field(max_length=20000)] = "",
@@ -319,7 +321,7 @@ def register(mcp, store, profile) -> None:
 
     @mcp.tool(name="elite_memory", annotations=_MEMORY_ANNOTATIONS)
     def elite_memory(
-        action: Literal["search", "remember", "approve", "forget"] = "search",
+        action: Literal["search", "remember", "approve", "forget", "associative"] = "search",
         query: Annotated[str, Field(max_length=2000)] = "",
         content: Annotated[str, Field(max_length=5000)] = "",
         memory_type: Annotated[str, Field(min_length=1, max_length=80)] = "fact",
@@ -375,7 +377,20 @@ def register(mcp, store, profile) -> None:
             if not store.delete_memory_item(memory_id):
                 raise validation_error(f"Memory item `{memory_id}` was not found.")
             return MemoryResult(action="forget", memory_id=memory_id, deleted=True)
-        raise validation_error("action must be search, remember, approve, or forget.")
+        if normalized_action == "associative":
+            from core.memory.hipporag import HippoRAGAssociativeEngine
+
+            engine = HippoRAGAssociativeEngine()
+            items = store.search_memory_items(query=query, scope=scope, limit=20, min_trust=0.3)
+            for item in items:
+                engine.add_node(
+                    str(item.get("id", "")),
+                    label=str(item.get("memory_type", "fact")),
+                    properties=item,
+                )
+            result = engine.associative_recall(query=query or content, top_k=8)
+            return MemoryResult(action="associative", items=[item.model_dump() for item in result.ranked_memories])
+        raise validation_error("action must be search, remember, approve, forget, or associative.")
 
     @mcp.tool(name="elite_admin", annotations=_ADMIN_ANNOTATIONS)
     def elite_admin(action: Literal["status", "privacy", "monitoring"] = "status") -> AdminResult:

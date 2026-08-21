@@ -58,6 +58,7 @@ def test_core_registry_has_one_inspectable_entry_per_public_check(tmp_path):
 
     registry = build_core_verifier_registry(_Store())
     assert registry.names() == (
+        "callgraph",
         "cegis",
         "constraints",
         "diagnostics",
@@ -65,6 +66,7 @@ def test_core_registry_has_one_inspectable_entry_per_public_check(tmp_path):
         "evidence",
         "grounding",
         "outcomes",
+        "outline",
         "syntax",
         "tests",
         "types",

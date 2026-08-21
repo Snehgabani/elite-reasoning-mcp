@@ -591,6 +591,52 @@ class DiagnosticVerifier:
         )
 
 
+class SymbolOutlineVerifier:
+    name = "outline"
+
+    async def verify(self, request: VerifierRequest, context: VerifierContext) -> VerificationExecution:
+        from core.search.symbol_indexer import extract_symbol_outline
+
+        target = request.code or request.draft
+        if not target.strip():
+            raise VerificationInputError("code or draft is required for check=outline.")
+        result = extract_symbol_outline(target, filename=request.query or "snippet.py")
+        data = result.model_dump(mode="json")
+        return VerificationExecution(
+            check=self.name,
+            status=VerificationStatus.NOT_CHECKED,
+            data=data,
+            subject_kind="source_outline",
+            subject=target,
+            producer="core.search.symbol_indexer.extract_symbol_outline",
+            evidence_payload={"symbol_count": len(data.get("symbols") or [])},
+            limitations=("Symbol extraction is analysis, not correctness verification.",),
+        )
+
+
+class CallGraphVerifier:
+    name = "callgraph"
+
+    async def verify(self, request: VerifierRequest, context: VerifierContext) -> VerificationExecution:
+        from core.search.symbol_indexer import extract_call_graph
+
+        target = request.code or request.draft
+        if not target.strip():
+            raise VerificationInputError("code or draft is required for check=callgraph.")
+        result = extract_call_graph(target, filename=request.query or "snippet.py")
+        data = result.model_dump(mode="json")
+        return VerificationExecution(
+            check=self.name,
+            status=VerificationStatus.NOT_CHECKED,
+            data=data,
+            subject_kind="source_callgraph",
+            subject=target,
+            producer="core.search.symbol_indexer.extract_call_graph",
+            evidence_payload={"edge_count": len(data.get("edges") or [])},
+            limitations=("Call-graph extraction is analysis, not runtime verification.",),
+        )
+
+
 class GroundingVerifier:
     name = "grounding"
 
@@ -642,6 +688,8 @@ def build_core_verifier_registry(store: Any) -> VerifierRegistry:
         CegisVerifier(),
         DiagnosticVerifier(),
         TypeVerifier(),
+        SymbolOutlineVerifier(),
+        CallGraphVerifier(),
         GroundingVerifier(),
     ):
         registry.register(verifier)

@@ -77,3 +77,29 @@ class TrustedMemoryService:
             del self._memories[memory_id]
             return True
         return False
+
+    def associative_recall(
+        self,
+        query: str,
+        project_id: Optional[str] = None,
+        top_k: int = 5,
+    ) -> List[TrustedMemory]:
+        """Performs HippoRAG 2 Personalized PageRank associative retrieval across active memories."""
+        from core.memory.hipporag import HippoRAGAssociativeEngine
+
+        active = self.get_active_memories(project_id=project_id)
+        if not active:
+            return []
+
+        engine = HippoRAGAssociativeEngine()
+        for mem in active:
+            engine.add_node(
+                mem.id,
+                label=mem.scope.value,
+                properties={"content": mem.content, "project_id": mem.project_id},
+                timestamp=mem.created_at,
+            )
+
+        res = engine.associative_recall(query=query, top_k=top_k)
+        retrieved_ids = {m.id for m in res.ranked_memories}
+        return [self._memories[mid] for mid in retrieved_ids if mid in self._memories]
