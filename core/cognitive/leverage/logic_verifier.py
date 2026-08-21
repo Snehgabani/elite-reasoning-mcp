@@ -93,6 +93,7 @@ def _txt(resp) -> str:
     return c if c else ((resp.additional_kwargs or {}).get("reasoning_content") or "")
 
 
+import os
 import asyncio
 import time
 
@@ -106,6 +107,10 @@ _CIRCUIT = _CircuitBreaker()
 
 
 async def _llm(messages, timeout_seconds: float = 0.35):
+    # Only invoke remote solver if explicitly enabled in environment
+    if os.getenv("ELITE_ENABLE_REMOTE_SOLVER", "false").lower() not in ("true", "1", "yes"):
+        return None
+
     now = time.time()
     if _CIRCUIT.is_open and (now - _CIRCUIT.last_check_time < 60.0):
         return None

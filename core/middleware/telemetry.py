@@ -1,6 +1,7 @@
 """Telemetry middleware: usage logging, latency budgets, periodic scans, cost tracking."""
 
 import logging
+import os
 
 from core.middleware.base import CallContext, CallResult, Middleware
 from core.privacy import telemetry_mode, telemetry_summary
@@ -52,8 +53,8 @@ class LatencyBudgetMiddleware(Middleware):
     name = "latency_budget"
     applies_to = "*"
 
-    def __init__(self, p99_ms: int = 2000):
-        self.p99_ms = p99_ms
+    def __init__(self, p99_ms: int = 5000):
+        self.p99_ms = int(os.environ.get("ELITE_LATENCY_BUDGET_MS", str(p99_ms)))
 
     async def after(self, ctx: CallContext, result: CallResult) -> CallResult:
         if result.duration_ms > self.p99_ms:
