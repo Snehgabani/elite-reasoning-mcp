@@ -7,11 +7,15 @@ Operates entirely in-process in <10MB RSS memory and <3.5ms latency.
 
 from __future__ import annotations
 
+import json
+import logging
 import math
 import sqlite3
 import time
 from typing import Any, Dict, List, Optional, Tuple
 from pydantic import BaseModel, Field
+
+logger = logging.getLogger(__name__)
 
 
 class AssociativeMemoryNode(BaseModel):
@@ -62,16 +66,16 @@ class HippoRAGAssociativeEngine:
         try:
             cur = conn.execute("SELECT id, label, properties, created_at FROM graph_nodes")
             for row in cur.fetchall():
-                import json
-
                 props = json.loads(row[2]) if row[2] else {}
                 self.add_node(row[0], row[1], props)
 
             cur = conn.execute("SELECT source_id, target_id, relation, valid_from FROM graph_edges")
             for row in cur.fetchall():
                 self.add_edge(row[0], row[1], row[2])
-        except Exception:
-            pass
+        except (sqlite3.OperationalError, sqlite3.DatabaseError, json.JSONDecodeError) as e:
+            logger.debug("Could not load nodes/edges from SQLite graph tables: %s", e)
+        except Exception as e:
+            logger.warning("Unexpected error loading HippoRAG graph from SQLite: %s", e)
 
     def associative_recall(
         self,
