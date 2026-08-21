@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Machine-validated public claims registry with a generated README evidence summary and release gate.
+- Source text, character spans, inferred/explicit provenance, verifier hints, and extraction confidence on compiled constraints.
+- Versioned task-contract payloads (`schema_version=1.1`) with backward-compatible persisted-contract loading.
 - Product hardening roadmap covering the evidence-first core, architecture, evaluation, security, and adoption milestones.
 
 ### Changed

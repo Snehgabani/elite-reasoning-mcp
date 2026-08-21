@@ -16,6 +16,33 @@ def test_contract_extracts_checkable_constraints_for_cheap_models():
     assert contract.max_tool_calls <= 4
 
 
+def test_explicit_constraints_retain_exact_source_spans_and_verifiers():
+    prompt = "Reply in JSON. At most 40 words. Do not mention tools. Must include pytest."
+    contract = compile_task_contract(prompt)
+
+    explicit = [item for item in contract.constraints if not item.inferred]
+    assert explicit
+    for item in explicit:
+        assert item.source_start >= 0
+        assert item.source_end > item.source_start
+        assert prompt[item.source_start : item.source_end] == item.source_text
+        assert item.verification_method != "draft"
+        assert 0.0 <= item.extraction_confidence <= 1.0
+
+    payload = contract.to_dict()
+    assert payload["schema_version"] == "1.1"
+    assert all("source_text" in item for item in payload["constraints"])
+
+
+def test_policy_constraints_are_marked_inferred_instead_of_user_authored():
+    contract = compile_task_contract("Research current MCP evidence and cite sources.")
+    citation = next(item for item in contract.constraints if item.kind == "cite_quotes")
+
+    assert citation.inferred is True
+    assert citation.verification_method == "quote_and_url"
+    assert citation.source_text.lower() in {"research", "current", "evidence", "cite", "sources"}
+
+
 def test_research_prompt_routes_to_evidence_and_cite_quotes():
     contract = compile_task_contract("Research MCP tool overhead and cite sources with URLs.")
 
