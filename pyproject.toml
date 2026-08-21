@@ -1,7 +1,7 @@
 [project]
 name = "elite-reasoning-mcp"
-version = "2.0.0"
-description = "Privacy-first, evidence-gated Model Context Protocol workflow gateway for AI coding agents: trusted memory, durable execution, local monitoring, and release verification."
+version = "2.2.0"
+description = "The Unified Cognitive Operating System for AI Coding Agents: 9-Stage Cognitive Loop, Process Reward Model (PRM), Deterministic AST Invariant Gates, Stanford STORM Deep Research, and Trusted Memory."
 readme = "README.md"
 requires-python = ">=3.11"
 license = {text = "MIT"}
@@ -21,6 +21,10 @@ keywords = [
     "llm",
     "agent-memory",
     "memory",
+    "process-reward-model",
+    "ast-gating",
+    "self-discover",
+    "storm-research",
     "workflow-automation",
     "workflow-recorder",
     "evals",
@@ -40,7 +44,7 @@ keywords = [
     "ai-tools",
 ]
 classifiers = [
-    "Development Status :: 4 - Beta",
+    "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
@@ -61,6 +65,13 @@ dependencies = [
     "fastapi>=0.136.3,<1",
     "uvicorn>=0.49.0,<1",
     "httpx>=0.28.1,<1",
+    "langchain>=0.3.0",
+    "langchain-core>=0.3.0",
+    "langchain-openai>=0.2.0",
+    "langgraph>=0.2.0",
+    "scipy>=1.11.0",
+    "networkx>=3.0",
+    "beautifulsoup4>=4.12.0",
 ]
 
 [project.urls]

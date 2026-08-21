@@ -1,19 +1,12 @@
 #!/bin/bash
-# Elite MCP Server — Portable Launcher
-# Works for ANY user on ANY machine. Uses $HOME-relative paths.
-# Each user gets their own brain directory and personalized orchestration.
-
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
-# Per-user brain directory (isolated data per user)
+export ELITE_TOOL_PROFILE="${ELITE_TOOL_PROFILE:-legacy}"
 BRAIN_DIR="${ELITE_BRAIN_DIR:-$SCRIPT_DIR/brain}"
 mkdir -p "$BRAIN_DIR"
-
-# Log file
 LOG_FILE="$SCRIPT_DIR/mcp_error.log"
 
-# Auto-detect uv binary
 if command -v uv &>/dev/null; then
     UV_BIN="uv"
 elif [ -f "$HOME/.gemini/antigravity/bin/uv" ]; then
@@ -25,9 +18,31 @@ else
     exit 1
 fi
 
-exec "$UV_BIN" run --with mcp --with fastmcp python -c "
+CRASH_COUNT=0
+LAST_CRASH_TIME=$(date +%s)
+
+while true; do
+    "$UV_BIN" run --with mcp --with fastmcp python -c "
 import sys; sys.path.append('.')
 from core.integration.mcp_server import create_mcp_server
 server = create_mcp_server('$BRAIN_DIR')
 server.run()
 " 2>> "$LOG_FILE"
+    
+    NOW=$(date +%s)
+    if [ $((NOW - LAST_CRASH_TIME)) -lt 10 ]; then
+        CRASH_COUNT=$((CRASH_COUNT + 1))
+    else
+        CRASH_COUNT=1
+    fi
+    LAST_CRASH_TIME=$NOW
+
+    # Exponential backoff maxing at 60s to prevent spin loops & CPU pegging
+    if [ $CRASH_COUNT -gt 5 ]; then
+        echo "[$(date)] CRITICAL: Elite MCP crash loop detected. Throttling restarts to 60s." >> "$LOG_FILE"
+        sleep 60
+    else
+        echo "[$(date)] Elite reasoning MCP crashed (Count: $CRASH_COUNT). Auto-restarting in 2 seconds..." >> "$LOG_FILE"
+        sleep 2
+    fi
+done

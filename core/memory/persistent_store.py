@@ -580,6 +580,66 @@ class EliteStore:
             )
         """)
 
+        # --- Cognitive Singularity: Reflexion Lessons ---
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS reflexion_lessons (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                fingerprint TEXT UNIQUE,
+                tool_name TEXT NOT NULL,
+                task TEXT NOT NULL,
+                detail TEXT NOT NULL,
+                trust_score REAL DEFAULT 0.8,
+                created_at TEXT NOT NULL,
+                ts_unix REAL NOT NULL
+            )
+        """)
+
+        # --- Cognitive Singularity: Task Watchdog Heartbeats ---
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS task_heartbeats (
+                task_id TEXT PRIMARY KEY,
+                task_name TEXT NOT NULL,
+                current_node TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'RUNNING',
+                progress_pct INTEGER DEFAULT 0,
+                prm_score REAL DEFAULT 1.0,
+                details TEXT DEFAULT '',
+                started_at REAL NOT NULL,
+                last_heartbeat REAL NOT NULL,
+                finished_at REAL
+            )
+        """)
+
+        # --- Cognitive Singularity: Proof of Work Log ---
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS proof_of_work_log (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                task_id TEXT NOT NULL UNIQUE,
+                verification_hash TEXT NOT NULL,
+                algorithm TEXT NOT NULL DEFAULT 'SHA-256',
+                prm_score REAL NOT NULL,
+                complexity INTEGER NOT NULL,
+                layers_executed INTEGER NOT NULL,
+                quality_score REAL NOT NULL,
+                timestamp_unix INTEGER NOT NULL,
+                created_at TEXT NOT NULL
+            )
+        """)
+
+        # --- Cognitive Singularity: Epistemic Claims ---
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS epistemic_claims (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                claim TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'UNVERIFIED',
+                sources_count INTEGER DEFAULT 0,
+                sources_json TEXT DEFAULT '[]',
+                confidence REAL NOT NULL DEFAULT 0.5,
+                verified_at TEXT,
+                created_at TEXT NOT NULL
+            )
+        """)
+
         # --- INDEXES (P0 fix: 0 indexes existed across 13 tables) ---
         index_stmts = [
             "CREATE INDEX IF NOT EXISTS idx_anti_patterns_created ON anti_patterns(created_at)",

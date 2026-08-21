@@ -113,14 +113,25 @@ def create_mcp_server(brain_dir: str, tool_profile: str | None = None) -> FastMC
             extra={"action": "legacy_tools_registered", "has_polisher": polisher_instance is not None},
         )
 
-        from core.tools.verb_tools import register_verb_tools
+        from core.tools import gateway
+        gateway.register(mcp, store, profile)
 
-        register_verb_tools(mcp, store)
+        from core.tools import verb_tools
+        verb_tools.register_verb_tools(mcp, store)
+
+        from core.tools import cognitive_tools
+        cognitive_tools.register(mcp, store, profile)
+
+        from core.cognitive.loop.core.server import _register_tools_safely
+        _register_tools_safely(mcp, store)
+        logger.info("Cognitive singularity tools registered (MIX MCP drop-in)")
     else:
         from core.tools import gateway
-
         gateway.register(mcp, store, profile)
-        logger.info("Core gateway tools registered", extra={"action": "core_tools_registered", "count": 5})
+
+        from core.tools import cognitive_tools
+        cognitive_tools.register(mcp, store, profile)
+        logger.info("Core gateway and cognitive tools registered", extra={"action": "core_tools_registered"})
 
     # ── Build Middleware Chain (Blueprint #3: replaces monkey-patch) ──
     # Opus R2: Correct order matters critically:

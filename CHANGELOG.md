@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.0] - 2026-08-21
+
+### Added
+- **Unified Cognitive Singularity**: Merged 100% of capabilities from `mix-mcp` into `elite-reasoning-mcp`, creating the single supreme cognitive architecture.
+- **42 Unified FastMCP Tools**: Added native drop-in support for `execute_mix`, `elite_reason`, `execute_singularity`, `prm_verify_step`, `compose_reasoning_topology`, `think_on_graph_search`, `verify_argument`, `expert_panel`, `repo_search`, `repo_impact_map`, `apply_reasoning_diff`, `fuzz_symbol`, `god_tier_reasoning`, `hard_reason`, `dual_process_route`, `self_rag_evaluate`, `skeleton_of_thought_generate`, `live_web_search`, `red_team_attack`, `epistemic_verify`, `triangulate_claim`, `deep_read`, `temporal_verify`, `devils_advocate`, `epistemic_research`, `verify_claims`, `deep_research_report`, `autonomous_research`, `candidate_search`, `verify_candidate`, `reflexion_fix`, `compile_skills`, `get_workspace_file`, `get_live_watcher_status`, and all Loop cognitive tools.
+- **Deterministic Zero-Escape AST Invariant Gates (`deterministic_gates.py`)**: Polyglot AST syntax parser (0ms LLM latency), OWASP static safety rules, math/logic invariant checks, and in-RAM spliced AST pre-flights.
+- **Physical Disk Write Barrier (`GatedEnforcer`)**: HMAC-SHA256 authenticated diff authorization and atomic filesystem write replacement.
+- **Process Reward Model (PRM)**: Integrated step-level reasoning verification enforcing mathematical consistency, AST syntax, and epistemic rigor.
+- **LangGraph 18-Node Closed-Loop StateGraph**: Closed-loop reasoning graph with $N=3$ deadlock bounds and automatic reflexion repair.
+- **Stanford STORM Deep Research Engine**: Automated cited research reports with Table of Contents, mental model exploration, and Hegelian Red-Team synthesis.
+- **Persistent SQLite Cognitive Tables**: Added `reflexion_lessons`, `task_heartbeats`, `proof_of_work_log`, and `epistemic_claims` to `elite.db`.
+
+### Changed
+- Elevated `elite-reasoning-mcp` to the permanent, universal AI pairing server across all IDEs (Antigravity, Cursor, Zed, VS Code, Hermes, Claude Code).
+- Updated Rule #0 compliance to route all cognitive tasks natively through the unified server.
+
 ## [2.0.0] - 2026-07-16
 
 ### Added
