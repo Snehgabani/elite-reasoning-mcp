@@ -107,7 +107,7 @@ all = [
 elite-reasoning-mcp = "core.integration.mcp_server:main"
 
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling>=1.26,<1.30"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
