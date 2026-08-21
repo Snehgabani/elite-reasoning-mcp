@@ -197,6 +197,9 @@ def main():
     prune_p.add_argument("--prompt", required=True, help="Original prompt or task requirement")
     prune_p.add_argument("--candidates", nargs="+", required=True, help="List of candidate draft codes or files")
 
+    # Install hooks command
+    subparsers.add_parser("install-hooks", help="Install physical Git pre-commit barrier and IDE rules")
+
     # Interactive mode
     subparsers.add_parser("interactive", help="Launch interactive step-by-step assistant")
 
@@ -212,6 +215,15 @@ def main():
         print(format_diagnostic_card(args.error, args.code))
     elif args.command == "prune":
         print(format_prune_card(args.prompt, args.candidates))
+    elif args.command == "install-hooks":
+        from pathlib import Path
+        from scripts.install_zero_escape_hooks import install_zero_escape_system
+
+        root = Path.cwd()
+        res = install_zero_escape_system(root)
+        print("🔒 Zero-Escape Multi-IDE & Physical Git Hooks Installed Successfully:")
+        for k, v in res.items():
+            print(f"  ✅ {k}: {'ACTIVE' if v else 'SKIPPED'}")
     elif args.command == "interactive" or len(sys.argv) == 1:
         print("=" * 70)
         print("🌟 Welcome to Elite Assistant (Zero-Code AI Verification & Leverage)")
