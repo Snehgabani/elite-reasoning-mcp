@@ -12,7 +12,9 @@
 
 <p align="center">
   <a href="https://github.com/Snehgabani/elite-reasoning-mcp/actions/workflows/ci.yml"><img src="https://github.com/Snehgabani/elite-reasoning-mcp/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/Snehgabani/elite-reasoning-mcp/actions/workflows/codeql.yml"><img src="https://github.com/Snehgabani/elite-reasoning-mcp/actions/workflows/codeql.yml/badge.svg" alt="CodeQL"></a>
   <a href="https://github.com/Snehgabani/elite-reasoning-mcp/actions/workflows/secret-scan.yml"><img src="https://github.com/Snehgabani/elite-reasoning-mcp/actions/workflows/secret-scan.yml/badge.svg" alt="Secret Scan"></a>
+  <a href="https://github.com/Snehgabani/elite-reasoning-mcp/actions/workflows/scorecard.yml"><img src="https://github.com/Snehgabani/elite-reasoning-mcp/actions/workflows/scorecard.yml/badge.svg" alt="OpenSSF Scorecard"></a>
   <a href="https://pypi.org/project/elite-reasoning-mcp/"><img src="https://img.shields.io/pypi/v/elite-reasoning-mcp?style=flat-square&color=blue" alt="PyPI"></a>
   <a href="https://pypi.org/project/elite-reasoning-mcp/"><img src="https://img.shields.io/pypi/dm/elite-reasoning-mcp?style=flat-square&color=green" alt="Downloads"></a>
   <a href="https://pypi.org/project/elite-reasoning-mcp/"><img src="https://img.shields.io/pypi/pyversions/elite-reasoning-mcp?style=flat-square" alt="Python"></a>
