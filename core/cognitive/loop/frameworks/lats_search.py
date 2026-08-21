@@ -36,6 +36,19 @@ class _Node:
     children: list["_Node"] = field(default_factory=list)
 
 
+def _to_dict(node: _Node | None) -> dict[str, Any]:
+    if node is None:
+        return {"id": 0, "parent_id": None, "depth": 0, "summary": "", "score": 0.0, "visits": 0}
+    return {
+        "id": node.id,
+        "parent_id": node.parent_id,
+        "depth": node.depth,
+        "summary": node.summary,
+        "score": node.score,
+        "visits": node.visits,
+    }
+
+
 def _ucb1(node: _Node, parent_visits: int, exploration: float) -> float:
     """Upper confidence bound: value estimate + exploration bonus. Standard
     LATS/tree-search selection criterion (Kocsis & Szepesvári UCT lineage)."""

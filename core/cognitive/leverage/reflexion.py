@@ -1,6 +1,7 @@
 # src/leverage/reflexion.py
-import asyncio
-from typing import Dict, Any, Optional
+import os
+from typing import Any, Dict
+
 
 class ReflexionReport:
     def __init__(self, failure_summary: str, root_cause_hypothesis: str, minimal_patch_plan: str, next_verification_command: str, lesson: str):
@@ -66,7 +67,7 @@ async def reflexion_repair(task: str, candidate_content: str, verifier_output: s
         with open(lesson_path, "a", encoding="utf-8") as f:
             f.write(f"\n- TASK: {task[:50]}\n  LESSON: {report.lesson}\n")
 
-    except Exception as e:
+    except Exception:
         # Suppress expected non-fatal exception
         pass
 

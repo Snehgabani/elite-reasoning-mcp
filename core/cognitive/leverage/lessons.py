@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 # src/leverage/lessons.py
 # REFLEXION PERSISTENT LESSON STORE (Shinn et al., arXiv:2303.11366).
 #
@@ -9,7 +10,6 @@ from __future__ import annotations
 # Note: tool_usage.jsonl only logs success booleans — root causes live in the
 # tool RESULT strings (failure_type / <reason>), so capture happens at the
 # tool boundary in mcp_server.py via LessonStore.record().
-
 import hashlib
 import json
 import re
@@ -32,7 +32,7 @@ def _now_iso() -> str:
 
 def fingerprint(tool: str, detail: str) -> str:
     norm = " ".join((detail or "").split())[:160].lower()
-    return hashlib.sha1(f"{tool}|{norm}".encode()).hexdigest()[:16]
+    return hashlib.sha256(f"{tool}|{norm}".encode()).hexdigest()[:16]
 
 
 class LessonStore:
@@ -50,7 +50,7 @@ class LessonStore:
                     continue
                 try:
                     rows.append(json.loads(line))
-                except Exception as e:
+                except Exception:
                     # Suppress expected non-fatal exception
                     pass
         except OSError:
