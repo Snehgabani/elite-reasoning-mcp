@@ -106,7 +106,9 @@ def build_doctor_report(store, profile=None, mcp=None) -> dict[str, Any]:
         ],
         "optional_vectors": [
             _module_available("sqlite_vec"),
-            _module_available("sentence_transformers"),
+            _module_available("fastembed")
+            if _module_available("fastembed")["available"]
+            else _module_available("sentence_transformers"),
         ],
         "optional_graph": [
             _module_available("langgraph"),
