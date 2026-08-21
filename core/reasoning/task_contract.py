@@ -30,7 +30,12 @@ NextAction = Literal["none", "evidence", "verify_constraints", "verify_tests"]
 
 @dataclass(frozen=True)
 class CheckableConstraint:
-    """One machine-checkable requirement extracted from the user prompt."""
+    """One machine-checkable requirement extracted from the user prompt.
+
+    Explicit constraints retain their exact source span. Constraints introduced
+    by product policy are marked inferred so clients can distinguish user text
+    from a conservative default.
+    """
 
     id: str
     kind: ConstraintKind
@@ -38,6 +43,12 @@ class CheckableConstraint:
     terms: tuple[str, ...] = ()
     value: int = 0
     pattern: str = ""
+    source_text: str = ""
+    source_start: int = -1
+    source_end: int = -1
+    inferred: bool = False
+    verification_method: str = "draft"
+    extraction_confidence: float = 1.0
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -57,6 +68,7 @@ class TaskContract:
     budget_tier: str
     max_tool_calls: int
     complexity: int
+    schema_version: str = "1.1"
 
     def to_dict(self) -> dict[str, Any]:
         data = asdict(self)
@@ -123,64 +135,93 @@ def _complexity(prompt: str) -> int:
     return max(1, min(score, 5))
 
 
-def _extract_files(prompt: str) -> tuple[str, ...]:
-    found = re.findall(
-        r"(?:files?:\s*|only\s+|in\s+)([\w./-]+\.(?:py|ts|js|tsx|jsx|md|toml|yml|yaml|json))", prompt, flags=re.I
-    )
-    found += re.findall(r"`([\w./-]+\.(?:py|ts|js|tsx|jsx|md|toml|yml|yaml|json))`", prompt)
+@dataclass(frozen=True)
+class _SourceMatch:
+    value: str
+    source_text: str
+    start: int
+    end: int
+
+
+def _first_match(prompt: str, pattern: str, *, group: int = 0) -> _SourceMatch | None:
+    match = re.search(pattern, prompt, flags=re.I)
+    if match is None:
+        return None
+    value = _clean(match.group(group)).rstrip(".")
+    return _SourceMatch(value=value, source_text=match.group(0), start=match.start(), end=match.end())
+
+
+def _clause_matches(prompt: str, pattern: str) -> tuple[_SourceMatch, ...]:
+    matches: list[_SourceMatch] = []
+    seen: set[str] = set()
+    for match in re.finditer(pattern, prompt, flags=re.I):
+        value = _clean(match.group(1)).rstrip(".")
+        normalized = value.lower()
+        if not value or normalized in seen:
+            continue
+        seen.add(normalized)
+        matches.append(_SourceMatch(value, match.group(0), match.start(), match.end()))
+        if len(matches) == 6:
+            break
+    return tuple(matches)
+
+
+def _extract_files(prompt: str) -> tuple[tuple[str, ...], _SourceMatch | None]:
+    pattern = r"(?:files?:\s*|only\s+|in\s+)([\w./-]+\.(?:py|ts|js|tsx|jsx|md|toml|yml|yaml|json))"
+    matches = list(re.finditer(pattern, prompt, flags=re.I))
+    matches += list(re.finditer(r"`([\w./-]+\.(?:py|ts|js|tsx|jsx|md|toml|yml|yaml|json))`", prompt, flags=re.I))
+    matches.sort(key=lambda item: item.start())
     seen: list[str] = []
-    for item in found:
+    selected = []
+    for match in matches:
+        item = match.group(1)
         if item not in seen:
             seen.append(item)
-    return tuple(seen[:6])
+            selected.append(match)
+        if len(seen) == 6:
+            break
+    if not selected:
+        return (), None
+    start = min(item.start() for item in selected)
+    end = max(item.end() for item in selected)
+    return tuple(seen), _SourceMatch(", ".join(seen), prompt[start:end], start, end)
 
 
-def _max_words(prompt: str) -> int:
-    match = re.search(r"(?:at most|no more than|≤|<=)\s*(\d+)\s+words", prompt, flags=re.I)
+def _max_words(prompt: str) -> tuple[int, _SourceMatch | None]:
+    match = _first_match(prompt, r"(?:at most|no more than|≤|<=)\s*(\d+)\s+words", group=1)
     if match:
-        return max(1, min(int(match.group(1)), 2000))
-    return 0
+        return max(1, min(int(match.value), 2000)), match
+    return 0, None
 
 
-def _negations(prompt: str) -> tuple[str, ...]:
-    lines = re.findall(
-        r"(?:do not|don't|dont|never|without|avoid)\s+([^.;\n]{3,80})",
-        prompt,
-        flags=re.I,
-    )
-    cleaned = []
-    for line in lines:
-        item = _clean(line).rstrip(".")
-        if item and item.lower() not in {c.lower() for c in cleaned}:
-            cleaned.append(item)
-    return tuple(cleaned[:6])
+def _negations(prompt: str) -> tuple[_SourceMatch, ...]:
+    return _clause_matches(prompt, r"(?:do not|don't|dont|never|without|avoid)\s+([^.;\n]{3,80})")
 
 
-def _must_phrases(prompt: str) -> tuple[str, ...]:
-    lines = re.findall(
-        r"(?:must|need to|needed|required to|have to)\s+([^.;\n]{3,80})",
-        prompt,
-        flags=re.I,
-    )
-    cleaned = []
-    for line in lines:
-        item = _clean(line).rstrip(".")
-        if item and item.lower() not in {c.lower() for c in cleaned}:
-            cleaned.append(item)
-    return tuple(cleaned[:6])
+def _must_phrases(prompt: str) -> tuple[_SourceMatch, ...]:
+    return _clause_matches(prompt, r"(?:must|need to|needed|required to|have to)\s+([^.;\n]{3,80})")
 
 
-def _detect_format(prompt: str) -> str:
-    lower = prompt.lower()
+def _detect_format(prompt: str) -> tuple[str, _SourceMatch | None]:
     for needle, label in _FORMAT_HINTS.items():
-        if needle in lower:
-            return label
-    return ""
+        match = _first_match(prompt, rf"\b{re.escape(needle)}\b")
+        if match:
+            return label, match
+    return "", None
+
+
+def _hint_match(prompt: str, hints: tuple[str, ...]) -> _SourceMatch | None:
+    for hint in hints:
+        match = _first_match(prompt, re.escape(hint))
+        if match:
+            return match
+    return None
 
 
 def compile_task_contract(prompt: str, complexity: int = 0) -> TaskContract:
-    """Turn a user prompt into a short, checkable contract."""
-    cleaned = _clean(prompt)
+    """Turn a user prompt into a short, source-linked checkable contract."""
+    source_prompt = prompt or ""
+    cleaned = _clean(source_prompt)
     if not cleaned:
         raise ValueError("prompt is required")
 
@@ -190,33 +231,43 @@ def compile_task_contract(prompt: str, complexity: int = 0) -> TaskContract:
     lower = cleaned.lower()
     is_code = any(term in lower for term in _CODE_HINTS)
     is_research = any(term in lower for term in _RESEARCH_HINTS)
-    files = _extract_files(cleaned)
-    word_cap = _max_words(cleaned)
-    fmt = _detect_format(cleaned)
-    must = _must_phrases(cleaned)
-    banned = _negations(cleaned)
+    files, files_source = _extract_files(source_prompt)
+    word_cap, word_source = _max_words(source_prompt)
+    fmt, format_source = _detect_format(source_prompt)
+    must = _must_phrases(source_prompt)
+    banned = _negations(source_prompt)
 
     constraints: list[CheckableConstraint] = []
 
-    for index, phrase in enumerate(must, 1):
-        terms = tuple(token for token in re.findall(r"[A-Za-z0-9_+.-]{4,}", phrase)[:6])
+    for index, match in enumerate(must, 1):
+        terms = tuple(token for token in re.findall(r"[A-Za-z0-9_+.-]{4,}", match.value)[:6])
         constraints.append(
             CheckableConstraint(
                 id=f"must_{index}",
                 kind="must_include",
-                description=f"Satisfy: {phrase}",
-                terms=terms or (phrase[:40],),
+                description=f"Satisfy: {match.value}",
+                terms=terms or (match.value[:40],),
+                source_text=match.source_text,
+                source_start=match.start,
+                source_end=match.end,
+                verification_method="draft_terms",
+                extraction_confidence=0.9,
             )
         )
 
-    for index, phrase in enumerate(banned, 1):
-        terms = tuple(token for token in re.findall(r"[A-Za-z0-9_+.-]{4,}", phrase)[:6])
+    for index, match in enumerate(banned, 1):
+        terms = tuple(token for token in re.findall(r"[A-Za-z0-9_+.-]{4,}", match.value)[:6])
         constraints.append(
             CheckableConstraint(
                 id=f"not_{index}",
                 kind="must_not",
-                description=f"Do not: {phrase}",
-                terms=terms or (phrase[:40],),
+                description=f"Do not: {match.value}",
+                terms=terms or (match.value[:40],),
+                source_text=match.source_text,
+                source_start=match.start,
+                source_end=match.end,
+                verification_method="draft_terms",
+                extraction_confidence=0.9,
             )
         )
 
@@ -227,6 +278,10 @@ def compile_task_contract(prompt: str, complexity: int = 0) -> TaskContract:
                 kind="max_words",
                 description=f"Keep the answer to at most {word_cap} words.",
                 value=word_cap,
+                source_text=word_source.source_text if word_source else "",
+                source_start=word_source.start if word_source else -1,
+                source_end=word_source.end if word_source else -1,
+                verification_method="word_count",
             )
         )
 
@@ -237,6 +292,11 @@ def compile_task_contract(prompt: str, complexity: int = 0) -> TaskContract:
                 kind="format",
                 description=f"Use {fmt} as the primary output format.",
                 pattern=fmt,
+                source_text=format_source.source_text if format_source else "",
+                source_start=format_source.start if format_source else -1,
+                source_end=format_source.end if format_source else -1,
+                verification_method="output_format",
+                extraction_confidence=0.9,
             )
         )
 
@@ -247,24 +307,43 @@ def compile_task_contract(prompt: str, complexity: int = 0) -> TaskContract:
                 kind="scope_files",
                 description="Touch only these files: " + ", ".join(files),
                 terms=files,
+                source_text=files_source.source_text if files_source else "",
+                source_start=files_source.start if files_source else -1,
+                source_end=files_source.end if files_source else -1,
+                verification_method="git_diff",
+                extraction_confidence=0.85,
             )
         )
 
     if is_research:
+        research_source = _hint_match(source_prompt, _RESEARCH_HINTS)
         constraints.append(
             CheckableConstraint(
                 id="cite_quotes",
                 kind="cite_quotes",
                 description="Ground factual claims in verbatim quotes with URLs. No quote, no citation.",
+                source_text=research_source.source_text if research_source else "",
+                source_start=research_source.start if research_source else -1,
+                source_end=research_source.end if research_source else -1,
+                inferred=True,
+                verification_method="quote_and_url",
+                extraction_confidence=0.75,
             )
         )
 
     if is_code and any(term in lower for term in ("test", "pytest", "validate", "ruff")):
+        test_source = _hint_match(source_prompt, ("test", "pytest", "validate", "ruff"))
         constraints.append(
             CheckableConstraint(
                 id="run_tests",
                 kind="run_tests",
                 description="Do not claim completion until allowlisted tests/lint have a passing log.",
+                source_text=test_source.source_text if test_source else "",
+                source_start=test_source.start if test_source else -1,
+                source_end=test_source.end if test_source else -1,
+                inferred=True,
+                verification_method="test_evidence",
+                extraction_confidence=0.8,
             )
         )
 
@@ -274,6 +353,9 @@ def compile_task_contract(prompt: str, complexity: int = 0) -> TaskContract:
                 id="direct",
                 kind="answer_directly",
                 description="Answer directly. Do not call tools.",
+                inferred=True,
+                verification_method="draft_shape",
+                extraction_confidence=0.7,
             )
         )
 
@@ -285,6 +367,12 @@ def compile_task_contract(prompt: str, complexity: int = 0) -> TaskContract:
                 kind="must_include",
                 description="Address the stated goal directly.",
                 terms=tuple(token for token in cleaned.split()[:4] if len(token) > 3),
+                source_text=source_prompt,
+                source_start=0,
+                source_end=len(source_prompt),
+                inferred=True,
+                verification_method="draft_terms",
+                extraction_confidence=0.5,
             )
         )
 
@@ -294,7 +382,7 @@ def compile_task_contract(prompt: str, complexity: int = 0) -> TaskContract:
         evidence = ("Primary-source quotes from live pages.",)
     elif is_code:
         deliverable = "Minimal patch or code plus a validation log"
-        next_action = "none"
+        next_action = "verify_tests" if any(item.kind == "run_tests" for item in constraints) else "none"
         evidence = ("Targeted test or lint output.",)
     else:
         deliverable = "Direct answer that satisfies every constraint"
@@ -314,7 +402,7 @@ def compile_task_contract(prompt: str, complexity: int = 0) -> TaskContract:
         "Do not invent citations, quality scores, or SUCCESS JSON in place of the answer.",
         "Do not expand scope beyond the goal.",
     ]
-    do_not.extend(f"Do not {item}" for item in banned[:3])
+    do_not.extend(f"Do not {item.value}" for item in banned[:3])
 
     return TaskContract(
         goal=breakdown.user_goal,
@@ -361,6 +449,12 @@ def contract_from_dict(raw: dict[str, Any], fallback_prompt: str = "") -> TaskCo
                 terms=tuple(item.get("terms") or ()),
                 value=int(item.get("value") or 0),
                 pattern=str(item.get("pattern") or ""),
+                source_text=str(item.get("source_text") or ""),
+                source_start=int(item.get("source_start", -1)),
+                source_end=int(item.get("source_end", -1)),
+                inferred=bool(item.get("inferred", False)),
+                verification_method=str(item.get("verification_method") or "draft"),
+                extraction_confidence=float(item.get("extraction_confidence", 1.0)),
             )
         )
     if not constraints:

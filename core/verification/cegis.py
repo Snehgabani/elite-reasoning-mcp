@@ -69,5 +69,5 @@ class CEGISPropertyVerifier(BaseVerifier):
             requirement_id=requirement.id,
             verifier=self.name,
             status=VerificationStatus.PASS,
-            reason="CEGIS Property Fuzzing: Passed 50 synthesized boundary edge-case invariant checks",
+            reason="No unguarded index-zero access was found by the covered static boundary invariant",
         )

@@ -16,7 +16,7 @@ from core.verification.registry import VerifierRegistry, GLOBAL_VERIFIER_REGISTR
 
 
 class AgentArchetype(str, Enum):
-    LAZY_AMNESIAC = "lazy_amnesiac"  # Calls elite_reason once, forgets mid-turn tools
+    LAZY_AMNESIAC = "lazy_amnesiac"  # Calls elite_prepare once, forgets continuation checkpoints
     HALLUCINATING = "hallucinating"  # Claims tests passed without running them
     STEP_LOCKED_ELITE = "step_locked_elite"  # Follows all 3 checkpoints deterministically
 
@@ -67,8 +67,8 @@ class AgentSimulationEnvironment:
             TrajectoryStep(
                 step_index=step_idx,
                 action_type="tool_call",
-                tool_name="elite_reason",
-                tool_arguments={"task": prompt},
+                tool_name="elite_prepare",
+                tool_arguments={"user_prompt": prompt, "persist": True},
                 output_summary=f"Compiled contract with {len(contract.requirements)} requirements",
                 is_compliant=True,
             )

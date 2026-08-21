@@ -23,6 +23,11 @@ import logging
 logger = logging.getLogger(__name__)
 
 from core.memory.graph_store import TemporalGraphStore  # noqa: E402
+from core.persistence.database import (  # noqa: E402
+    CURRENT_SCHEMA_VERSION,
+    create_migration_backup,
+    restore_migration_backup,
+)
 from core.privacy import (  # noqa: E402
     metadata_fingerprint,
     prompt_storage_value,
@@ -44,6 +49,7 @@ class EliteStore:
         self.db_path = os.path.join(brain_dir, "elite.db")
         self._local = threading.local()
         os.makedirs(brain_dir, exist_ok=True)
+        migration_backup = create_migration_backup(self.db_path)
 
         # P1: Use ThreadLocalPool for connection management
         # Falls back to direct connection if pool module unavailable
@@ -56,7 +62,14 @@ class EliteStore:
             self._pool = None
             self._use_pool = False
 
-        self._init_db()
+        try:
+            self._init_db()
+        except Exception:
+            if self._pool is not None:
+                self._pool.close_all()
+            if migration_backup is not None:
+                restore_migration_backup(self.db_path, migration_backup)
+            raise
         self.graph = TemporalGraphStore(self.db_path)  # Same DB — single transaction boundary
 
     def _connect(self) -> sqlite3.Connection:
@@ -564,6 +577,23 @@ class EliteStore:
                 FOREIGN KEY(run_id) REFERENCES workflow_runs(run_id) ON DELETE CASCADE
             )
         """)
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS workflow_evidence (
+                evidence_id TEXT NOT NULL,
+                run_id TEXT NOT NULL,
+                check_kind TEXT NOT NULL,
+                verification_status TEXT NOT NULL,
+                subject_digest TEXT NOT NULL,
+                artifact_digest TEXT NOT NULL,
+                producer TEXT NOT NULL,
+                payload TEXT NOT NULL DEFAULT '{}',
+                limitations TEXT NOT NULL DEFAULT '[]',
+                collected_at TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                PRIMARY KEY(run_id, evidence_id),
+                FOREIGN KEY(run_id) REFERENCES workflow_runs(run_id) ON DELETE CASCADE
+            )
+        """)
 
         # --- Quality-Gated Memory Items (selective, scoped long-term context) ---
         c.execute("""
@@ -684,6 +714,7 @@ class EliteStore:
             "CREATE INDEX IF NOT EXISTS idx_workflow_runs_created ON workflow_runs(created_at)",
             "CREATE INDEX IF NOT EXISTS idx_workflow_runs_status ON workflow_runs(status, created_at)",
             "CREATE INDEX IF NOT EXISTS idx_workflow_steps_run ON workflow_steps(run_id, step_index)",
+            "CREATE INDEX IF NOT EXISTS idx_workflow_evidence_run ON workflow_evidence(run_id, check_kind, created_at)",
             "CREATE INDEX IF NOT EXISTS idx_memory_items_lookup ON memory_items(scope, memory_type, trust_score)",
             "CREATE INDEX IF NOT EXISTS idx_memory_items_quarantine ON memory_items(quarantined, trust_score)",
             "CREATE INDEX IF NOT EXISTS idx_memory_items_hash ON memory_items(content_hash)",
@@ -734,6 +765,8 @@ class EliteStore:
         # --- Privacy retention migration (v6) ---
         self._run_privacy_migration(c)
 
+        c.execute("INSERT OR IGNORE INTO schema_migrations (version) VALUES (?)", (CURRENT_SCHEMA_VERSION,))
+        conn.commit()
         self._close(conn)
 
     def _run_trigger_migration(self, cursor):
@@ -1788,8 +1821,31 @@ class EliteStore:
             (cutoff,),
         )
         invocation_count, average_latency_ms, max_latency_ms = c.fetchone()
-        c.execute("SELECT status, COUNT(*) FROM workflow_runs GROUP BY status")
+        c.execute("SELECT status, COUNT(*) FROM workflow_runs WHERE created_at >= ? GROUP BY status", (cutoff,))
         workflow_statuses = {row[0]: row[1] for row in c.fetchall()}
+        c.execute("SELECT COUNT(*) FROM workflow_runs WHERE created_at >= ?", (cutoff,))
+        workflow_count = int(c.fetchone()[0] or 0)
+        c.execute(
+            """SELECT COUNT(*) FROM workflow_runs r WHERE r.created_at >= ?
+               AND NOT EXISTS (SELECT 1 FROM workflow_evidence e WHERE e.run_id = r.run_id)""",
+            (cutoff,),
+        )
+        prepare_only = int(c.fetchone()[0] or 0)
+        c.execute(
+            """SELECT COUNT(DISTINCT r.run_id) FROM workflow_runs r
+               JOIN workflow_evidence e ON e.run_id = r.run_id
+               WHERE r.created_at >= ? AND e.check_kind IN ('syntax', 'diff', 'tests')""",
+            (cutoff,),
+        )
+        mid_work_runs = int(c.fetchone()[0] or 0)
+        c.execute(
+            """SELECT COUNT(DISTINCT r.run_id) FROM workflow_runs r
+               JOIN workflow_evidence e ON e.run_id = r.run_id
+               WHERE r.created_at >= ? AND e.check_kind = 'outcomes'
+               AND e.verification_status = 'PASS'""",
+            (cutoff,),
+        )
+        verified_complete_runs = int(c.fetchone()[0] or 0)
         c.execute("SELECT quarantined, COUNT(*) FROM memory_items GROUP BY quarantined")
         memory_counts = {"trusted": 0, "quarantined": 0}
         for quarantined, count in c.fetchall():
@@ -1802,6 +1858,17 @@ class EliteStore:
             "average_latency_ms": round(float(average_latency_ms or 0), 2),
             "max_latency_ms": int(max_latency_ms or 0),
             "workflow_statuses": workflow_statuses,
+            "continuity": {
+                "workflow_runs": workflow_count,
+                "prepare_only_runs": prepare_only,
+                "runs_with_mid_work_checks": mid_work_runs,
+                "verified_complete_runs": verified_complete_runs,
+                "post_prepare_continuation_rate": round(
+                    (workflow_count - prepare_only) / workflow_count, 3
+                )
+                if workflow_count
+                else None,
+            },
             "memory_items": memory_counts,
         }
 
@@ -1814,7 +1881,10 @@ class EliteStore:
         evidence = json.dumps(run.get("evidence_requirements", []))
         validation = json.dumps(run.get("validation_gates", []))
         memory_context = json.dumps(run.get("memory_context", []))
-        task_contract = json.dumps(run.get("task_contract") or {})
+        # Contracts contain source spans and extracted terms from the prompt.
+        # Preserve the structured contract while redacting secret-like values
+        # before they cross the persistence boundary.
+        task_contract = redact_text(json.dumps(run.get("task_contract") or {}), limit=1_000_000)
 
         with self.transaction():
             conn = self._connect()
@@ -1929,6 +1999,95 @@ class EliteStore:
             "task_contract": _load_object(row[12] if len(row) > 12 else "{}"),
             "steps": steps,
         }
+
+    def record_workflow_evidence(self, run_id: str, check_kind: str, evidence: dict) -> bool:
+        """Persist one content-addressed verification record for a workflow."""
+        if not run_id or not isinstance(evidence, dict):
+            return False
+        evidence_id = str(evidence.get("id") or "")
+        if not evidence_id:
+            return False
+        conn = self._connect()
+        c = conn.cursor()
+        c.execute("SELECT 1 FROM workflow_runs WHERE run_id = ?", (run_id,))
+        if c.fetchone() is None:
+            if not getattr(self._local, "in_transaction", False):
+                self._close(conn)
+            return False
+        now = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
+        safe_payload = redact_text(json.dumps(evidence.get("payload") or {}, sort_keys=True), limit=10000)
+        safe_limitations = redact_text(json.dumps(evidence.get("limitations") or []), limit=4000)
+        c.execute(
+            """INSERT OR REPLACE INTO workflow_evidence
+               (evidence_id, run_id, check_kind, verification_status, subject_digest,
+                artifact_digest, producer, payload, limitations, collected_at, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                evidence_id,
+                run_id,
+                str(check_kind),
+                str(evidence.get("verification_status") or "NOT_CHECKED"),
+                str(evidence.get("subject_digest") or ""),
+                str(evidence.get("artifact_digest") or ""),
+                str(evidence.get("producer") or "unknown"),
+                safe_payload,
+                safe_limitations,
+                str(evidence.get("collected_at") or now),
+                now,
+            ),
+        )
+        changed = c.rowcount > 0
+        if not getattr(self._local, "in_transaction", False):
+            conn.commit()
+            self._close(conn)
+        return changed
+
+    def list_workflow_evidence(self, run_id: str, check_kind: str = "", limit: int = 50) -> list[dict]:
+        """Return recent typed evidence for one workflow without raw checked content."""
+        conn = self._connect()
+        c = conn.cursor()
+        bounded = max(1, min(int(limit or 50), 200))
+        if check_kind:
+            c.execute(
+                """SELECT evidence_id, check_kind, verification_status, subject_digest,
+                          artifact_digest, producer, payload, limitations, collected_at, created_at
+                   FROM workflow_evidence WHERE run_id = ? AND check_kind = ?
+                   ORDER BY created_at DESC, rowid DESC LIMIT ?""",
+                (run_id, check_kind, bounded),
+            )
+        else:
+            c.execute(
+                """SELECT evidence_id, check_kind, verification_status, subject_digest,
+                          artifact_digest, producer, payload, limitations, collected_at, created_at
+                   FROM workflow_evidence WHERE run_id = ?
+                   ORDER BY created_at DESC, rowid DESC LIMIT ?""",
+                (run_id, bounded),
+            )
+        rows = c.fetchall()
+        if not getattr(self._local, "in_transaction", False):
+            self._close(conn)
+
+        def _json(value: object, fallback: object) -> object:
+            try:
+                return json.loads(str(value or ""))
+            except (TypeError, json.JSONDecodeError):
+                return fallback
+
+        return [
+            {
+                "id": row[0],
+                "check_kind": row[1],
+                "verification_status": row[2],
+                "subject_digest": row[3],
+                "artifact_digest": row[4],
+                "producer": row[5],
+                "payload": _json(row[6], {}),
+                "limitations": _json(row[7], []),
+                "collected_at": row[8],
+                "created_at": row[9],
+            }
+            for row in rows
+        ]
 
     def list_workflow_runs(self, limit: int = 20, status: str = "") -> list[dict]:
         """List recent workflow runs for release/eval audit trails."""

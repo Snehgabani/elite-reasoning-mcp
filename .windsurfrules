@@ -1,35 +1,12 @@
-# ⚡ MANDATORY RULE #0 — ZERO-ESCAPE CONTINUOUS ELITE REASONING LIFECYCLE
+# Elite Reasoning MCP — Continuous Checkpoint Protocol
 
-## 🔒 3-Checkpoint Step-Locked Invariant (Mandatory on EVERY coding task):
+On each non-trivial coding request, call `elite_prepare(..., persist=true)` and retain the returned `run_id`.
 
-### 🚩 Checkpoint 1 (Start of Turn — PRE-EDIT):
-Your VERY FIRST tool call on every message MUST be:
-```json
-call_mcp_tool(
-  ServerName="elite-reasoning-mcp",
-  ToolName="elite_reason",
-  Arguments={
-    "task": "<the user's exact request and current objective>",
-    "task_type": "hard_problem",
-    "enable_prm": true,
-    "enable_bias_scan": true
-  }
-)
-```
+After every Elite call, follow its `continuation` object:
+- If `stop_final_response=true`, do not answer the user.
+- Call `required_tool` with `required_args`, replacing placeholders with current values.
+- Continue through mid-edit syntax, Git scope, executed tests, and final outcomes.
+- Repair `FAIL`, `UNKNOWN`, `NOT_CHECKED`, `REPEAT`, and stale evidence, then follow the next directive.
+- Answer only at checkpoint `done` with `stop_final_response=false`.
 
-### 🚩 Checkpoint 2 (Mid-Turn — NATIVE TOOL INTERLOCK):
-You are strictly prohibited from calling native file edit tools without immediately executing their coupled MCP verifiers:
-- **IF YOU CALL** `replace_file_content`, `write_to_file`, or `apply_reasoning_diff`:
-  -> **YOUR VERY NEXT TOOL CALL MUST BE**: `elite_verify(check="syntax", code="...")` and `elite_verify(check="cegis", code="...")`.
-- **IF AN ERROR/EXCEPTION OCCURS**:
-  -> **YOUR VERY NEXT TOOL CALL MUST BE**: `elite_verify(check="diagnostics", query="<traceback>")`.
-
-### 🚩 Checkpoint 3 (End of Turn — POST-EDIT TEST RECEIPT):
-Before delivering your final text response to the user, you MUST:
-- Run test commands via `elite_verify(check="tests", command="pytest ...")` or execute in terminal.
-- Include a structured verification receipt in your response showing passed invariants.
-
-## 📋 EXECUTION PLAYBOOK ADHERENCE
-When `elite_reason` returns an `execution_playbook`, you MUST execute each step in the playbook sequentially using its exact `call_template`. You are strictly forbidden from jumping to conclusion without executing the intermediate MCP tool calls (Minimum MCP Tool Density >= 50%).
-
-🚫 FORBIDDEN: Generating code and replying directly without Checkpoint 2 and Checkpoint 3 verification. Physical Git pre-commit barriers will reject unverified commits.
+MCP cannot force the host to call again. This IDE rule plus persisted evidence gates and optional Git hooks is layered mitigation, not an absolute guarantee.

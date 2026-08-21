@@ -1,4 +1,5 @@
 import argparse
+import asyncio
 import json
 import os
 import shlex
@@ -6,6 +7,7 @@ import shutil
 import subprocess
 import sys
 import uuid
+from typing import Any
 
 try:
     from mcp.server.fastmcp import FastMCP
@@ -20,6 +22,7 @@ from core.runtime import (
     SUPPORTED_TOOL_PROFILES,
     package_version,
     resolve_tool_profile,
+    runtime_identity,
 )
 from core.tools.error_boundary import smart_wrap
 
@@ -51,8 +54,11 @@ def create_mcp_server(brain_dir: str, tool_profile: str | None = None) -> FastMC
     mcp = FastMCP(
         "EliteReasoning",
         instructions=(
-            "Checkable task contracts, quote-grounded web evidence, and local verification "
-            "for coding agents. This server does not generate the user's answer."
+            "Checkable task contracts and local verification for coding agents. This server does not generate the "
+            "user's answer. For every non-trivial task call elite_prepare once, retain run_id, and inspect the "
+            "continuation object after EVERY Elite response. When continuation.stop_final_response is true, call "
+            "continuation.required_tool with continuation.required_args before answering. Deliver the final response "
+            "only at checkpoint=done. MCP cannot force another host call; the client must honor this lifecycle."
         ),
         website_url="https://github.com/Snehgabani/elite-reasoning-mcp",
     )
@@ -139,20 +145,17 @@ def create_mcp_server(brain_dir: str, tool_profile: str | None = None) -> FastMC
         _register_tools_safely(mcp, store)
         logger.info("Cognitive singularity tools registered (MIX MCP drop-in)")
     else:
+        # The default runtime must not import the legacy cognitive catalog only
+        # to register and immediately discard it. Besides wasting startup time,
+        # that path made optional graph/model dependencies mandatory in practice.
         from core.tools import gateway
 
         gateway.register(mcp, store, profile)
-
-        if tool_profile != "core":
-            try:
-                from core.tools import cognitive_tools
-
-                cognitive_tools.register(mcp, store, profile)
-                logger.info("Cognitive tools registered", extra={"action": "cognitive_tools_registered"})
-            except ImportError as exc:
-                logger.debug("Optional cognitive tools not available: %s", exc)
-        else:
-            logger.info("Core 5-tool minimalist profile active", extra={"action": "core_profile_active"})
+        logger.info("Core gateway tools registered", extra={"action": "core_tools_registered"})
+        # Core composition ends here. Legacy identity, sync, collaboration,
+        # resources, and cognitive tools below are never registered and then
+        # discarded on the default path.
+        return _finalize_core_server(mcp, store)
 
     # ── Build Middleware Chain (Blueprint #3: replaces monkey-patch) ──
     # Opus R2: Correct order matters critically:
@@ -558,6 +561,60 @@ def create_mcp_server(brain_dir: str, tool_profile: str | None = None) -> FastMC
             "No middleware chain available and legacy interceptor disabled — tools will run without orchestration hooks"
         )
 
+    return mcp
+
+
+def _finalize_core_server(mcp: FastMCP, store: EliteStore) -> FastMCP:
+    """Apply core middleware without constructing the legacy server surface."""
+    optimization_loop = None
+    try:
+        from core.scheduler.optimizer import OptimizationLoop
+
+        optimization_loop = OptimizationLoop(store)
+    except ImportError as exc:
+        logger.debug("OptimizationLoop not available", extra={"error": str(exc)})
+
+    middleware_chain = None
+    try:
+        from core.middleware.chain import MiddlewareChain
+        from core.middleware.fallback import FallbackMiddleware, RetryMiddleware
+        from core.middleware.injection import AntiPatternInjectionMiddleware
+        from core.middleware.prevention import PreventionRuleMiddleware
+        from core.middleware.telemetry import (
+            CostTrackingMiddleware,
+            LatencyBudgetMiddleware,
+            PeriodicScanMiddleware,
+            UsageLogMiddleware,
+        )
+
+        middleware_chain = (
+            MiddlewareChain()
+            .use(UsageLogMiddleware(store))
+            .use(LatencyBudgetMiddleware(p99_ms=2000))
+            .use(PreventionRuleMiddleware(store))
+            .use(AntiPatternInjectionMiddleware(store))
+            .use(PeriodicScanMiddleware(store, interval=20, optimizer=optimization_loop))
+            .use(CostTrackingMiddleware(store))
+            .use(FallbackMiddleware())
+            .use(RetryMiddleware(max_retries=2, initial_delay=0.5))
+        )
+    except ImportError as exc:
+        logger.warning("Core middleware chain unavailable", extra={"error": str(exc)})
+
+    session_id = f"mcp_{uuid.uuid4().hex[:8]}"
+    logger.info("Core session ID assigned", extra={"session_id": session_id})
+    _wrap_tools_with_error_boundary(mcp)
+
+    if os.environ.get("ELITE_ENABLE_LEGACY_INTERCEPTOR", "").strip() == "1":
+        logger.warning("Legacy interceptor enabled on core profile")
+        _install_orchestration_interceptor(mcp, store, session_id)
+    elif middleware_chain is not None:
+        from core.integration.middleware_setup import wrap_registered_tools
+
+        wrapped = wrap_registered_tools(mcp, middleware_chain)
+        logger.info("Core middleware connected", extra={"wrapped": wrapped})
+    else:
+        logger.warning("Core tools are running without orchestration middleware")
     return mcp
 
 
@@ -1201,6 +1258,63 @@ def _upgrade_command() -> list[str]:
     return [sys.executable, "-m", "pip", "install", "--upgrade", PACKAGE_NAME]
 
 
+async def _run_demo(server) -> dict[str, Any]:
+    """Exercise the installed five-tool core without network access."""
+    prompt = "Reply in JSON. At most 20 words. Do not mention tools."
+    tools = server._tool_manager._tools
+    prepared = await tools["elite_prepare"].fn(user_prompt=prompt, persist=False)
+    failing = await tools["elite_verify"].fn(
+        check="constraints",
+        query=prompt,
+        draft="I will use tools and provide a long unstructured explanation instead of JSON.",
+    )
+    passing_draft = '{"ok":true,"reason":"requirements satisfied"}'
+    passing = await tools["elite_verify"].fn(check="constraints", query=prompt, draft=passing_draft)
+    return {
+        "status": "ok" if failing.verification_status.value == "FAIL" and passing.verification_status.value == "PASS" else "failed",
+        "offline": True,
+        "persisted": prepared.persisted,
+        "tool_count": len(tools),
+        "contract_schema_version": prepared.task_contract.get("schema_version"),
+        "constraints": prepared.task_contract.get("constraints", []),
+        "failing_draft": {
+            "verification_status": failing.verification_status.value,
+            "unmet": failing.data.get("unmet", []),
+            "subject_digest": failing.subject_digest,
+            "evidence_id": failing.evidence[0].id,
+        },
+        "passing_draft": {
+            "verification_status": passing.verification_status.value,
+            "unmet": passing.data.get("unmet", []),
+            "subject_digest": passing.subject_digest,
+            "evidence_id": passing.evidence[0].id,
+        },
+        "privacy": {
+            "raw_prompt_persisted": False,
+            "network_requests": 0,
+        },
+    }
+
+
+def _demo_markdown(report: dict[str, Any]) -> str:
+    failing = report["failing_draft"]
+    passing = report["passing_draft"]
+    return "\n".join(
+        [
+            "# Elite Reasoning MCP Offline Demo",
+            "",
+            f"- Core tools discovered: {report['tool_count']}",
+            f"- Contract schema: {report['contract_schema_version']}",
+            f"- Intentionally invalid draft: {failing['verification_status']}",
+            f"- Corrected draft: {passing['verification_status']}",
+            f"- Raw prompt persisted: {str(report['privacy']['raw_prompt_persisted']).lower()}",
+            f"- Network requests: {report['privacy']['network_requests']}",
+            "",
+            "The demo passes only when the bad draft fails and the corrected draft passes.",
+        ]
+    )
+
+
 def main(argv: list[str] | None = None) -> int:
     """Run the MCP server or an explicit local maintenance command."""
     parser = argparse.ArgumentParser(prog=PACKAGE_NAME)
@@ -1220,6 +1334,16 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Exit non-zero unless the report is release-ready.",
     )
+    demo_parser = subcommands.add_parser("demo", help="Run an offline end-to-end core verification demo.")
+    demo_parser.add_argument("--json", action="store_true", help="Emit machine-readable JSON.")
+    init_parser = subcommands.add_parser("init", help="Preview or install one IDE MCP configuration.")
+    init_parser.add_argument("--ide", required=True, help="Cursor, Claude Desktop, Windsurf, Zed, or Antigravity.")
+    init_parser.add_argument("--dry-run", action="store_true", help="Print the merged config without writing it.")
+    init_parser.add_argument("--yes", action="store_true", help="Confirm the atomic configuration write.")
+    init_parser.add_argument("--json", action="store_true", help="Emit machine-readable JSON.")
+    export_parser = subcommands.add_parser("export-evidence", help="Export redacted evidence for one workflow run.")
+    export_parser.add_argument("run_id", help="Persisted workflow run ID.")
+    export_parser.add_argument("--json", action="store_true", help="Emit machine-readable JSON.")
     upgrade_parser = subcommands.add_parser("upgrade", help="Upgrade the standalone package explicitly.")
     upgrade_parser.add_argument("--yes", action="store_true", help="Confirm the package-manager upgrade command.")
     upgrade_parser.add_argument("--dry-run", action="store_true", help="Print the upgrade command without running it.")
@@ -1239,7 +1363,53 @@ def main(argv: list[str] | None = None) -> int:
             return 2
         return subprocess.run(command, check=False).returncode
 
+    if args.command == "init":
+        from core.orchestration.ide_installer import IDEConfigError, MultiIDEInstaller
+
+        installer = MultiIDEInstaller(binary_path=runtime_identity()["entrypoint"])
+        try:
+            target = installer.target_for(args.ide)
+            if args.dry_run:
+                result = installer.preview_target(target)
+            elif args.yes:
+                result = installer.install_to_target(target)
+            else:
+                print("Refusing to modify IDE configuration without --yes. Use --dry-run to preview.", file=sys.stderr)
+                return 2
+        except IDEConfigError as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+        print(json.dumps(result, indent=2, sort_keys=True) if args.json or args.dry_run else f"Installed {result['ide']}: {result['path']}")
+        return 0
+
     server = create_mcp_server(args.brain_dir, tool_profile=args.tool_profile)
+    if args.command == "export-evidence":
+        store = getattr(server, "_elite_store")
+        run = store.get_workflow_run(args.run_id)
+        if run is None:
+            print("Workflow run was not found.", file=sys.stderr)
+            return 2
+        evidence = store.list_workflow_evidence(args.run_id, limit=200)
+        report = {
+            "schema_version": "1.0",
+            "run_id": args.run_id,
+            "workflow_status": run.get("status"),
+            "created_at": run.get("created_at"),
+            "updated_at": run.get("updated_at"),
+            "evidence_count": len(evidence),
+            "evidence": evidence,
+        }
+        if args.json:
+            print(json.dumps(report, indent=2, sort_keys=True))
+        else:
+            print(f"# Workflow Evidence: {args.run_id}\n\nStatus: `{report['workflow_status']}`\n\nEvidence records: {len(evidence)}")
+            for item in evidence:
+                print(f"- `{item['verification_status']}` {item['check_kind']} — `{item['id']}`")
+        return 0
+    if args.command == "demo":
+        report = asyncio.run(_run_demo(server))
+        print(json.dumps(report, indent=2, sort_keys=True) if args.json else _demo_markdown(report))
+        return 0 if report["status"] == "ok" else 1
     if args.command == "doctor":
         from core.tools.doctor import build_doctor_report, doctor_markdown
 

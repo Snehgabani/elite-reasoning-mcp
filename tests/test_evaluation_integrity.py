@@ -29,7 +29,10 @@ def test_claims_registry_integrity():
     for claim in data["claims"]:
         assert "id" in claim
         assert "statement" in claim
-        assert "evidence_artifact" in claim
+        assert "scope" in claim
+        assert "evidence" in claim
+        assert "artifact" in claim["evidence"]
+        assert "permitted_public_wording" in claim
         assert "status" in claim
 
 

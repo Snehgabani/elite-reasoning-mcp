@@ -1,7 +1,7 @@
 """
 Trajectory Guardian & Anti-Amnesia State Machine (FSM).
-Prevents LLMs from 'single-turn tool decay' (calling MCP once at start and forgetting mid-turn).
-Maintains a strict epoch-clock, cryptographic gate nonces, and forces intermediate verifiers.
+Detects single-turn tool decay when an instrumented host reports edits and checks.
+It cannot observe or force actions that a third-party IDE does not send to it.
 """
 
 from __future__ import annotations
@@ -174,7 +174,7 @@ class TrajectoryGuardian:
         # Check MCP Tool Density across trajectory
         if state.native_tool_calls_count > 0 and state.mcp_tool_calls_count < 2:
             return False, (
-                f"INSUFFICIENT MCP DENSITY ({state.calculate_mcp_density() * 100:.1f}%): You called elite_reason at start "
+                f"INSUFFICIENT REPORTED MCP DENSITY ({state.calculate_mcp_density() * 100:.1f}%): the host prepared once "
                 "but skipped intermediate MCP verifiers. You must execute all playbook verification steps."
             )
 
@@ -187,9 +187,7 @@ class TrajectoryGuardian:
         stage = state.current_stage
 
         if stage == TrajectoryStage.UNINITIALIZED:
-            next_action = (
-                "call_mcp_tool(ServerName='elite-reasoning-mcp', ToolName='elite_reason', Arguments={'task': '...'})"
-            )
+            next_action = "elite_prepare(user_prompt='<exact goal>', persist=true)"
             step_name = "Checkpoint 1 [PRE-EDIT]"
         elif stage in (TrajectoryStage.CONTRACT_COMPILED, TrajectoryStage.MID_VERIFIED):
             next_action = "Modify files or call elite_verify(check='syntax'|'cegis') immediately after code edits"

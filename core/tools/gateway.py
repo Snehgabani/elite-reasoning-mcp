@@ -9,135 +9,17 @@ from __future__ import annotations
 from typing import Annotated, Any, Literal
 
 from mcp.types import ToolAnnotations
-from pydantic import BaseModel, Field
+from pydantic import Field
 
-import os
-import shlex
-import subprocess
-
+from core.api.schemas import AdminResult, MemoryResult, PrepareResult, ProgressResult, VerifyResult, WorkflowStep
 from core.orchestration.capabilities import build_capability_registry
+from core.orchestration.continuity import next_continuation
 from core.orchestration.workflow_run import build_workflow_run
 from core.runtime import runtime_identity
 from core.tools.doctor import build_doctor_report
 from core.tools.errors import validation_error
-
-_ALLOWED_TEST_PREFIXES = (
-    "pytest",
-    "python -m pytest",
-    "python3 -m pytest",
-    "ruff",
-    "python -m ruff",
-    "python3 -m ruff",
-)
-
-
-def _run_allowlisted_command(command: str) -> dict[str, Any]:
-    """Run a tiny allowlisted test/lint command. Never a generic shell."""
-    cleaned = (command or "").strip()
-    if not cleaned:
-        raise validation_error("command is required for check=tests.")
-    lowered = cleaned.lower()
-    if not any(lowered == prefix or lowered.startswith(prefix + " ") for prefix in _ALLOWED_TEST_PREFIXES):
-        return {
-            "passed": False,
-            "executed": False,
-            "reason": "command is not on the pytest/ruff allowlist",
-            "command": cleaned,
-        }
-    if os.environ.get("ELITE_ALLOW_TEST_COMMAND", "").strip() != "1":
-        return {
-            "passed": False,
-            "executed": False,
-            "reason": "set ELITE_ALLOW_TEST_COMMAND=1 to run allowlisted tests locally",
-            "command": cleaned,
-        }
-    try:
-        completed = subprocess.run(
-            shlex.split(cleaned),
-            capture_output=True,
-            text=True,
-            timeout=30,
-            check=False,
-        )
-    except (OSError, subprocess.TimeoutExpired) as exc:
-        return {"passed": False, "executed": False, "reason": str(exc)[:200], "command": cleaned}
-    output = ((completed.stdout or "") + (completed.stderr or ""))[-1500:]
-    return {
-        "passed": completed.returncode == 0,
-        "executed": True,
-        "returncode": completed.returncode,
-        "output": output,
-        "command": cleaned,
-    }
-
-
-class WorkflowStep(BaseModel):
-    index: int
-    name: str
-    action: str
-    status: str
-    evidence: str = ""
-
-
-class PrepareResult(BaseModel):
-    status: Literal["ok"] = "ok"
-    run_id: str
-    persisted: bool
-    intent: str
-    complexity: int
-    budget_tier: str
-    confidence: float
-    goal: str = ""
-    deliverable: str = ""
-    next_action: str = "none"
-    constraints: list[str] = Field(default_factory=list)
-    do_not: list[str] = Field(default_factory=list)
-    stop_when: list[str] = Field(default_factory=list)
-    task_contract: dict[str, Any] = Field(default_factory=dict)
-    playbook: list[dict[str, Any]] = Field(default_factory=list)
-    expected_outcomes: list[dict[str, Any]] = Field(default_factory=list)
-    allowed_tools: list[str] = Field(default_factory=list)
-    repeat_until: str = ""
-    steps: list[WorkflowStep]
-    validation_gates: list[str]
-    evidence_requirements: list[str]
-    memory_context: list[dict[str, Any]]
-    capability_warnings: list[str]
-    warnings: list[str] = Field(default_factory=list)
-
-
-class ProgressResult(BaseModel):
-    status: Literal["ok"] = "ok"
-    run_id: str
-    workflow_status: str
-    steps: list[WorkflowStep]
-    warnings: list[str] = Field(default_factory=list)
-
-
-class VerifyResult(BaseModel):
-    status: Literal["ok"] = "ok"
-    check: str
-    data: dict[str, Any]
-    gate_token: str = ""
-    recency_step_lock: dict[str, Any] = Field(default_factory=dict)
-    warnings: list[str] = Field(default_factory=list)
-
-
-class MemoryResult(BaseModel):
-    status: Literal["ok"] = "ok"
-    action: str
-    memory_id: int | None = None
-    quarantined: bool | None = None
-    deleted: bool | None = None
-    items: list[dict[str, Any]] = Field(default_factory=list)
-    warnings: list[str] = Field(default_factory=list)
-
-
-class AdminResult(BaseModel):
-    status: Literal["ok"] = "ok"
-    action: str
-    data: dict[str, Any]
-    warnings: list[str] = Field(default_factory=list)
+from core.verification.models import VerificationStatus, evidence_record, subject_digest
+from core.verification.registry import VerificationInputError, VerifierRequest, build_core_verifier_registry
 
 
 _PREPARE_ANNOTATIONS = ToolAnnotations(
@@ -192,15 +74,74 @@ def _workflow_steps(run: dict[str, Any]) -> list[WorkflowStep]:
     ]
 
 
+def _checked_result(
+    *,
+    check: str,
+    status: VerificationStatus,
+    data: dict[str, Any],
+    subject_kind: str,
+    subject: str,
+    producer: str,
+    evidence_payload: dict[str, Any] | None = None,
+    limitations: list[str] | None = None,
+) -> VerifyResult:
+    digest = subject_digest(subject_kind, subject)
+    limits = list(limitations or [])
+    record = evidence_record(
+        kind=check,
+        producer=producer,
+        subject_digest_value=digest,
+        payload=evidence_payload if evidence_payload is not None else data,
+        limitations=limits,
+    )
+    enriched = dict(data)
+    enriched.setdefault("verification_status", status.value)
+    enriched.setdefault("subject_digest", digest)
+    enriched.setdefault("evidence_ids", [record.id])
+    return VerifyResult(
+        check=check,
+        verification_status=status,
+        subject_digest=digest,
+        evidence=[record],
+        limitations=limits,
+        data=enriched,
+    )
+
+
+def _persist_checked_result(store, run_id: str, result: VerifyResult) -> VerifyResult:
+    if not run_id.strip():
+        return result
+    if store.get_workflow_run(run_id.strip()) is None:
+        raise validation_error("Workflow run was not found.")
+    for record in result.evidence:
+        payload = record.model_dump(mode="json")
+        payload["verification_status"] = result.verification_status.value
+        if not store.record_workflow_evidence(run_id.strip(), result.check, payload):
+            raise validation_error("Verification evidence could not be persisted for the workflow run.")
+    return result
+
+
 def register(mcp, store, profile) -> None:
-    """Register the five public v2 gateway tools."""
+    """Register the five public v2 gateway tools and continuity prompt."""
+    verifier_registry = build_core_verifier_registry(store)
+
+    @mcp.prompt(name="goal")
+    def goal_prompt(objective: str) -> str:
+        """Anchor a durable goal and continuous verification lifecycle."""
+        return (
+            f"GOAL: {objective}\n\n"
+            "Start by calling elite_prepare with this exact goal and persist=true. Retain run_id. "
+            "After every Elite response inspect continuation. If stop_final_response=true, call required_tool "
+            "with required_args before answering. Continue until checkpoint=done. If context becomes long or "
+            "you are unsure what comes next, call elite_progress(action='status', run_id=<saved run_id>)."
+        )
 
     @mcp.tool(name="elite_prepare", annotations=_PREPARE_ANNOTATIONS)
     def elite_prepare(
         user_prompt: Annotated[str, Field(min_length=1, max_length=16000)],
         persist: bool = True,
     ) -> PrepareResult:
-        """Call first on every non-trivial prompt. Returns the only tools you may use, in order, plus the outcome benchmark. Not the answer."""
+        """Start a non-trivial task. Retain run_id and obey the returned continuation after each later Elite call. Not the answer."""
         run = build_workflow_run(user_prompt, store=store, persist=persist)
         warnings = []
         if not persist:
@@ -232,6 +173,19 @@ def register(mcp, store, profile) -> None:
             evidence_requirements=[str(item) for item in run.get("evidence_requirements", [])],
             memory_context=list(run.get("memory_context", [])),
             capability_warnings=[str(item) for item in run.get("capability_warnings", [])],
+            continuation=(
+                next_continuation(store, str(run["run_id"])).to_dict()
+                if persist
+                else {
+                    "run_id": str(run["run_id"]),
+                    "phase": "EPHEMERAL",
+                    "checkpoint": "verify_outcomes",
+                    "required_tool": "elite_verify",
+                    "required_args": {"check": "outcomes", "draft": "<final draft>", "query": user_prompt},
+                    "instruction": "This run is not durable. Verify the final draft directly before answering.",
+                    "stop_final_response": True,
+                }
+            ),
             warnings=warnings,
         )
 
@@ -243,7 +197,7 @@ def register(mcp, store, profile) -> None:
         step_status: Literal["", "pending", "running", "passed", "failed", "skipped", "blocked"] = "",
         evidence: Annotated[str, Field(max_length=2000)] = "",
     ) -> ProgressResult:
-        """Read or update durable workflow progress with validation evidence."""
+        """Resume durable state after context dilution; returns the exact next required checkpoint in continuation."""
         normalized_action = action.strip().lower()
         if normalized_action == "update":
             allowed_statuses = {"pending", "running", "passed", "failed", "skipped", "blocked"}
@@ -284,6 +238,7 @@ def register(mcp, store, profile) -> None:
             run_id=run_id,
             workflow_status=str(run.get("status", "planned")),
             steps=_workflow_steps(run),
+            continuation=next_continuation(store, run_id).to_dict(),
         )
 
     @mcp.tool(name="elite_verify", annotations=_VERIFY_ANNOTATIONS)
@@ -297,9 +252,12 @@ def register(mcp, store, profile) -> None:
             "tests",
             "grounding",
             "outcomes",
+            "diff",
             "cegis",
             "diagnostics",
             "types",
+            "outline",
+            "callgraph",
         ] = "doctor",
         query: Annotated[str, Field(max_length=2000)] = "",
         draft: Annotated[str, Field(max_length=20000)] = "",
@@ -307,148 +265,59 @@ def register(mcp, store, profile) -> None:
         code: Annotated[str, Field(max_length=20000)] = "",
         language: Annotated[str, Field(max_length=32)] = "python",
         command: Annotated[str, Field(max_length=400)] = "",
+        project_root: Annotated[str, Field(max_length=1024)] = "",
+        allowed_files: Annotated[list[str] | None, Field(max_length=100)] = None,
+        forbid_dependency_changes: bool = False,
     ) -> VerifyResult:
-        """Verify health, capabilities, draft constraints, syntax, allowlisted tests, or quote-grounded evidence."""
+        """Run one check, persist evidence by run_id, then follow the returned continuation before answering."""
         normalized_check = check.strip().lower()
-
-        def _make_verify_result(chk: str, res_data: dict[str, Any], passed_flag: bool = True) -> VerifyResult:
-            from core.cognitive.trajectory_guardian import GLOBAL_TRAJECTORY_GUARDIAN
-
-            sid = run_id or "default"
-            gate_tok = GLOBAL_TRAJECTORY_GUARDIAN.record_verification_check(sid, chk, passed=passed_flag)
-            recency = GLOBAL_TRAJECTORY_GUARDIAN.build_recency_directive(sid)
-            return VerifyResult(
-                check=chk,
-                data=res_data,
-                gate_token=gate_tok.token if gate_tok else "",
-                recency_step_lock=recency,
-            )
-
         if normalized_check == "doctor":
-            return _make_verify_result("doctor", build_doctor_report(store, profile=profile, mcp=mcp))
+            return VerifyResult(check="doctor", data=build_doctor_report(store, profile=profile, mcp=mcp))
         if normalized_check == "capabilities":
             registry = build_capability_registry()
-            return _make_verify_result(
-                "capabilities",
-                {
+            return VerifyResult(
+                check="capabilities",
+                data={
                     "active_ide": registry.active_ide,
                     "warnings": list(registry.warnings),
                     "mcps": [cap.name for cap in registry.by_kind("mcp", recommendable_only=False)],
                     "skills": [cap.name for cap in registry.by_kind("skill", recommendable_only=False)],
                 },
             )
-        if normalized_check in {"constraints", "outcomes"}:
-            from core.reasoning.constraint_check import check_draft
-            from core.reasoning.playbook import verify_outcomes
-            from core.reasoning.task_contract import compile_task_contract, contract_from_dict
-
-            contract = None
+        if verifier_registry.supports(normalized_check):
+            request = VerifierRequest(
+                check=normalized_check,
+                query=query,
+                draft=draft,
+                run_id=run_id,
+                code=code,
+                language=language,
+                command=command,
+                project_root=project_root,
+                allowed_files=tuple(allowed_files or ()),
+                forbid_dependency_changes=forbid_dependency_changes,
+            )
+            try:
+                execution = await verifier_registry.verify(request)
+            except VerificationInputError as exc:
+                raise validation_error(str(exc)) from exc
+            checked = _checked_result(
+                check=execution.check,
+                status=execution.status,
+                data=execution.data,
+                subject_kind=execution.subject_kind,
+                subject=execution.subject,
+                producer=execution.producer,
+                evidence_payload=execution.evidence_payload,
+                limitations=list(execution.limitations),
+            )
+            checked = _persist_checked_result(store, run_id, checked)
             if run_id.strip():
-                run = store.get_workflow_run(run_id.strip())
-                if run is None:
-                    raise validation_error("Workflow run was not found.")
-                raw = run.get("task_contract") or {}
-                stored = raw if isinstance(raw, dict) else {}
-                fallback = query or draft or str(stored.get("goal") or "task")
-                contract = contract_from_dict(stored, fallback)
-            if contract is None:
-                if not (query or draft):
-                    raise validation_error(f"{normalized_check} check needs draft or run_id.")
-                contract = compile_task_contract(query or draft)
-            if normalized_check == "outcomes":
-                if not draft.strip():
-                    raise validation_error("outcomes check needs draft.")
-                outcomes_res = verify_outcomes(draft, contract)
-                return _make_verify_result("outcomes", outcomes_res)
-            report = check_draft(draft, contract)
-            return _make_verify_result("constraints", report.to_dict(), passed_flag=report.passed)
-        if normalized_check == "evidence":
-            from core.evidence.grounded_search import grounded_evidence
-
-            if not query.strip():
-                raise validation_error("query is required for check=evidence.")
-            evidence = await grounded_evidence(query.strip())
-            return _make_verify_result("evidence", evidence.to_dict())
-        if normalized_check == "syntax":
-            from core.cognitive.leverage.deterministic_gates import validate_syntax
-
-            target = code or draft
-            if not target.strip():
-                raise validation_error("code or draft is required for check=syntax.")
-            result = validate_syntax(target, language or "python")
-            return _make_verify_result("syntax", result.to_dict(), passed_flag=result.passed)
-        if normalized_check == "tests":
-            data = _run_allowlisted_command(command)
-            return _make_verify_result("tests", data, passed_flag=data.get("exit_code") == 0)
-        if normalized_check == "grounding":
-            from core.evidence.grounded_search import grounded_evidence, grounding_check
-
-            if not draft.strip() or not query.strip():
-                raise validation_error("grounding check needs query and draft.")
-
-            evidence = await grounded_evidence(query.strip())
-            report = grounding_check(draft, evidence)
-            report["evidence"] = evidence.to_dict()
-            return _make_verify_result("grounding", report)
-        if normalized_check == "cegis":
-            from core.contracts.models import Requirement, RequirementKind
-            from core.verification.cegis import CEGISPropertyVerifier
-
-            target = code or draft
-            if not target.strip():
-                raise validation_error("code or draft is required for check=cegis.")
-            dummy_req = Requirement(
-                id="REQ-CEGIS-GATEWAY",
-                kind=RequirementKind.ROBUSTNESS,
-                source_text="CEGIS property check",
-                interpretation="Handle boundary collections and invariants",
-            )
-            v_res = CEGISPropertyVerifier().verify(dummy_req, target)
-            return _make_verify_result("cegis", v_res.model_dump(), passed_flag=v_res.status.value == "pass")
-        if normalized_check == "diagnostics":
-            from core.verification.diagnostics import extract_diagnostic_slice
-
-            err_text = query or draft or command
-            if not err_text.strip():
-                raise validation_error(
-                    "query, draft, or command containing error text is required for check=diagnostics."
-                )
-            slice_res = extract_diagnostic_slice(err_text, source_code=code or draft)
-            return _make_verify_result("diagnostics", slice_res.model_dump())
-        if normalized_check == "types":
-            from core.contracts.models import Requirement, RequirementKind
-            from core.verification.type_checker import TypeInvariantVerifier
-
-            target = code or draft
-            if not target.strip():
-                raise validation_error("code or draft is required for check=types.")
-            dummy_req = Requirement(
-                id="REQ-TYPE-GATEWAY",
-                kind=RequirementKind.COMPATIBILITY,
-                source_text="Type check",
-                interpretation="All public functions have explicit return type annotations",
-            )
-            v_res = TypeInvariantVerifier().verify(dummy_req, target)
-            return _make_verify_result("types", v_res.model_dump(), passed_flag=v_res.status.value == "pass")
-        if normalized_check == "outline":
-            from core.search.symbol_indexer import extract_symbol_outline
-
-            target = code or draft
-            if not target.strip():
-                raise validation_error("code or draft is required for check=outline.")
-            res = extract_symbol_outline(target, filename=query or "snippet.py")
-            return _make_verify_result("outline", res.model_dump())
-        if normalized_check == "callgraph":
-            from core.search.symbol_indexer import extract_call_graph
-
-            target = code or draft
-            if not target.strip():
-                raise validation_error("code or draft is required for check=callgraph.")
-            res = extract_call_graph(target, filename=query or "snippet.py")
-            return _make_verify_result("callgraph", res.model_dump())
-        raise validation_error(
-            "check must be doctor, capabilities, constraints, evidence, syntax, tests, grounding, cegis, diagnostics, types, outline, or callgraph."
-        )
+                checked.continuation = next_continuation(store, run_id.strip()).to_dict()
+                checked.data["continuation"] = checked.continuation
+            return checked
+        supported = ", ".join(("doctor", "capabilities", *verifier_registry.names()))
+        raise validation_error(f"unsupported check; choose one of: {supported}.")
 
     @mcp.tool(name="elite_memory", annotations=_MEMORY_ANNOTATIONS)
     def elite_memory(
@@ -512,22 +381,15 @@ def register(mcp, store, profile) -> None:
             from core.memory.hipporag import HippoRAGAssociativeEngine
 
             engine = HippoRAGAssociativeEngine()
-            # If the store has an SQLite connection, load graph edges
-            if hasattr(store, "_conn") and store._conn:
-                engine.load_from_sqlite(store._conn)
-            # Add existing items as nodes if empty
             items = store.search_memory_items(query=query, scope=scope, limit=20, min_trust=0.3)
-            for it in items:
+            for item in items:
                 engine.add_node(
-                    str(it.get("id", "")),
-                    label=str(it.get("memory_type", "fact")),
-                    properties=it,
+                    str(item.get("id", "")),
+                    label=str(item.get("memory_type", "fact")),
+                    properties=item,
                 )
-            res = engine.associative_recall(query=query or content, top_k=8)
-            return MemoryResult(
-                action="associative",
-                items=[m.model_dump() for m in res.ranked_memories],
-            )
+            result = engine.associative_recall(query=query or content, top_k=8)
+            return MemoryResult(action="associative", items=[item.model_dump() for item in result.ranked_memories])
         raise validation_error("action must be search, remember, approve, forget, or associative.")
 
     @mcp.tool(name="elite_admin", annotations=_ADMIN_ANNOTATIONS)

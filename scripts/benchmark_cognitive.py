@@ -1,7 +1,8 @@
-#!/usr/bin/env bash
-"""
-Empirical Benchmark Harness for Elite Reasoning MCP.
-Runs empirical cognitive evaluations, calculates statistical scorecards, and outputs BENCHMARK_REPORT.md.
+#!/usr/bin/env python3
+"""Experimental cognitive-path smoke harness.
+
+This legacy-profile diagnostic exercises internal modules. It is not a product
+benchmark and must not overwrite the registered public pilot artifact.
 """
 
 import asyncio
@@ -136,24 +137,23 @@ async def run_benchmark():
     avg_quality = sum(quality_scores) / len(quality_scores)
     pass_rate = (sum(1 for r in results if r["valid"]) / len(results)) * 100
 
-    report_md = f"""# Empirical Cognitive Quality Scorecard: Elite Reasoning MCP
+    report_md = f"""# Experimental Cognitive-Path Smoke Report
 
-**Evaluation Timestamp:** {time.strftime("%Y-%m-%d %H:%M:%S UTC")}  
-**Architecture:** 9-Stage Unified Cognitive Engine + Stanford STORM + Tree-of-Thoughts + CEGIS Repair + Divergence Mining  
-**Hardware Invariant:** Apple Silicon M2 (8GB RAM, <50MB RSS budget)
+**Evaluation timestamp:** {time.strftime("%Y-%m-%d %H:%M:%S UTC")}
+**Path exercised:** Experimental legacy cognitive modules
+
+> Diagnostic smoke output only. Tasks have no external correctness oracle, and internal PRM/quality values are not evidence of task success or product impact.
 
 ---
 
-## 1. Executive Summary & Quality Scorecard
+## 1. Descriptive diagnostic summary
 
-| Metric | Measured Result | Production Target | Status |
-| :--- | :--- | :--- | :--- |
-| **Reasoning Pass Rate** | **{pass_rate:.1f}%** | >= 95% | ✅ **OPTIMAL** |
-| **Average PRM Score** | **{avg_prm:.3f}** | >= 0.900 | ✅ **OPTIMAL** |
-| **Average Composite Quality** | **{avg_quality:.3f}** | >= 0.950 | ✅ **OPTIMAL** |
-| **Mean Execution Latency** | **{avg_latency:.2f} ms** | <= 250 ms | ✅ **OPTIMAL (Sub-5ms Fast Path)** |
-| **AST Invariant Violation Detection** | **100% (50/50)** | 100% | ✅ **ZERO-ESCAPE** |
-| **Memory Budget (RSS)** | **< 35 MB** | < 50 MB | ✅ **ZERO SWAP** |
+| Metric | Observed value | Limitation |
+| :--- | :--- | :--- |
+| **Internal status pass rate** | **{pass_rate:.1f}%** | Reports module status, not task correctness |
+| **Average internal PRM value** | **{avg_prm:.3f}** | Uncalibrated internal diagnostic |
+| **Average internal quality value** | **{avg_quality:.3f}** | Uncalibrated internal diagnostic |
+| **Mean execution latency** | **{avg_latency:.2f} ms** | Current machine and fixture only |
 
 ---
 
@@ -174,15 +174,15 @@ async def run_benchmark():
 - **Tree-of-Thoughts Lookahead**: Evaluated **{tot_res["total_nodes_explored"]}** branch nodes with mean PRM **{tot_res["average_prm_score"]:.2f}** in **{tot_duration:.2f}ms**.
 - **CEGIS Automated Code Repair**: Repaired syntax & AST invariants with HMAC authorization in **{cegis_duration:.2f}ms**.
 - **Epistemic Divergence Miner**: Quantified multi-agent stance entropy ({div_res["divergence_entropy"]}) and extracted {len(div_res["consensus_invariants"])} consensus rules in **{div_duration:.2f}ms**.
-- **Deterministic AST Gating**: Verified syntax, security vulnerabilities, and HMAC diff integrity at **>140,000 ops/sec**.
+- **Deterministic checks**: Exercised syntax, selected static patterns, and diff-integrity fixtures. Passing covered checks is not proof of correctness or security.
 """
 
-    report_file = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "BENCHMARK_REPORT.md"))
+    report_file = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "EXPERIMENTAL_COGNITIVE_SMOKE.md"))
     with open(report_file, "w", encoding="utf-8") as f:
         f.write(report_md)
 
     print("\n" + "=" * 70)
-    print(f"✅ BENCHMARK COMPLETE — Scorecard exported to: {report_file}")
+    print(f"EXPERIMENTAL SMOKE COMPLETE — diagnostic exported to: {report_file}")
     print(f"   Pass Rate: {pass_rate:.1f}% | Avg Latency: {avg_latency:.2f}ms | Avg PRM: {avg_prm:.3f}")
     print("=" * 70)
 

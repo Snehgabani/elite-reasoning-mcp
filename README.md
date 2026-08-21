@@ -38,33 +38,40 @@
 
 ## Why Elite Reasoning?
 
-Every AI coding assistant makes the **same mistakes twice**. Elite Reasoning fixes that.
+Coding agents often miss one requirement in a long request, claim completion without evidence, or repeat a previously identified mistake. Elite Reasoning provides a local [Model Context Protocol](https://modelcontextprotocol.io/) workflow layer that makes requirements explicit, records execution state, retrieves scoped memory, and checks completion evidence.
 
-It's a [Model Context Protocol](https://modelcontextprotocol.io/) cognitive operating system for AI IDEs, coding agents, and frontier multi-agent teams. It acts as an **External Prefrontal Cortex (PFC)**—combining deterministic AST invariant gating (>140k ops/sec), Stanford STORM multi-perspective research, Tree-of-Thoughts / MCTS lookahead, CEGIS automated code repair, and double-blind verified cognitive scaffolding.
+The default product is intentionally narrow: it compiles a task contract, lets the host perform the work, and returns explicit verification results. Deterministic checks can establish only the behavior they inspect; they do not prove that generated code is correct or secure. Experimental reasoning techniques remain available through non-default profiles and are not part of the core product claim.
 
-Backed by empirical double-blind Randomized Controlled Trials (RCT), Elite Reasoning elevates low-cost, high-throughput models (e.g. GPT-4o-mini, Claude 3.5 Haiku, Gemini 1.5 Flash, Llama-3.1-8B) by **+1,480 Elo ($d = 2.83$)**, delivering frontier-level task adherence with **sub-5ms execution latency**, zero syntax crashes, and zero security vulnerabilities.
+> **Install locally, connect an MCP-compatible client, and inspect exactly what was checked, what failed, and what remains unknown.**
 
-> **One install. Zero config. Works seamlessly with Antigravity, Cursor, Windsurf, Claude Desktop, VS Code + Continue, Hermes, and any MCP-compatible agent.**
+<!-- BEGIN GENERATED CLAIMS -->
+### Current evidence summary
+
+> Claims below are generated from [`claims.yml`](claims.yml). Implementation checks describe covered behavior; the internal pilot is not evidence of broad model improvement.
+
+- **Internal fixture pilot constraint pass rate** — A seven-case internal fixture pilot observed 5/7 treatment drafts and 0/7 baseline drafts passing all extracted constraints. The bundled drafts were hand-authored protocol fixtures—not live randomized model outputs—and the primary exact McNemar result (p=0.0625) was not significant at alpha=0.05. _Status: internal pilot; replication: not independently replicated._
+- **Deterministic syntax and security checks** — Local deterministic checks cover Python syntax and selected unsafe patterns. Their scope is limited to implemented rules; passing them does not prove correctness or absence of vulnerabilities. _Status: implementation verified; replication: repository tests only._
+- **Exact-quote grounding behavior** — The grounding path checks exact quote occurrence against retrieved evidence and exposes degraded or uncertain states. Quote matching alone does not prove source quality or full claim entailment. _Status: implementation verified; replication: repository tests only._
+
+<!-- END GENERATED CLAIMS -->
 
 ### Who This Is For
 
-- Developers using Antigravity, Cursor, Claude Desktop, Windsurf, or VS Code who want zero syntax/security regressions.
-- Teams seeking 90–95% LLM cost reduction by pairing cheap/small models with an external deterministic reasoning scaffold.
-- AI engineers building agentic loops who require Process Reward Model (PRM) step verification, CEGIS bug repair, and multi-perspective dialectics.
-- Maintainers who need auditable multi-step execution, cryptographic HMAC diff write barriers, and empirical release gates.
+- Developers using Cursor, Claude Desktop, Windsurf, or VS Code who want explicit requirement and completion checks.
+- Teams evaluating lower-cost coding models that need auditable constraints and evidence rather than unsupported quality scores.
+- AI engineers building agent loops that need a compact typed MCP workflow and local-first state.
+- Maintainers who want scoped memory, release diagnostics, and transparent limitations.
 
 ### The Problem & The Solution
 
-| Without Elite Reasoning | With Elite Reasoning MCP |
+| Common agent failure | Core Elite behavior |
 |:---|:---|
-| LLM repeats identical bugs | ✅ Anti-pattern memory & CEGIS automated repair prevent repeats |
-| No confidence tracking | ✅ Brier-scored calibration & Process Reward Models (PRMs) |
-| Syntax errors & broken imports | ✅ Deterministic AST invariant gating (>140,000 ops/sec) |
-| Vulnerable code (`eval`, `rm -rf`) | ✅ OWASP security gates block dangerous side-effects (0ms latency) |
-| Filesystem corruption / partial writes | ✅ Cryptographic HMAC-SHA256 diff authorization barrier |
-| Superficial search & hallucinations | ✅ Stanford STORM multi-perspective research & atomic FActScore |
-| Multi-step work gets lost | ✅ Self-Discover DAGs + Tree-of-Thoughts ($k=3$) step pruning |
-| Unchecked observer bias | ✅ Double-blind RCT evaluation harness with position debiasing |
+| A requirement is overlooked | Compiles explicit constraints linked to the task |
+| Completion is claimed without validation | Requests test, syntax, grounding, or outcome evidence |
+| A previous mistake is repeated | Retrieves approved, scoped anti-pattern memory |
+| A citation cannot be supported | Returns degraded or uncertain grounding instead of inventing evidence |
+| Multi-step work gets lost | Records an ordered, durable workflow when persistence is enabled |
+| A check is outside the verifier's scope | Reports the limitation rather than treating it as proof of correctness |
 
 ---
 
@@ -84,6 +91,16 @@ uv tool install elite-reasoning-mcp
 # Verify the actual binary your IDE will run
 elite-reasoning-mcp --version
 elite-reasoning-mcp doctor --json
+
+# Run an offline bad-draft → corrected-draft verification demo
+elite-reasoning-mcp demo
+
+# Preview, then atomically install, an IDE configuration
+elite-reasoning-mcp init --ide cursor --dry-run
+elite-reasoning-mcp init --ide cursor --yes
+
+# Export redacted evidence from a durable workflow
+elite-reasoning-mcp export-evidence <run_id> --json
 
 # Preview a safe standalone upgrade command
 elite-reasoning-mcp upgrade --dry-run
@@ -132,41 +149,38 @@ mcpServers:
       ELITE_TOOL_PROFILE: core
 ```
 
-### Activate the Pipeline
+### Activate the Continuous Pipeline
+
+If your client exposes MCP prompts, start a task with `/goal <your objective>`. The `goal` prompt anchors a durable `run_id` and tells the host to follow the `continuation` object returned after every Elite call.
 
 Add this to your IDE's system prompt (e.g., `~/.gemini/GEMINI.md` or Cursor Rules):
 
 ```markdown
 ## ⚡ RULE #0 — ELITE MCP PIPELINE
 
-For every non-trivial prompt, call this first:
+For every non-trivial prompt, call `elite_prepare(user_prompt="<exact message>", persist=true)` first and retain `run_id`.
 
-elite_prepare(user_prompt="<the user's exact message>")
+After EVERY Elite response, inspect `continuation`:
 
-Use ONLY `allowed_tools`, in `playbook` order. Do not pick other MCP tools.
+- If `stop_final_response=true`, do not answer yet.
+- Call `required_tool` with `required_args`, replacing placeholders with current code, repository root, tests, or final draft.
+- Repair `FAIL`, `UNKNOWN`, `NOT_CHECKED`, `REPEAT`, and stale evidence; then follow the new continuation.
+- If context becomes long or the next step is forgotten, call `elite_progress(action="status", run_id="<saved run id>")` to recover it.
+- Answer only when `checkpoint="done"` and `stop_final_response=false`.
 
-If the playbook requires evidence:
-elite_verify(check="evidence", query="<question>")
-
-Do the host_work step (write the answer or patch).
-
-Then the independent gate:
-elite_verify(check="outcomes", run_id="<run id>", draft="<your draft>")
-
-If action=REPEAT: fix unmet outcomes and verify again. Do not answer the user yet.
-If action=DONE: you may answer.
-
-Skip tool calls for trivial acknowledgements like "ok", "thanks", "yes", "no".
+For coding tasks the normal sequence is prepare → syntax after the first edit → Git scope → executed tests → outcomes. Skip the pipeline only for trivial acknowledgements such as "ok" or "thanks".
 ```
 
-**That's it.** Restart your IDE and every conversation automatically benefits from the reasoning pipeline.
+> **Enforcement boundary:** MCP cannot make a host model issue another call after the model stops using tools. Continuation directives, `/goal`, IDE rules, durable recovery, final evidence gates, and optional repository hooks reduce omission risk in layers; they are not an absolute host-level guarantee.
+
+Restart the IDE after changing its MCP configuration or host rules.
 
 ---
 
 ## 🚀 Features
 
-### 🧠 Evidence-Gated Workflow
-When the IDE calls `elite_prepare`, the server creates a durable plan with risk-aware validation gates, trusted memory context, and a compact typed response. `elite_progress` rejects out-of-order completion and terminal claims without evidence.
+### 🧠 Evidence-Gated Continuous Workflow
+`elite_prepare` creates a durable contract and returns a `continuation` directive. Every later `elite_progress` and `elite_verify` response repeats the exact next checkpoint, so the instruction is refreshed after edits instead of appearing only at the beginning. Coding tasks advance through syntax, Git scope, executed tests, and outcomes; context-diluted sessions can recover the next call with `elite_progress(action="status")`. Verification distinguishes `PASS`, `FAIL`, `UNKNOWN`, and `NOT_CHECKED`, binds evidence to exact subject/repository digests, and reopens stale checkpoints after post-verification edits.
 
 ### 🛡️ Anti-Pattern Memory
 Past mistakes are recorded with root-cause analysis and automatically surfaced when similar patterns appear. Your AI literally learns from its errors.
@@ -236,7 +250,7 @@ The default v2 profile intentionally exposes five task-oriented tools. This impr
 
 ### Legacy Catalog (explicit opt-in)
 
-Existing installations can retain the full legacy tool catalog by setting `ELITE_TOOL_PROFILE=legacy`. It is not the default because a broad discovery surface makes selection less reliable for agents. The legacy profile includes the following 90+ tools and resources:
+Existing installations can retain the full legacy tool catalog by installing `elite-reasoning-mcp[legacy]` and setting `ELITE_TOOL_PROFILE=legacy`. It is not the default because a broad discovery surface makes selection less reliable for agents, and its graph/model dependencies are intentionally excluded from the dependency-light core installation. The legacy profile includes the following 90+ tools and resources:
 
 <details>
 <summary><strong>Core Pipeline (3)</strong></summary>

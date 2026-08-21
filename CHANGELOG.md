@@ -5,20 +5,41 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.9.1] - 2026-08-22
+## [Unreleased]
 
 ### Added
-- **Product Hardening & Validation Milestone**: Implemented 10 workstreams (WS1–WS10) shifting architecture to a verifiable local contract & evidence control plane.
-- **Typed Contract Compiler (`core/contracts/`)**: Deterministic compiler extracting explicit constraints with character source spans (`REQUIRED_CONTENT`, `FORBIDDEN_CONTENT`, `ALLOWED_FILES`, `TEST_COMMAND`).
-- **Four-State Verifier Registry & Built-ins (`core/verification/`)**: `PASS`, `FAIL`, `UNKNOWN`, and `NOT_CHECKED` states evaluated by `ConstraintVerifier`, `PythonSyntaxVerifier`, `GitDiffScopeVerifier`, and hardened non-shell `TestCommandVerifier`.
-- **Subject-Digest Invalidation (`EvidenceCompletenessVerifier`)**: Cryptographic SHA-256 binding invalidates stale evidence or post-test draft changes.
-- **Trusted Memory Lifecycle (`core/memory/`)**: Anti-poisoning control plane with 7-stage trust lifecycle, unverified quarantine, and zero-retention physical deletion (`forget`).
-- **Deterministic Offline CLI Demo (`elite-reasoning-mcp demo`)**: Demonstrates complete contract compilation and verification in `<1ms` with 0 network calls.
-- **Scientific Evaluation Platform (`scripts/run_ablation_eval.py`)**: 5-arm ablation study over 250 frozen tasks with McNemar paired testing.
-- **Verifier Plugin SDK & Repo Policy Engine (`core/plugins/`, `core/policy/`)**: Extensible verifier protocol and `.elite-policy.yml` repository governance.
-- **Database MigrationLedger (`core/persistence/database.py`)**: Forward schema migrations with automatic pre-migration atomic backups and safe rollback.
+- Machine-validated public claims registry with a generated README evidence summary and release gate.
+- Source text, character spans, inferred/explicit provenance, verifier hints, and extraction confidence on compiled constraints.
+- Versioned task-contract payloads (`schema_version=1.1`) with backward-compatible persisted-contract loading.
+- Four-state verification results (`PASS`, `FAIL`, `UNKNOWN`, `NOT_CHECKED`) with subject digests and content-addressed evidence IDs.
+- Git working-tree scope verification with approved-root confinement, changed-file content digests, untracked-file coverage, and optional dependency-manifest blocking.
+- Persisted workflow evidence that binds executed test results to repository snapshots and rejects stale completion evidence.
+- Typed verifier registry with inspectable, independently testable handlers for constraints, outcomes, evidence, syntax, tests, Git scope, and grounding.
+- Restricted test-command adapter with an environment allowlist and explicit timeout behavior.
+- Public API response schemas separated from MCP gateway registration.
+- Offline `elite-reasoning-mcp demo` command showing source-linked contract compilation and evidence-bound bad-draft → corrected-draft verification through the installed five-tool server.
+- Confirmation-gated `init --ide` preview/install flow with valid no-argument core commands, malformed-config refusal, existing-key preservation, atomic writes, and owner-only permissions.
+- Redacted `export-evidence RUN_ID` CLI for durable workflow audit records.
+- Product hardening roadmap covering the evidence-first core, architecture, evaluation, security, and adoption milestones.
+- Manifest-driven contract extraction and five-arm analysis harnesses that compute observed metrics only and return `NOT_RUN` instead of simulating missing model outcomes.
+- Durable continuation directives on prepare, progress, and verify responses; `/goal` MCP prompt; context-dilution recovery; stale-checkpoint reopening; and local prepare-only/continuation metrics.
+- Real five-tool simulated-IDE trajectories covering prepare-only amnesia, premature finalization, 20-turn dilution, compliant chaining, and post-verification edits.
 
-## [2.9.0] - 2026-08-21
+### Changed
+- Reclassified the bundled seven-case comparison as an internal fixture pilot rather than an RCT.
+- Made the paired binary McNemar endpoint control significance instead of allowing a secondary Wilcoxon score to override it.
+- Replaced unsupported performance and security language with scoped implementation claims and explicit limitations.
+- Isolated the legacy cognitive smoke script from the registered `BENCHMARK_REPORT.md` artifact.
+- Stopped the core profile from importing and registering the legacy cognitive catalog before discarding it.
+- Added a dedicated core-server finalization path so default startup never constructs legacy identity, collaboration, sync, resource, or cognitive surfaces.
+- Made `core.cognitive` compatibility exports lazy so deterministic checks do not load the graph engine.
+- Moved graph, model-provider, sync-server, SciPy, and NetworkX dependencies behind the explicit `legacy` extra; the local release gate now exercises a minimal isolated core wheel without them.
+- Kept release fixture-pilot output in a temporary artifact so validation no longer dirties the tracked benchmark report.
+- Added Git snapshot budgets, symlink-identity hashing, hostile-path rejection, and unstable/oversized/unreadable fail-unknown behavior.
+- Redacted secret-like values in persisted source-linked contracts and typed workflow evidence, with cross-workflow replay rejection coverage.
+- Added schema version 7, integrity-checked pre-migration SQLite backups, bounded backup retention, automatic rollback on migration failure, and doctor schema diagnostics.
+
+## [2.8.0] - 2026-08-21
 
 ### Added
 - Personalized **playbook** on `elite_prepare`: ordered `allowed_tools`, expected outcomes, and `repeat_until`.

@@ -71,7 +71,9 @@ def compute_cohens_d(treatment_scores: Sequence[float], baseline_scores: Sequenc
         d = round((mean_t - mean_b) / pooled_sd, 3)
 
     if abs(d) >= 0.8:
-        interp = "Large effect size (High empirical significance)"
+        # Effect magnitude and statistical significance are different concepts.
+        # Small pilots can have a large observed d without confirmatory evidence.
+        interp = "Large observed standardized difference"
     elif abs(d) >= 0.5:
         interp = "Medium effect size"
     elif abs(d) >= 0.2:
@@ -168,12 +170,16 @@ def evaluate_statistical_scorecard(
     h_treat = round((treatment_interventions + (n - t_ok) * 2.0) / n, 3)
     h_reduc = round(((h_base - h_treat) / h_base * 100.0) if h_base > 0 else 0.0, 1)
 
-    is_significant = (mcnemar_p <= 0.05 or wilcoxon_p <= 0.05) and (treat_rate >= base_rate)
-    verdict = (
-        "OPTIMAL_LIFT_CERTIFIED"
-        if (is_significant and cohen_d >= 0.8)
-        else ("DIRECTIONAL_LIFT" if is_significant else "INCONCLUSIVE")
-    )
+    # Constraint pass/fail is the registered primary endpoint, so its paired
+    # McNemar result controls confirmatory significance. A secondary Wilcoxon
+    # result must not override a non-significant primary endpoint.
+    is_significant = mcnemar_p <= 0.05 and treat_rate >= base_rate
+    if is_significant:
+        verdict = "PRIMARY_ENDPOINT_SIGNIFICANT"
+    elif treat_rate > base_rate:
+        verdict = "INTERNAL_PILOT_DIRECTIONAL"
+    else:
+        verdict = "INCONCLUSIVE"
 
     return StatisticalScorecard(
         n_trials=n,
