@@ -8,8 +8,8 @@ from __future__ import annotations
 
 from typing import List, Optional
 from core.contracts.models import Requirement, RequirementKind
+from core.verification.base import BaseVerifier
 from core.verification.models import Evidence, VerificationResult, VerificationStatus
-from core.verification.registry import BaseVerifier, GLOBAL_VERIFIER_REGISTRY
 
 
 class EvidenceCompletenessVerifier(BaseVerifier):
@@ -65,6 +65,3 @@ class EvidenceCompletenessVerifier(BaseVerifier):
             reason=f"All {len(valid_evidence)} evidence records match current subject digest {current_digest[:8]}",
             evidence_ids=valid_evidence,
         )
-
-
-GLOBAL_VERIFIER_REGISTRY.register(EvidenceCompletenessVerifier())

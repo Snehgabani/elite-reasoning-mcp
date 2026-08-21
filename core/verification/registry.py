@@ -6,43 +6,14 @@ and registry lookup for deterministic and environmental verifiers.
 
 from __future__ import annotations
 
+import logging
 import time
-from abc import ABC, abstractmethod
 from typing import Dict, List, Optional
 from core.contracts.models import Requirement, RequirementKind
+from core.verification.base import BaseVerifier
 from core.verification.models import Evidence, VerificationResult, VerificationStatus
 
-
-class BaseVerifier(ABC):
-    """Abstract base class for all Elite verifiers."""
-
-    @property
-    @abstractmethod
-    def name(self) -> str:
-        """Unique verifier identifier."""
-        pass
-
-    @property
-    @abstractmethod
-    def version(self) -> str:
-        """Semantic version string of the verifier."""
-        pass
-
-    @property
-    @abstractmethod
-    def supported_requirement_kinds(self) -> List[RequirementKind]:
-        """List of RequirementKinds handled by this verifier."""
-        pass
-
-    @abstractmethod
-    def verify(
-        self,
-        requirement: Requirement,
-        subject_content: str,
-        evidence_records: Optional[List[Evidence]] = None,
-    ) -> VerificationResult:
-        """Executes verification and returns four-state VerificationResult."""
-        pass
+logger = logging.getLogger(__name__)
 
 
 class VerifierRegistry:
@@ -69,8 +40,8 @@ class VerifierRegistry:
             self.register(TestCommandVerifier())
             self.register(GitDiffScopeVerifier())
             self.register(EvidenceCompletenessVerifier())
-        except Exception:
-            pass
+        except (ImportError, AttributeError) as exc:
+            logger.debug("Failed to load some builtin verifiers: %s", exc)
 
     def register(self, verifier: BaseVerifier, default_for_kinds: Optional[List[RequirementKind]] = None):
         self._verifiers[verifier.name] = verifier

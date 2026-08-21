@@ -7,8 +7,8 @@ from __future__ import annotations
 
 from typing import List, Optional
 from core.contracts.models import Requirement, RequirementKind
+from core.verification.base import BaseVerifier
 from core.verification.models import Evidence, VerificationResult, VerificationStatus
-from core.verification.registry import BaseVerifier, GLOBAL_VERIFIER_REGISTRY
 
 
 class ConstraintVerifier(BaseVerifier):
@@ -97,6 +97,3 @@ class ConstraintVerifier(BaseVerifier):
             status=VerificationStatus.NOT_CHECKED,
             reason="Unrecognized constraint parameter layout",
         )
-
-
-GLOBAL_VERIFIER_REGISTRY.register(ConstraintVerifier())

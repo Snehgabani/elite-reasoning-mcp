@@ -13,8 +13,8 @@ import time
 from pathlib import Path
 from typing import List, Optional
 from core.contracts.models import Requirement, RequirementKind
+from core.verification.base import BaseVerifier
 from core.verification.models import Evidence, VerificationResult, VerificationStatus
-from core.verification.registry import BaseVerifier, GLOBAL_VERIFIER_REGISTRY
 
 ALLOWLISTED_EXECUTABLES = {"pytest", "python", "python3", "uv", "ruff"}
 
@@ -135,6 +135,3 @@ class TestCommandVerifier(BaseVerifier):
                 reason=f"Failed to execute command '{command_str}': {type(exc).__name__}: {exc}",
                 limitations=["Subprocess launch failure"],
             )
-
-
-GLOBAL_VERIFIER_REGISTRY.register(TestCommandVerifier())

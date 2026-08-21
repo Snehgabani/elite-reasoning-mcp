@@ -6,10 +6,13 @@ Discovers and registers custom third-party verifier plugins securely.
 from __future__ import annotations
 
 import importlib.util
+import logging
 from pathlib import Path
 from typing import List, Optional
 from core.plugins.protocol import PluginVerifier
 from core.verification.registry import GLOBAL_VERIFIER_REGISTRY, VerifierRegistry
+
+logger = logging.getLogger(__name__)
 
 
 def load_plugin_from_file(file_path: Path, registry: Optional[VerifierRegistry] = None) -> List[PluginVerifier]:
@@ -32,7 +35,7 @@ def load_plugin_from_file(file_path: Path, registry: Optional[VerifierRegistry] 
                     instance = attr()
                     target_reg.register(instance)
                     loaded.append(instance)
-                except Exception:
-                    pass
+                except (TypeError, ValueError, AttributeError) as exc:
+                    logger.warning("Failed to instantiate plugin class %s: %s", attr_name, exc)
 
     return loaded

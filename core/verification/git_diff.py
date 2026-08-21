@@ -10,8 +10,8 @@ import re
 from pathlib import Path
 from typing import List, Optional, Set
 from core.contracts.models import Requirement, RequirementKind
+from core.verification.base import BaseVerifier
 from core.verification.models import Evidence, VerificationResult, VerificationStatus
-from core.verification.registry import BaseVerifier, GLOBAL_VERIFIER_REGISTRY
 
 
 class GitDiffScopeVerifier(BaseVerifier):
@@ -119,6 +119,3 @@ class GitDiffScopeVerifier(BaseVerifier):
             status=VerificationStatus.NOT_CHECKED,
             reason="Unrecognized scope requirement kind",
         )
-
-
-GLOBAL_VERIFIER_REGISTRY.register(GitDiffScopeVerifier())

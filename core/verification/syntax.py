@@ -8,8 +8,8 @@ from __future__ import annotations
 import ast
 from typing import List, Optional
 from core.contracts.models import Requirement, RequirementKind
+from core.verification.base import BaseVerifier
 from core.verification.models import Evidence, VerificationResult, VerificationStatus
-from core.verification.registry import BaseVerifier, GLOBAL_VERIFIER_REGISTRY
 
 
 class PythonSyntaxVerifier(BaseVerifier):
@@ -56,6 +56,3 @@ class PythonSyntaxVerifier(BaseVerifier):
                 status=VerificationStatus.FAIL,
                 reason=f"Python SyntaxError on line {exc.lineno}: {exc.msg}",
             )
-
-
-GLOBAL_VERIFIER_REGISTRY.register(PythonSyntaxVerifier())

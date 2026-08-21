@@ -9,7 +9,7 @@ from abc import ABC, abstractmethod
 from typing import List
 from pydantic import BaseModel, Field
 from core.contracts.models import RequirementKind
-from core.verification.registry import BaseVerifier
+from core.verification.base import BaseVerifier
 
 
 class PluginMetadata(BaseModel):

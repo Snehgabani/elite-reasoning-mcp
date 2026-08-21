@@ -39,8 +39,8 @@ def measure_core_baseline():
             rss_mb = usage.ru_maxrss / (1024 * 1024)
         else:
             rss_mb = usage.ru_maxrss / 1024
-    except Exception:
-        pass
+    except (ImportError, AttributeError, OSError, ValueError):
+        rss_mb = 0.0
 
     baseline = {
         "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
