@@ -397,8 +397,8 @@ class SyntaxVerifier:
                 try:
                     json.loads(stripped)
                     lang = "json"
-                except Exception:
-                    pass
+                except (json.JSONDecodeError, UnicodeDecodeError, ValueError):
+                    lang = "python"
         result = validate_syntax(target, lang)
         data = result.to_dict()
         _, repository_snapshot_digest, repository_limitation = _repository_snapshot(request.project_root)

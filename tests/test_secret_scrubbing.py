@@ -9,7 +9,7 @@ def test_scrub_secrets_redacts_all_sensitive_tokens():
     GOOGLE_KEY = "AIzaSyD12345678901234567890"
     Authorization: Bearer my_jwt_access_token_value_abc
     """
-    
+
     scrubbed = scrub_secrets(raw_payload)
     assert "supersecret123" not in scrubbed
     assert "sk-proj-" not in scrubbed

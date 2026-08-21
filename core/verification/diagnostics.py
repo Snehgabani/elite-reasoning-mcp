@@ -28,14 +28,14 @@ def slice_raw_traceback(raw_trace: str, max_frames: int = 3, max_chars: int = 15
         return ""
     lines = raw_trace.splitlines()
     filtered_lines: list[str] = []
-    
+
     # Filter out pytest, site-packages, uvicorn, and importlib runtime boilerplate
     for line in lines:
         if any(skip in line for skip in ("/site-packages/", "<frozen ", "/pytest/", "/pluggy/")):
             continue
         filtered_lines.append(line)
-        
-    result = "\n".join(filtered_lines[-max_frames * 4:]) if filtered_lines else "\n".join(lines[-10:])
+
+    result = "\n".join(filtered_lines[-max_frames * 4 :]) if filtered_lines else "\n".join(lines[-10:])
     return result[-max_chars:].strip()
 
 
@@ -46,7 +46,9 @@ def extract_diagnostic_slice(error_text: str, source_code: Optional[str] = None)
     err_match = re.search(r"([A-Za-z]+Error|[A-Za-z]+Exception):\s*(.*)", error_text)
 
     # Prefer user code frame over framework internal frame
-    user_frames = [f for f in line_match if not any(skip in f[0] for skip in ("/site-packages/", "<frozen ", "/pytest/"))]
+    user_frames = [
+        f for f in line_match if not any(skip in f[0] for skip in ("/site-packages/", "<frozen ", "/pytest/"))
+    ]
     target_frame = user_frames[-1] if user_frames else (line_match[-1] if line_match else None)
 
     file_name = target_frame[0] if target_frame else None
