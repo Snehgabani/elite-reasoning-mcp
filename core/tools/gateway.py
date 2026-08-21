@@ -9,146 +9,16 @@ from __future__ import annotations
 from typing import Annotated, Any, Literal
 
 from mcp.types import ToolAnnotations
-from pydantic import BaseModel, Field
+from pydantic import Field
 
-import os
-import shlex
-import subprocess
-
+from core.api.schemas import AdminResult, MemoryResult, PrepareResult, ProgressResult, VerifyResult, WorkflowStep
 from core.orchestration.capabilities import build_capability_registry
 from core.orchestration.workflow_run import build_workflow_run
 from core.runtime import runtime_identity
 from core.tools.doctor import build_doctor_report
 from core.tools.errors import validation_error
-from core.verification.models import EvidenceRecord, VerificationStatus, evidence_record, status_from_bool, subject_digest
-
-_ALLOWED_TEST_PREFIXES = (
-    "pytest",
-    "python -m pytest",
-    "python3 -m pytest",
-    "ruff",
-    "python -m ruff",
-    "python3 -m ruff",
-)
-
-
-def _run_allowlisted_command(command: str, *, cwd: str = "") -> dict[str, Any]:
-    """Run a tiny allowlisted test/lint command. Never a generic shell."""
-    cleaned = (command or "").strip()
-    if not cleaned:
-        raise validation_error("command is required for check=tests.")
-    lowered = cleaned.lower()
-    if not any(lowered == prefix or lowered.startswith(prefix + " ") for prefix in _ALLOWED_TEST_PREFIXES):
-        return {
-            "passed": False,
-            "executed": False,
-            "reason": "command is not on the pytest/ruff allowlist",
-            "command": cleaned,
-        }
-    if os.environ.get("ELITE_ALLOW_TEST_COMMAND", "").strip() != "1":
-        return {
-            "passed": False,
-            "executed": False,
-            "reason": "set ELITE_ALLOW_TEST_COMMAND=1 to run allowlisted tests locally",
-            "command": cleaned,
-        }
-    try:
-        completed = subprocess.run(
-            shlex.split(cleaned),
-            capture_output=True,
-            text=True,
-            timeout=30,
-            check=False,
-            cwd=cwd or None,
-        )
-    except (OSError, subprocess.TimeoutExpired) as exc:
-        return {"passed": False, "executed": False, "reason": str(exc)[:200], "command": cleaned}
-    output = ((completed.stdout or "") + (completed.stderr or ""))[-1500:]
-    return {
-        "passed": completed.returncode == 0,
-        "executed": True,
-        "returncode": completed.returncode,
-        "output": output,
-        "command": cleaned,
-    }
-
-
-class WorkflowStep(BaseModel):
-    index: int
-    name: str
-    action: str
-    status: str
-    evidence: str = ""
-
-
-class PrepareResult(BaseModel):
-    status: Literal["ok"] = "ok"
-    run_id: str
-    persisted: bool
-    intent: str
-    complexity: int
-    budget_tier: str
-    confidence: float
-    goal: str = ""
-    deliverable: str = ""
-    next_action: str = "none"
-    constraints: list[str] = Field(default_factory=list)
-    do_not: list[str] = Field(default_factory=list)
-    stop_when: list[str] = Field(default_factory=list)
-    task_contract: dict[str, Any] = Field(default_factory=dict)
-    playbook: list[dict[str, Any]] = Field(default_factory=list)
-    expected_outcomes: list[dict[str, Any]] = Field(default_factory=list)
-    allowed_tools: list[str] = Field(default_factory=list)
-    repeat_until: str = ""
-    steps: list[WorkflowStep]
-    validation_gates: list[str]
-    evidence_requirements: list[str]
-    memory_context: list[dict[str, Any]]
-    capability_warnings: list[str]
-    warnings: list[str] = Field(default_factory=list)
-
-
-class ProgressResult(BaseModel):
-    status: Literal["ok"] = "ok"
-    run_id: str
-    workflow_status: str
-    steps: list[WorkflowStep]
-    warnings: list[str] = Field(default_factory=list)
-
-
-class VerifyResult(BaseModel):
-    """Transport result plus an explicit evidence outcome.
-
-    `status=ok` means the MCP call returned normally. `verification_status`
-    describes what the check established and must be used for completion gates.
-    """
-
-    status: Literal["ok"] = "ok"
-    schema_version: str = "1.1"
-    check: str
-    verification_status: VerificationStatus = VerificationStatus.NOT_CHECKED
-    subject_digest: str = ""
-    evidence: list[EvidenceRecord] = Field(default_factory=list)
-    limitations: list[str] = Field(default_factory=list)
-    data: dict[str, Any]
-    warnings: list[str] = Field(default_factory=list)
-
-
-class MemoryResult(BaseModel):
-    status: Literal["ok"] = "ok"
-    action: str
-    memory_id: int | None = None
-    quarantined: bool | None = None
-    deleted: bool | None = None
-    items: list[dict[str, Any]] = Field(default_factory=list)
-    warnings: list[str] = Field(default_factory=list)
-
-
-class AdminResult(BaseModel):
-    status: Literal["ok"] = "ok"
-    action: str
-    data: dict[str, Any]
-    warnings: list[str] = Field(default_factory=list)
+from core.verification.models import VerificationStatus, evidence_record, subject_digest
+from core.verification.registry import VerificationInputError, VerifierRequest, build_core_verifier_registry
 
 
 _PREPARE_ANNOTATIONS = ToolAnnotations(
@@ -250,89 +120,9 @@ def _persist_checked_result(store, run_id: str, result: VerifyResult) -> VerifyR
     return result
 
 
-def _gate_outcomes_with_workflow_evidence(
-    *,
-    data: dict[str, Any],
-    contract,
-    store,
-    run_id: str,
-    project_root: str,
-) -> dict[str, Any]:
-    """Reject code completion when command/scope evidence is missing or stale."""
-    if not run_id.strip():
-        return data
-
-    from core.verification.git_diff import verify_git_diff
-
-    unmet: list[str] = []
-    accepted_ids: list[str] = []
-    kinds = {item.kind for item in contract.constraints}
-    current_snapshot_digest = ""
-
-    if "run_tests" in kinds:
-        test_records = store.list_workflow_evidence(run_id.strip(), check_kind="tests", limit=20)
-        passing = next(
-            (
-                item
-                for item in test_records
-                if item.get("verification_status") == VerificationStatus.PASS.value
-                and isinstance(item.get("payload"), dict)
-                and item["payload"].get("executed") is True
-            ),
-            None,
-        )
-        if passing is None:
-            unmet.append("run_tests: no independently executed passing test evidence is attached to this workflow")
-        else:
-            expected_snapshot = str(passing["payload"].get("repository_snapshot_digest") or "")
-            if not expected_snapshot:
-                unmet.append("run_tests: passing test evidence is not bound to a repository snapshot")
-            elif not project_root.strip():
-                unmet.append("run_tests: project_root is required to prove the tested repository state is still current")
-            else:
-                snapshot = verify_git_diff(project_root=project_root)
-                unavailable = snapshot.status is VerificationStatus.UNKNOWN or (
-                    snapshot.status is VerificationStatus.NOT_CHECKED
-                    and not snapshot.reason.startswith("no allowed_files policy")
-                )
-                if unavailable:
-                    unmet.append(f"run_tests: current repository state is unavailable ({snapshot.reason})")
-                else:
-                    current_snapshot_digest = subject_digest("git_worktree_snapshot", snapshot.snapshot_material)
-                    if current_snapshot_digest != expected_snapshot:
-                        unmet.append("run_tests: repository state changed after the passing test evidence was collected")
-                    else:
-                        accepted_ids.append(str(passing["id"]))
-
-    scope_constraints = [item for item in contract.constraints if item.kind == "scope_files"]
-    if scope_constraints:
-        if not project_root.strip():
-            unmet.append("scope_files: project_root is required for Git scope verification")
-        else:
-            allowed = [str(path) for item in scope_constraints for path in item.terms]
-            scope_result = verify_git_diff(project_root=project_root, allowed_files=allowed)
-            if scope_result.status is not VerificationStatus.PASS:
-                unmet.append(f"scope_files: {scope_result.reason}")
-
-    gated = dict(data)
-    if unmet:
-        gated["passed"] = False
-        gated["action"] = "REPEAT"
-        gated["unmet"] = list(dict.fromkeys([*gated.get("unmet", []), *unmet]))
-        gated["instruction"] = (
-            "REPEAT. Do not present a final answer. Collect fresh command and repository evidence, then verify again."
-        )
-    gated["evidence_gate"] = {
-        "passed": not unmet,
-        "accepted_evidence_ids": accepted_ids,
-        "current_repository_snapshot_digest": current_snapshot_digest,
-        "unmet": unmet,
-    }
-    return gated
-
-
 def register(mcp, store, profile) -> None:
     """Register the five public v2 gateway tools."""
+    verifier_registry = build_core_verifier_registry(store)
 
     @mcp.tool(name="elite_prepare", annotations=_PREPARE_ANNOTATIONS)
     def elite_prepare(
@@ -463,263 +253,36 @@ def register(mcp, store, profile) -> None:
                     "skills": [cap.name for cap in registry.by_kind("skill", recommendable_only=False)],
                 },
             )
-        if normalized_check in {"constraints", "outcomes"}:
-            from core.reasoning.constraint_check import check_draft
-            from core.reasoning.playbook import verify_outcomes
-            from core.reasoning.task_contract import compile_task_contract, contract_from_dict
-
-            contract = None
-            if run_id.strip():
-                run = store.get_workflow_run(run_id.strip())
-                if run is None:
-                    raise validation_error("Workflow run was not found.")
-                raw = run.get("task_contract") or {}
-                stored = raw if isinstance(raw, dict) else {}
-                fallback = query or draft or str(stored.get("goal") or "task")
-                contract = contract_from_dict(stored, fallback)
-            if contract is None:
-                if not (query or draft):
-                    raise validation_error(f"{normalized_check} check needs draft or run_id.")
-                contract = compile_task_contract(query or draft)
-            if normalized_check == "outcomes":
-                if not draft.strip():
-                    raise validation_error("outcomes check needs draft.")
-                data = verify_outcomes(draft, contract)
-                data = _gate_outcomes_with_workflow_evidence(
-                    data=data,
-                    contract=contract,
-                    store=store,
-                    run_id=run_id,
-                    project_root=project_root,
-                )
-                checked = _checked_result(
-                    check="outcomes",
-                    status=status_from_bool(bool(data["passed"])),
-                    data=data,
-                    subject_kind="draft",
-                    subject=draft,
-                    producer="core.reasoning.playbook.verify_outcomes",
-                    evidence_payload={
-                        "passed": bool(data["passed"]),
-                        "action": str(data["action"]),
-                        "unmet": list(data["unmet"]),
-                        "evidence_gate": dict(data.get("evidence_gate") or {}),
-                    },
-                    limitations=[
-                        "Draft checks do not prove repository state, command execution, or runtime behavior."
-                    ],
-                )
-                return _persist_checked_result(store, run_id, checked)
-            report = check_draft(draft, contract)
-            return _checked_result(
-                check="constraints",
-                status=status_from_bool(report.passed),
-                data=report.to_dict(),
-                subject_kind="draft",
-                subject=draft,
-                producer="core.reasoning.constraint_check.check_draft",
-                evidence_payload={"passed": report.passed, "unmet": list(report.unmet)},
-                limitations=["Lexical and format constraints inspect only the supplied draft."],
-            )
-        if normalized_check == "evidence":
-            from core.evidence.grounded_search import grounded_evidence
-
-            if not query.strip():
-                raise validation_error("query is required for check=evidence.")
-            evidence = await grounded_evidence(query.strip())
-            data = evidence.to_dict()
-            evidence_status = (
-                VerificationStatus.PASS if evidence.quotes and not evidence.degraded else VerificationStatus.UNKNOWN
-            )
-            limitations = list(evidence.uncertain)
-            if evidence.degraded:
-                limitations.append("Retrieval is degraded; evidence coverage is incomplete.")
-            return _checked_result(
-                check="evidence",
-                status=evidence_status,
-                data=data,
-                subject_kind="query",
-                subject=query.strip(),
-                producer="core.evidence.grounded_search.grounded_evidence",
-                evidence_payload={
-                    "sources_fetched": evidence.sources_fetched,
-                    "sources_readable": evidence.sources_readable,
-                    "quote_count": len(evidence.quotes),
-                    "degraded": evidence.degraded,
-                    "retrieved_at": evidence.retrieved_at,
-                },
-                limitations=list(dict.fromkeys(limitations)),
-            )
-        if normalized_check == "syntax":
-            from core.cognitive.leverage.deterministic_gates import validate_syntax
-
-            target = code or draft
-            if not target.strip():
-                raise validation_error("code or draft is required for check=syntax.")
-            result = validate_syntax(target, language or "python")
-            data = result.to_dict()
-            return _checked_result(
-                check="syntax",
-                status=status_from_bool(bool(data.get("passed"))),
-                data=data,
-                subject_kind=f"source:{language or 'python'}",
-                subject=target,
-                producer="core.cognitive.leverage.deterministic_gates.validate_syntax",
-                limitations=["Syntax and selected static rules do not prove runtime correctness or security."],
-            )
-        if normalized_check == "tests":
-            from core.verification.git_diff import verify_git_diff
-
-            execution_root = ""
-            repository_limitation = ""
-            if project_root.strip():
-                discovered = verify_git_diff(project_root=project_root)
-                unavailable = discovered.status is VerificationStatus.UNKNOWN or (
-                    discovered.status is VerificationStatus.NOT_CHECKED
-                    and not discovered.reason.startswith("no allowed_files policy")
-                )
-                if unavailable:
-                    data = {
-                        "passed": False,
-                        "executed": False,
-                        "reason": f"project_root is unavailable: {discovered.reason}",
-                        "command": command.strip(),
-                    }
-                    repository_limitation = discovered.reason
-                else:
-                    execution_root = discovered.repository_root
-                    data = _run_allowlisted_command(command, cwd=execution_root)
-            else:
-                data = _run_allowlisted_command(command)
-            if data.get("executed"):
-                test_status = status_from_bool(bool(data.get("passed")))
-            elif str(data.get("reason", "")).startswith("set ELITE_ALLOW_TEST_COMMAND") or "allowlist" in str(
-                data.get("reason", "")
-            ):
-                test_status = VerificationStatus.NOT_CHECKED
-            else:
-                test_status = VerificationStatus.UNKNOWN
-            repository_snapshot_digest = ""
-            if project_root.strip() and execution_root:
-                snapshot = verify_git_diff(project_root=execution_root)
-                unavailable = snapshot.status is VerificationStatus.UNKNOWN or (
-                    snapshot.status is VerificationStatus.NOT_CHECKED
-                    and not snapshot.reason.startswith("no allowed_files policy")
-                )
-                if unavailable:
-                    repository_limitation = snapshot.reason
-                else:
-                    repository_snapshot_digest = subject_digest(
-                        "git_worktree_snapshot", snapshot.snapshot_material
-                    )
-            data["repository_snapshot_digest"] = repository_snapshot_digest
-            checked = _checked_result(
-                check="tests",
-                status=test_status,
-                data=data,
-                subject_kind="test_command_and_repository",
-                subject=f"{command.strip()}\0{repository_snapshot_digest}",
-                producer="core.tools.gateway._run_allowlisted_command",
-                evidence_payload={
-                    "command": data.get("command", command.strip()),
-                    "executed": bool(data.get("executed")),
-                    "returncode": data.get("returncode"),
-                    "passed": bool(data.get("passed")),
-                    "reason": data.get("reason", ""),
-                    "repository_snapshot_digest": repository_snapshot_digest,
-                },
-                limitations=[
-                    item
-                    for item in (
-                        "" if data.get("executed") else str(data.get("reason") or "Command was not executed."),
-                        repository_limitation,
-                        "" if project_root.strip() else "No project_root was supplied; test evidence is not bound to repository state.",
-                    )
-                    if item
-                ],
-            )
-            return _persist_checked_result(store, run_id, checked)
-        if normalized_check == "diff":
-            from core.verification.git_diff import verify_git_diff
-
-            scope = list(allowed_files or [])
-            if run_id.strip():
-                run = store.get_workflow_run(run_id.strip())
-                if run is None:
-                    raise validation_error("Workflow run was not found.")
-                raw_contract = run.get("task_contract") or {}
-                if isinstance(raw_contract, dict):
-                    for item in raw_contract.get("constraints") or []:
-                        if isinstance(item, dict) and item.get("kind") == "scope_files":
-                            for path in item.get("terms") or []:
-                                if str(path) not in scope:
-                                    scope.append(str(path))
-            result = verify_git_diff(
+        if verifier_registry.supports(normalized_check):
+            request = VerifierRequest(
+                check=normalized_check,
+                query=query,
+                draft=draft,
+                run_id=run_id,
+                code=code,
+                language=language,
+                command=command,
                 project_root=project_root,
-                allowed_files=scope,
+                allowed_files=tuple(allowed_files or ()),
                 forbid_dependency_changes=forbid_dependency_changes,
             )
-            data = result.to_dict()
+            try:
+                execution = await verifier_registry.verify(request)
+            except VerificationInputError as exc:
+                raise validation_error(str(exc)) from exc
             checked = _checked_result(
-                check="diff",
-                status=result.status,
-                data=data,
-                subject_kind="git_worktree_snapshot",
-                subject=result.snapshot_material,
-                producer="core.verification.git_diff.verify_git_diff",
-                evidence_payload={
-                    "repository_root": result.repository_root,
-                    "changed_files": [item.to_dict() for item in result.changed_files],
-                    "allowed_files": list(result.allowed_files),
-                    "out_of_scope": list(result.out_of_scope),
-                    "dependency_changes": list(result.dependency_changes),
-                    "reason": result.reason,
-                },
-                limitations=(
-                    []
-                    if result.status in {VerificationStatus.PASS, VerificationStatus.FAIL}
-                    else [result.reason]
-                ),
+                check=execution.check,
+                status=execution.status,
+                data=execution.data,
+                subject_kind=execution.subject_kind,
+                subject=execution.subject,
+                producer=execution.producer,
+                evidence_payload=execution.evidence_payload,
+                limitations=list(execution.limitations),
             )
             return _persist_checked_result(store, run_id, checked)
-        if normalized_check == "grounding":
-            from core.evidence.grounded_search import grounded_evidence, grounding_check
-
-            if not draft.strip() or not query.strip():
-                raise validation_error("grounding check needs query and draft.")
-
-            evidence = await grounded_evidence(query.strip())
-            report = grounding_check(draft, evidence)
-            report["evidence"] = evidence.to_dict()
-            definitive_failure = bool(report.get("hallucinated_urls") or report.get("unsupported_quotes"))
-            if definitive_failure:
-                grounding_status = VerificationStatus.FAIL
-            elif evidence.degraded:
-                grounding_status = VerificationStatus.UNKNOWN
-            else:
-                grounding_status = status_from_bool(bool(report.get("passed")))
-            limitations = list(evidence.uncertain)
-            if evidence.degraded:
-                limitations.append("Grounding coverage is incomplete because retrieval is degraded.")
-            return _checked_result(
-                check="grounding",
-                status=grounding_status,
-                data=report,
-                subject_kind="grounding_draft",
-                subject=f"{query.strip()}\0{draft}",
-                producer="core.evidence.grounded_search.grounding_check",
-                evidence_payload={
-                    "passed": bool(report.get("passed")),
-                    "hallucinated_urls": list(report.get("hallucinated_urls") or []),
-                    "unsupported_quotes": list(report.get("unsupported_quotes") or []),
-                    "degraded": evidence.degraded,
-                    "quote_count": len(evidence.quotes),
-                },
-                limitations=list(dict.fromkeys(limitations)),
-            )
-        raise validation_error(
-            "check must be doctor, capabilities, constraints, evidence, syntax, tests, diff, grounding, or outcomes."
-        )
+        supported = ", ".join(("doctor", "capabilities", *verifier_registry.names()))
+        raise validation_error(f"unsupported check; choose one of: {supported}.")
 
     @mcp.tool(name="elite_memory", annotations=_MEMORY_ANNOTATIONS)
     def elite_memory(

@@ -243,7 +243,7 @@ The default v2 profile intentionally exposes five task-oriented tools. This impr
 
 ### Legacy Catalog (explicit opt-in)
 
-Existing installations can retain the full legacy tool catalog by setting `ELITE_TOOL_PROFILE=legacy`. It is not the default because a broad discovery surface makes selection less reliable for agents. The legacy profile includes the following 90+ tools and resources:
+Existing installations can retain the full legacy tool catalog by installing `elite-reasoning-mcp[legacy]` and setting `ELITE_TOOL_PROFILE=legacy`. It is not the default because a broad discovery surface makes selection less reliable for agents, and its graph/model dependencies are intentionally excluded from the dependency-light core installation. The legacy profile includes the following 90+ tools and resources:
 
 <details>
 <summary><strong>Core Pipeline (3)</strong></summary>

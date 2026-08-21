@@ -67,7 +67,14 @@ import json
 import sys
 from core.integration.mcp_server import create_mcp_server
 server = create_mcp_server(sys.argv[1], tool_profile="core")
-forbidden = sorted(name for name in sys.modules if name == "core.cognitive" or name.startswith("core.cognitive."))
+forbidden_prefixes = (
+    "core.cognitive",
+    "core.tools.cognitive_tools",
+    "core.tools.planning",
+    "core.tools.orchestration",
+    "core.integration.memory_bridge",
+)
+forbidden = sorted(name for name in sys.modules if name.startswith(forbidden_prefixes))
 print(json.dumps({"tools": sorted(server._tool_manager._tools), "forbidden": forbidden}))
 """
     completed = subprocess.run(

@@ -10,6 +10,7 @@ from __future__ import annotations
 import subprocess
 import sys
 import tarfile
+import tempfile
 from pathlib import Path, PurePosixPath
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -42,8 +43,11 @@ FOCUSED_PYRIGHT = [
     "core/reasoning/task_contract.py",
     "core/reasoning/constraint_check.py",
     "core/reasoning/playbook.py",
+    "core/api/schemas.py",
     "core/verification/models.py",
+    "core/verification/command.py",
     "core/verification/git_diff.py",
+    "core/verification/registry.py",
     "core/evidence/grounded_search.py",
     "core/eval/blind_protocol.py",
     "core/tools/errors.py",
@@ -98,7 +102,20 @@ def main() -> int:
     run_step("lock integrity", ["uv", "lock", "--check"])
     run_step("public claims integrity", [sys.executable, "scripts/validate_claims.py"])
     run_step("pytest", ["uv", "run", "--extra", "dev", "pytest"])
-    run_step("internal fixture pilot", ["uv", "run", "--extra", "dev", "python", "scripts/double_blind_eval.py"])
+    pilot_output = str(Path(tempfile.gettempdir()) / "elite-internal-fixture-pilot.md")
+    run_step(
+        "internal fixture pilot",
+        [
+            "uv",
+            "run",
+            "--extra",
+            "dev",
+            "python",
+            "scripts/double_blind_eval.py",
+            "--output",
+            pilot_output,
+        ],
+    )
     run_step("ruff", ["uv", "run", "--extra", "dev", "ruff", "check", "core", "tests", "scripts"])
     run_step(
         "focused pyright",
@@ -125,6 +142,20 @@ def main() -> int:
             str(wheels[-1]),
             "elite-reasoning-mcp",
             "--version",
+        ],
+    )
+    run_step(
+        "minimal installed core",
+        [
+            "uv",
+            "run",
+            "--isolated",
+            "--no-project",
+            "--with",
+            str(wheels[-1]),
+            "python",
+            "-m",
+            "core.verification.minimal_smoke",
         ],
     )
     run_step(

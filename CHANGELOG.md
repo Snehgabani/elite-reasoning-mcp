@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Four-state verification results (`PASS`, `FAIL`, `UNKNOWN`, `NOT_CHECKED`) with subject digests and content-addressed evidence IDs.
 - Git working-tree scope verification with approved-root confinement, changed-file content digests, untracked-file coverage, and optional dependency-manifest blocking.
 - Persisted workflow evidence that binds executed test results to repository snapshots and rejects stale completion evidence.
+- Typed verifier registry with inspectable, independently testable handlers for constraints, outcomes, evidence, syntax, tests, Git scope, and grounding.
+- Restricted test-command adapter with an environment allowlist and explicit timeout behavior.
+- Public API response schemas separated from MCP gateway registration.
 - Product hardening roadmap covering the evidence-first core, architecture, evaluation, security, and adoption milestones.
 
 ### Changed
@@ -22,7 +25,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Replaced unsupported performance and security language with scoped implementation claims and explicit limitations.
 - Isolated the legacy cognitive smoke script from the registered `BENCHMARK_REPORT.md` artifact.
 - Stopped the core profile from importing and registering the legacy cognitive catalog before discarding it.
+- Added a dedicated core-server finalization path so default startup never constructs legacy identity, collaboration, sync, resource, or cognitive surfaces.
 - Made `core.cognitive` compatibility exports lazy so deterministic checks do not load the graph engine.
+- Moved graph, model-provider, sync-server, SciPy, and NetworkX dependencies behind the explicit `legacy` extra; release gates now exercise a minimal installed core wheel without them on Linux, macOS, and Windows.
+- Kept release fixture-pilot output in a temporary artifact so validation no longer dirties the tracked benchmark report.
 
 ## [2.8.0] - 2026-08-21
 

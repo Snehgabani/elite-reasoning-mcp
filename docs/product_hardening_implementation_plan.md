@@ -5,6 +5,8 @@
 **Primary objective:** Turn the existing functional MCP prototype into the most credible local contract, evidence, and trusted-memory control plane for coding agents.  
 **Product boundary:** Elite compiles checkable contracts, gathers or accepts evidence, verifies completion claims, and stores trusted lessons. It does not claim to improve a model's latent intelligence or guarantee software correctness.
 
+**Delivery method:** Every material milestone follows the [OODAA Scientific Delivery Protocol](scientific_delivery_protocol.md): Observe, Orient, Decide, Act, Assess.
+
 ---
 
 ## Implementation progress
@@ -19,10 +21,13 @@ Last updated: 2026-08-22
 - [x] Make deterministic cognitive exports lazy so syntax checks do not load the graph engine.
 - [x] Require independently executed, repository-bound test evidence before tested code workflows can return `DONE`.
 - [x] Add a Git working-tree scope verifier with stale-state detection and dependency-manifest policy.
-- [ ] Replace gateway branching with a typed verifier registry.
-- [ ] Split the gateway and server composition modules along the target architecture.
+- [x] Replace gateway verification branching with a typed, inspectable verifier registry.
+- [x] Move public response schemas and restricted command execution out of the gateway.
+- [x] Give the core profile a dedicated finalization path that skips every legacy tool and resource registration block.
+- [ ] Extract legacy composition from `mcp_server.py` and finish reducing the remaining server module.
 - [ ] Decompose persistence and add migration backup/rollback fixtures.
-- [ ] Reduce default dependencies and test a minimal installed wheel across operating systems.
+- [x] Move graph/model/sync/scientific dependencies behind `legacy` and add an isolated minimal-wheel core smoke gate.
+- [x] Add isolated installed-wheel validation on Linux, macOS, and Windows for Python 3.11 and 3.13.
 - [ ] Build the manifest-driven multi-arm evaluation harness and frozen task corpus.
 - [ ] Complete adversarial security, memory-poisoning, and corruption suites.
 - [ ] Run the design-partner and external-replication program.

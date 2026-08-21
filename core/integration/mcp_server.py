@@ -146,6 +146,10 @@ def create_mcp_server(brain_dir: str, tool_profile: str | None = None) -> FastMC
 
         gateway.register(mcp, store, profile)
         logger.info("Core gateway tools registered", extra={"action": "core_tools_registered"})
+        # Core composition ends here. Legacy identity, sync, collaboration,
+        # resources, and cognitive tools below are never registered and then
+        # discarded on the default path.
+        return _finalize_core_server(mcp, store)
 
     # ── Build Middleware Chain (Blueprint #3: replaces monkey-patch) ──
     # Opus R2: Correct order matters critically:
@@ -551,6 +555,60 @@ def create_mcp_server(brain_dir: str, tool_profile: str | None = None) -> FastMC
             "No middleware chain available and legacy interceptor disabled — tools will run without orchestration hooks"
         )
 
+    return mcp
+
+
+def _finalize_core_server(mcp: FastMCP, store: EliteStore) -> FastMCP:
+    """Apply core middleware without constructing the legacy server surface."""
+    optimization_loop = None
+    try:
+        from core.scheduler.optimizer import OptimizationLoop
+
+        optimization_loop = OptimizationLoop(store)
+    except ImportError as exc:
+        logger.debug("OptimizationLoop not available", extra={"error": str(exc)})
+
+    middleware_chain = None
+    try:
+        from core.middleware.chain import MiddlewareChain
+        from core.middleware.fallback import FallbackMiddleware, RetryMiddleware
+        from core.middleware.injection import AntiPatternInjectionMiddleware
+        from core.middleware.prevention import PreventionRuleMiddleware
+        from core.middleware.telemetry import (
+            CostTrackingMiddleware,
+            LatencyBudgetMiddleware,
+            PeriodicScanMiddleware,
+            UsageLogMiddleware,
+        )
+
+        middleware_chain = (
+            MiddlewareChain()
+            .use(UsageLogMiddleware(store))
+            .use(LatencyBudgetMiddleware(p99_ms=2000))
+            .use(PreventionRuleMiddleware(store))
+            .use(AntiPatternInjectionMiddleware(store))
+            .use(PeriodicScanMiddleware(store, interval=20, optimizer=optimization_loop))
+            .use(CostTrackingMiddleware(store))
+            .use(FallbackMiddleware())
+            .use(RetryMiddleware(max_retries=2, initial_delay=0.5))
+        )
+    except ImportError as exc:
+        logger.warning("Core middleware chain unavailable", extra={"error": str(exc)})
+
+    session_id = f"mcp_{uuid.uuid4().hex[:8]}"
+    logger.info("Core session ID assigned", extra={"session_id": session_id})
+    _wrap_tools_with_error_boundary(mcp)
+
+    if os.environ.get("ELITE_ENABLE_LEGACY_INTERCEPTOR", "").strip() == "1":
+        logger.warning("Legacy interceptor enabled on core profile")
+        _install_orchestration_interceptor(mcp, store, session_id)
+    elif middleware_chain is not None:
+        from core.integration.middleware_setup import wrap_registered_tools
+
+        wrapped = wrap_registered_tools(mcp, middleware_chain)
+        logger.info("Core middleware connected", extra={"wrapped": wrapped})
+    else:
+        logger.warning("Core tools are running without orchestration middleware")
     return mcp
 
 
