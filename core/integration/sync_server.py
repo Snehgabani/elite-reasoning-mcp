@@ -832,9 +832,10 @@ def health(api_key: str = Depends(get_api_key)):
             },
         }
     except Exception as error:
+        logger.warning(f"Sync server health check encountered error: {type(error).__name__}")
         return {
             "status": "degraded",
-            "error": safe_error_detail(error),
+            "error": "internal_error",
         }
 
 

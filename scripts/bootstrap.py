@@ -18,6 +18,7 @@ def bootstrap(brain_dir: str, include_demo_mcps: bool = False):
     try:
         os.chmod(brain_path, 0o700)
     except OSError:
+        # Non-fatal exception intentionally suppressed
         pass
     
     # 1. Setup Quarantine directory
@@ -40,6 +41,7 @@ def bootstrap(brain_dir: str, include_demo_mcps: bool = False):
         try:
             os.chmod(mcp_config_path, 0o600)
         except OSError:
+            # Non-fatal exception intentionally suppressed
             pass
     else:
         logger.info("mcp_servers.json already exists. Skipping.")

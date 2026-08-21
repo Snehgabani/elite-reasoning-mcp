@@ -193,6 +193,7 @@ def main():
     try:
         os.chmod(out_file, 0o600)
     except OSError:
+        # Non-fatal exception intentionally suppressed
         pass
     print(f"\\n✅ Export complete: {out_file}")
     print(f"File size: {os.path.getsize(out_file) / 1024:.2f} KB")
