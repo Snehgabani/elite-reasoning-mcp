@@ -26,7 +26,7 @@ class SkeletonOfThoughtEngine:
             "2. Relational Topology & Dependency Mapping",
             "3. Step-by-Step Mathematical Verification",
             "4. Adversarial Red-Team Counter-Evidence",
-            "5. Final Synthesis & Execution Plan"
+            "5. Final Synthesis & Execution Plan",
         ]
 
         tasks = [self._expand_point(i + 1, title, topic) for i, title in enumerate(skeleton)]
@@ -40,8 +40,9 @@ class SkeletonOfThoughtEngine:
             "topic": topic,
             "skeleton_points": len(skeleton),
             "parallel_tasks_count": len(tasks),
-            "report_markdown": full_report_md
+            "report_markdown": full_report_md,
         }
+
 
 async def skeleton_of_thought_generate(topic: str) -> str:
     engine = SkeletonOfThoughtEngine()

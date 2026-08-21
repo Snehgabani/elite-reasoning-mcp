@@ -30,7 +30,8 @@ class EmbeddingService:
                 if self._model is None:
                     logger.info("Lazy-loading SentenceTransformer model: all-MiniLM-L6-v2")
                     from sentence_transformers import SentenceTransformer
-                    self._model = SentenceTransformer('all-MiniLM-L6-v2')
+
+                    self._model = SentenceTransformer("all-MiniLM-L6-v2")
         return self._model
 
     def encode(self, text: str) -> list[float]:
@@ -57,4 +58,3 @@ class EmbeddingService:
 def get_embedding(text: str) -> list[float]:
     """Helper method to encode text from the singleton."""
     return EmbeddingService.get_instance().encode(text)
-

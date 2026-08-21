@@ -23,15 +23,18 @@ from core.tools.error_boundary import smart_wrap
 logger = get_logger(__name__)
 
 # ── Security: Allowlisted config keys ──────────────────────
-CONFIG_ALLOWLIST = frozenset({
-    "display_name",
-    "sync.enabled",
-    "sync.auto_sync_on_boot",
-    "orchestration.mode",
-    "orchestration.auto_scan_interval",
-    "ui.theme",
-    "ui.compact_mode",
-})
+CONFIG_ALLOWLIST = frozenset(
+    {
+        "display_name",
+        "sync.enabled",
+        "sync.auto_sync_on_boot",
+        "orchestration.mode",
+        "orchestration.auto_scan_interval",
+        "ui.theme",
+        "ui.compact_mode",
+    }
+)
+
 
 def create_mcp_server(brain_dir: str, tool_profile: str | None = None) -> FastMCP:
     """
@@ -114,22 +117,28 @@ def create_mcp_server(brain_dir: str, tool_profile: str | None = None) -> FastMC
         )
 
         from core.tools import gateway
+
         gateway.register(mcp, store, profile)
 
         from core.tools import verb_tools
+
         verb_tools.register_verb_tools(mcp, store)
 
         from core.tools import cognitive_tools
+
         cognitive_tools.register(mcp, store, profile)
 
         from core.cognitive.loop.core.server import _register_tools_safely
+
         _register_tools_safely(mcp, store)
         logger.info("Cognitive singularity tools registered (MIX MCP drop-in)")
     else:
         from core.tools import gateway
+
         gateway.register(mcp, store, profile)
 
         from core.tools import cognitive_tools
+
         cognitive_tools.register(mcp, store, profile)
         logger.info("Core gateway and cognitive tools registered", extra={"action": "core_tools_registered"})
 
@@ -147,6 +156,7 @@ def create_mcp_server(brain_dir: str, tool_profile: str | None = None) -> FastMC
     _optimization_loop = None
     try:
         from core.scheduler.optimizer import OptimizationLoop
+
         _optimization_loop = OptimizationLoop(store)
         logger.info("OptimizationLoop initialized (5 triggers, hook-based)")
     except ImportError as e:
@@ -166,22 +176,24 @@ def create_mcp_server(brain_dir: str, tool_profile: str | None = None) -> FastMC
 
         _middleware_chain = (
             MiddlewareChain()
-            .use(UsageLogMiddleware(store))                                # 1. Log EVERYTHING (even blocked)
-            .use(LatencyBudgetMiddleware(p99_ms=2000))                     # 2. Bracket entire call
-            .use(PreventionRuleMiddleware(store))                          # 3. Pre-execution check
-            .use(AntiPatternInjectionMiddleware(store))                    # 4. Context augmentation
-            .use(PeriodicScanMiddleware(store, interval=20,
-                                       optimizer=_optimization_loop))      # 5. Post-hook scan + optimizer tick
-            .use(CostTrackingMiddleware(store))                            # 6. Auto-log embedding costs
-            .use(FallbackMiddleware())                                     # 7. Suggest alternatives on fail
-            .use(RetryMiddleware(max_retries=2, initial_delay=0.5))        # 8. Retry INNERMOST
+            .use(UsageLogMiddleware(store))  # 1. Log EVERYTHING (even blocked)
+            .use(LatencyBudgetMiddleware(p99_ms=2000))  # 2. Bracket entire call
+            .use(PreventionRuleMiddleware(store))  # 3. Pre-execution check
+            .use(AntiPatternInjectionMiddleware(store))  # 4. Context augmentation
+            .use(
+                PeriodicScanMiddleware(store, interval=20, optimizer=_optimization_loop)
+            )  # 5. Post-hook scan + optimizer tick
+            .use(CostTrackingMiddleware(store))  # 6. Auto-log embedding costs
+            .use(FallbackMiddleware())  # 7. Suggest alternatives on fail
+            .use(RetryMiddleware(max_retries=2, initial_delay=0.5))  # 8. Retry INNERMOST
         )
-        logger.info("Middleware chain built (R2 order)", extra={"middlewares": 8,
-                    "optimizer_wired": _optimization_loop is not None})
+        logger.info(
+            "Middleware chain built (R2 order)",
+            extra={"middlewares": 8, "optimizer_wired": _optimization_loop is not None},
+        )
     except ImportError as e:
         _middleware_chain = None
         logger.warning("Middleware chain not available, falling back to interceptor", extra={"error": str(e)})
-
 
     # ── User Identity Tools ────────────────────────────────
 
@@ -369,7 +381,9 @@ def create_mcp_server(brain_dir: str, tool_profile: str | None = None) -> FastMC
             return "Anti-pattern registry is empty."
         out = "# 🛡️ Anti-Pattern Registry\n\n"
         for p in patterns:
-            out += f"## [{p['severity'].upper()}] {p['mistake']}\n- Root Cause: {p['root_cause']}\n- Fix: {p['fix']}\n\n"
+            out += (
+                f"## [{p['severity'].upper()}] {p['mistake']}\n- Root Cause: {p['root_cause']}\n- Fix: {p['fix']}\n\n"
+            )
         return out
 
     @mcp.resource("elite://decisions")
@@ -400,11 +414,13 @@ def create_mcp_server(brain_dir: str, tool_profile: str | None = None) -> FastMC
     def get_health_resource() -> str:
         """System health check — reports dependency status and degradation."""
         import importlib
+
         checks = []
 
         # Check sqlite_vec
         try:
             import sqlite_vec  # noqa: F401
+
             checks.append("| sqlite_vec | ✅ Installed | Full vector search available |")
         except ImportError:
             checks.append("| sqlite_vec | ❌ Missing | Falling back to FTS text search |")
@@ -419,24 +435,25 @@ def create_mcp_server(brain_dir: str, tool_profile: str | None = None) -> FastMC
         # Check embedding model
         try:
             from core.memory.embedding import EmbeddingService
-            if isinstance(getattr(store, '_embedding_service', None), EmbeddingService):
+
+            if isinstance(getattr(store, "_embedding_service", None), EmbeddingService):
                 checks.append("| Embedding Model | ✅ Loaded | Ready for encoding |")
-            elif hasattr(store, 'embedding_model') and store.embedding_model:
+            elif hasattr(store, "embedding_model") and store.embedding_model:
                 checks.append("| Embedding Model | ✅ Loaded | Ready for encoding |")
             else:
                 checks.append("| Embedding Model | ⚠️ Not loaded | Will load on first use |")
         except ImportError:
             # EmbeddingService not available, fall back to hasattr check
             try:
-                if hasattr(store, 'embedding_model') and store.embedding_model:
+                if hasattr(store, "embedding_model") and store.embedding_model:
                     checks.append("| Embedding Model | ✅ Loaded | Ready for encoding |")
                 else:
                     checks.append("| Embedding Model | ⚠️ Not loaded | Will load on first use |")
             except Exception as e:
-                logger.debug(f'Embedding model check failed: {e}')
+                logger.debug(f"Embedding model check failed: {e}")
                 checks.append("| Embedding Model | ❌ Error | Embedding generation unavailable |")
         except Exception as e:
-            logger.debug(f'Embedding availability check failed: {e}')
+            logger.debug(f"Embedding availability check failed: {e}")
             checks.append("| Embedding Model | ❌ Error | Embedding generation unavailable |")
 
         # Check databases
@@ -493,7 +510,11 @@ def create_mcp_server(brain_dir: str, tool_profile: str | None = None) -> FastMC
 
     # Automatic boot sync silently transmits workstation metadata. It is kept
     # as a migrated config key for compatibility but deliberately never runs.
-    if profile_name == "legacy" and profile.sync_enabled and profile.config.get("sync", {}).get("auto_sync_on_boot", False):
+    if (
+        profile_name == "legacy"
+        and profile.sync_enabled
+        and profile.config.get("sync", {}).get("auto_sync_on_boot", False)
+    ):
         logger.warning(
             "Automatic boot sync is disabled; invoke sync_team_memory with confirm=true instead.",
             extra={"action": "boot_sync_withheld"},
@@ -512,17 +533,18 @@ def create_mcp_server(brain_dir: str, tool_profile: str | None = None) -> FastMC
     # ── Execution Path Selection ──────────────────────────────
     # Default: Middleware chain (R2 architecture)
     # Legacy: Monkey-patch interceptor (opt-in via env var for debugging)
-    if os.environ.get('ELITE_ENABLE_LEGACY_INTERCEPTOR', '').strip() == '1':
+    if os.environ.get("ELITE_ENABLE_LEGACY_INTERCEPTOR", "").strip() == "1":
         logger.warning("Legacy interceptor enabled via ELITE_ENABLE_LEGACY_INTERCEPTOR=1")
         _install_orchestration_interceptor(mcp, store, _session_id)
     elif _middleware_chain is not None:
         from core.integration.middleware_setup import wrap_registered_tools
+
         wrapped = wrap_registered_tools(mcp, _middleware_chain)
-        logger.info("Middleware chain connected to tools",
-                    extra={"wrapped": wrapped, "path": "middleware_chain"})
+        logger.info("Middleware chain connected to tools", extra={"wrapped": wrapped, "path": "middleware_chain"})
     else:
-        logger.warning("No middleware chain available and legacy interceptor disabled — "
-                      "tools will run without orchestration hooks")
+        logger.warning(
+            "No middleware chain available and legacy interceptor disabled — tools will run without orchestration hooks"
+        )
 
     return mcp
 
@@ -554,7 +576,7 @@ def _wrap_tools_with_error_boundary(mcp: FastMCP):
     """
     Gap #6 Fix: Post-registration hook that wraps every registered tool's
     function with the safe_tool error boundary.
-    
+
     Uses smart_wrap to auto-detect sync/async and apply the correct wrapper.
     This ensures that even if a tool module forgot to use @safe_tool,
     the boundary is applied globally.
@@ -565,7 +587,7 @@ def _wrap_tools_with_error_boundary(mcp: FastMCP):
         for tool_name, tool_obj in tool_manager._tools.items():
             original_fn = tool_obj.fn
             # Don't double-wrap
-            if not getattr(original_fn, '_has_error_boundary', False):
+            if not getattr(original_fn, "_has_error_boundary", False):
                 tool_obj.fn = smart_wrap(original_fn)
                 wrapped_count += 1
         logger.info("Error boundary applied", extra={"wrapped": wrapped_count})
@@ -578,32 +600,46 @@ def _classify_intent(prompt: str) -> str:
     Returns the highest-scoring category based on keyword matches."""
     p = prompt.lower()
     scores = {
-        'debug': 0, 'audit': 0, 'build': 0, 'improve': 0,
-        'investigate': 0, 'continuation': 0, 'deploy': 0, 'test': 0,
-        'create': 0, 'design': 0, 'decide': 0, 'evaluate': 0, 'fix': 0,
+        "debug": 0,
+        "audit": 0,
+        "build": 0,
+        "improve": 0,
+        "investigate": 0,
+        "continuation": 0,
+        "deploy": 0,
+        "test": 0,
+        "create": 0,
+        "design": 0,
+        "decide": 0,
+        "evaluate": 0,
+        "fix": 0,
     }
     # Weight 2 = strong signal, 1 = weak signal
     signals = [
-        ('debug', 2, ['debug', 'error', 'broken', 'crash', 'bug', 'traceback', 'exception', 'stack trace', 'not working']),
-        ('fix', 2, ['fix', 'patch', 'hotfix', 'resolve', 'repair']),
-        ('audit', 2, ['audit', 'review', 'check', 'scan', 'diagnose', 'health', 'inspect', 'verify']),
-        ('build', 2, ['build', 'implement', 'add feature', 'new feature', 'scaffold', 'generate', 'write code']),
-        ('create', 2, ['create', 'new project', 'bootstrap', 'setup', 'init', 'from scratch']),
-        ('design', 2, ['design', 'architect', 'architecture', 'schema', 'data model', 'api design', 'system design']),
-        ('decide', 2, ['decide', 'choose', 'pick', 'which one', 'should i', 'trade-off', 'tradeoff', 'vs ']),
-        ('evaluate', 2, ['evaluate', 'compare', 'assess', 'benchmark', 'measure', 'analyze option', 'pros and cons']),
-        ('improve', 2, ['improve', 'upgrade', 'optimize', 'refactor', 'better', 'enhance', 'polish', 'clean up']),
-        ('investigate', 1, ['explain', 'how does', 'why does', 'what is', 'understand', 'show me', 'where is']),
-        ('continuation', 1, ['go', 'continue', 'proceed', 'next', 'keep going', 'do it', 'execute', 'run it']),
-        ('deploy', 2, ['deploy', 'push', 'release', 'publish', 'ship', 'production', 'staging']),
-        ('test', 2, ['test', 'spec', 'unittest', 'e2e test', 'integration test', 'coverage', 'experiment']),
+        (
+            "debug",
+            2,
+            ["debug", "error", "broken", "crash", "bug", "traceback", "exception", "stack trace", "not working"],
+        ),
+        ("fix", 2, ["fix", "patch", "hotfix", "resolve", "repair"]),
+        ("audit", 2, ["audit", "review", "check", "scan", "diagnose", "health", "inspect", "verify"]),
+        ("build", 2, ["build", "implement", "add feature", "new feature", "scaffold", "generate", "write code"]),
+        ("create", 2, ["create", "new project", "bootstrap", "setup", "init", "from scratch"]),
+        ("design", 2, ["design", "architect", "architecture", "schema", "data model", "api design", "system design"]),
+        ("decide", 2, ["decide", "choose", "pick", "which one", "should i", "trade-off", "tradeoff", "vs "]),
+        ("evaluate", 2, ["evaluate", "compare", "assess", "benchmark", "measure", "analyze option", "pros and cons"]),
+        ("improve", 2, ["improve", "upgrade", "optimize", "refactor", "better", "enhance", "polish", "clean up"]),
+        ("investigate", 1, ["explain", "how does", "why does", "what is", "understand", "show me", "where is"]),
+        ("continuation", 1, ["go", "continue", "proceed", "next", "keep going", "do it", "execute", "run it"]),
+        ("deploy", 2, ["deploy", "push", "release", "publish", "ship", "production", "staging"]),
+        ("test", 2, ["test", "spec", "unittest", "e2e test", "integration test", "coverage", "experiment"]),
     ]
     for category, weight, keywords in signals:
         for kw in keywords:
             if kw in p:
                 scores[category] += weight
     best = max(scores, key=scores.get)
-    return best if scores[best] > 0 else 'general'
+    return best if scores[best] > 0 else "general"
 
 
 def _classify_reasoning(prompt: str) -> str:
@@ -611,33 +647,72 @@ def _classify_reasoning(prompt: str) -> str:
     Detects meta-patterns: loop kicks, depth escalation, gap injection, frustration."""
     p = prompt.lower().strip()
     # Exact-match loop kicks first (highest priority)
-    if p in ('go', 'continue', 'proceed', 'next', 'keep going', 'yes', 'do it', 'ok', 'approved'):
-        return 'loop_kick'
+    if p in ("go", "continue", "proceed", "next", "keep going", "yes", "do it", "ok", "approved"):
+        return "loop_kick"
     # Depth escalation — user wants more depth
-    depth_kws = ['think deeper', 'in depth', 'microscopically', 'more detail', 'not enough',
-                 'go deeper', 'drill down', 'end to end', 'comprehensive', 'thorough']
+    depth_kws = [
+        "think deeper",
+        "in depth",
+        "microscopically",
+        "more detail",
+        "not enough",
+        "go deeper",
+        "drill down",
+        "end to end",
+        "comprehensive",
+        "thorough",
+    ]
     if any(kw in p for kw in depth_kws):
-        return 'depth_escalation'
+        return "depth_escalation"
     # Gap injection — user adding something system missed
-    gap_kws = ['also need', 'what about', 'we must', 'dont forget', 'missing',
-               'we also', 'you forgot', 'didnt mention', 'overlooked', 'and also']
+    gap_kws = [
+        "also need",
+        "what about",
+        "we must",
+        "dont forget",
+        "missing",
+        "we also",
+        "you forgot",
+        "didnt mention",
+        "overlooked",
+        "and also",
+    ]
     if any(kw in p for kw in gap_kws):
-        return 'gap_injection'
+        return "gap_injection"
     # Frustration/repetition — user repeating themselves
-    frust_kws = ['still', 'again', 'why not', 'already told', 'i said',
-                 'i already', 'still not', 'same problem', 'didnt work']
+    frust_kws = [
+        "still",
+        "again",
+        "why not",
+        "already told",
+        "i said",
+        "i already",
+        "still not",
+        "same problem",
+        "didnt work",
+    ]
     if any(kw in p for kw in frust_kws):
-        return 'repetition_frustration'
+        return "repetition_frustration"
     # Meta-instruction — user teaching the system
-    meta_kws = ['always', 'every step', 'make sure', 'at every', 'must',
-                'never', 'from now on', 'remember to', 'rule:', 'important:']
+    meta_kws = [
+        "always",
+        "every step",
+        "make sure",
+        "at every",
+        "must",
+        "never",
+        "from now on",
+        "remember to",
+        "rule:",
+        "important:",
+    ]
     if any(kw in p for kw in meta_kws):
-        return 'meta_instruction'
+        return "meta_instruction"
     # Correction — user fixing system's output
-    corr_kws = ['no,', 'not that', 'wrong', 'incorrect', 'thats not', 'i meant']
+    corr_kws = ["no,", "not that", "wrong", "incorrect", "thats not", "i meant"]
     if any(kw in p for kw in corr_kws):
-        return 'correction'
-    return 'substantive'
+        return "correction"
+    return "substantive"
 
 
 def _classify_complexity(intent: str, prompt: str) -> int:
@@ -653,16 +728,24 @@ def _classify_complexity(intent: str, prompt: str) -> int:
         score += 1
 
     # Intent-based escalation
-    if intent in ('deploy', 'audit'):
+    if intent in ("deploy", "audit"):
         score += 2
-    elif intent in ('build', 'improve', 'debug'):
+    elif intent in ("build", "improve", "debug"):
         score += 1
 
     # Critical keywords → bump to 4-5
     critical_kws = [
-        'production', 'security', 'authentication', 'migration',
-        'database schema', 'breaking change', 'backwards compat',
-        'scale', 'concurrent', 'distributed', 'microservice',
+        "production",
+        "security",
+        "authentication",
+        "migration",
+        "database schema",
+        "breaking change",
+        "backwards compat",
+        "scale",
+        "concurrent",
+        "distributed",
+        "microservice",
     ]
     for kw in critical_kws:
         if kw in t:
@@ -671,9 +754,17 @@ def _classify_complexity(intent: str, prompt: str) -> int:
 
     # Moderate keywords → bump by 1
     moderate_kws = [
-        'refactor', 'redesign', 'architecture', 'integrate',
-        'api design', 'data model', 'performance', 'optimize',
-        'end to end', 'full stack', 'comprehensive',
+        "refactor",
+        "redesign",
+        "architecture",
+        "integrate",
+        "api design",
+        "data model",
+        "performance",
+        "optimize",
+        "end to end",
+        "full stack",
+        "comprehensive",
     ]
     for kw in moderate_kws:
         if kw in t:
@@ -682,8 +773,15 @@ def _classify_complexity(intent: str, prompt: str) -> int:
 
     # Trivial keywords → dampening
     trivial_kws = [
-        'typo', 'rename', 'comment', 'format', 'lint',
-        'simple', 'quick', 'minor', 'small fix',
+        "typo",
+        "rename",
+        "comment",
+        "format",
+        "lint",
+        "simple",
+        "quick",
+        "minor",
+        "small fix",
     ]
     for kw in trivial_kws:
         if kw in t:
@@ -696,44 +794,84 @@ def _classify_complexity(intent: str, prompt: str) -> int:
 def _seed_prevention_rules(store: EliteStore):
     """Seed initial prevention rules from known failure patterns.
     Uses idempotent registration — existing rules are NOT overwritten.
-    
+
     Blueprint #5 Fix: Uses CANONICAL EVENT VOCABULARY instead of ad-hoc trigger names.
     Old vocabulary (before_design, on_prompt, etc.) is migrated at runtime by EventBus.
     """
     rules = [
         # ── P0: Must never miss ──
-        ("no_silent_stops", "tool.after:*",
-         "Check if multi-step task is in progress and system is about to stop",
-         "Continue execution — never stop a multi-step task without a blocking reason", "P0"),
-        ("architecture_checklist", "phase.before:design",
-         "Run internal checklist: error recovery, observability, permissions, UX, export, updates, testing, monitoring",
-         "Pre-populate design with all checklist items before presenting to user", "P0"),
-        ("verify_before_commit", "phase.before:code_change",
-         "Run a quick smoke test on any API usage before committing",
-         "Execute verification command for new API patterns", "P0"),
+        (
+            "no_silent_stops",
+            "tool.after:*",
+            "Check if multi-step task is in progress and system is about to stop",
+            "Continue execution — never stop a multi-step task without a blocking reason",
+            "P0",
+        ),
+        (
+            "architecture_checklist",
+            "phase.before:design",
+            "Run internal checklist: error recovery, observability, permissions, UX, export, updates, testing, monitoring",
+            "Pre-populate design with all checklist items before presenting to user",
+            "P0",
+        ),
+        (
+            "verify_before_commit",
+            "phase.before:code_change",
+            "Run a quick smoke test on any API usage before committing",
+            "Execute verification command for new API patterns",
+            "P0",
+        ),
         # ── P1: Should fire but non-blocking ──
-        ("escalation_detection", "prompt.received",
-         "Detect if user is escalating from specific to general in <= 3 prompts",
-         "Switch to architecture mode instead of task-execution mode", "P1"),
-        ("track_implicit_requirements", "prompt.received",
-         "When user mentions a constraint (non-coder, production, etc), record it",
-         "Apply recorded constraints to all subsequent designs", "P1"),
-        ("self_audit_findings", "phase.after:audit",
-         "Check if all findings from previous audits have been resolved",
-         "Flag unresolved findings before starting new work", "P1"),
-        ("gap_analysis_before_present", "phase.before:design",
-         "Ask internally: what did I NOT mention that a senior architect would?",
-         "Add missing items before presenting to user", "P1"),
-        ("detect_repetition", "prompt.received",
-         "Count 'go'/'continue' prompts — if > 2 in sequence, user is frustrated",
-         "Set auto_continue mode and acknowledge the pattern", "P1"),
+        (
+            "escalation_detection",
+            "prompt.received",
+            "Detect if user is escalating from specific to general in <= 3 prompts",
+            "Switch to architecture mode instead of task-execution mode",
+            "P1",
+        ),
+        (
+            "track_implicit_requirements",
+            "prompt.received",
+            "When user mentions a constraint (non-coder, production, etc), record it",
+            "Apply recorded constraints to all subsequent designs",
+            "P1",
+        ),
+        (
+            "self_audit_findings",
+            "phase.after:audit",
+            "Check if all findings from previous audits have been resolved",
+            "Flag unresolved findings before starting new work",
+            "P1",
+        ),
+        (
+            "gap_analysis_before_present",
+            "phase.before:design",
+            "Ask internally: what did I NOT mention that a senior architect would?",
+            "Add missing items before presenting to user",
+            "P1",
+        ),
+        (
+            "detect_repetition",
+            "prompt.received",
+            "Count 'go'/'continue' prompts — if > 2 in sequence, user is frustrated",
+            "Set auto_continue mode and acknowledge the pattern",
+            "P1",
+        ),
         # ── P2: Nice to have ──
-        ("crash_recovery_check", "session.start",
-         "Check for incomplete operations from previous session",
-         "Resume from last checkpoint", "P2"),
-        ("test_coverage_gate", "phase.after:code_change",
-         "Verify new code has corresponding tests",
-         "Generate test stubs for untested code", "P2"),
+        (
+            "crash_recovery_check",
+            "session.start",
+            "Check for incomplete operations from previous session",
+            "Resume from last checkpoint",
+            "P2",
+        ),
+        (
+            "test_coverage_gate",
+            "phase.after:code_change",
+            "Verify new code has corresponding tests",
+            "Generate test stubs for untested code",
+            "P2",
+        ),
     ]
     seeded = 0
     for name, trigger, check, action, severity in rules:
@@ -741,7 +879,7 @@ def _seed_prevention_rules(store: EliteStore):
             store.register_prevention_rule(name, trigger, check, action, severity)
             seeded += 1
         except Exception as e:
-            logger.debug(f'Prevention rule seeding skipped for {name}: {e}')
+            logger.debug(f"Prevention rule seeding skipped for {name}: {e}")
     logger.info("Prevention rules seeded", extra={"new": seeded, "total": len(rules)})
 
 
@@ -754,10 +892,10 @@ def _execute_prevention_rules(store: EliteStore, trigger_event: str, context: di
         for rule in rules:
             try:
                 # Check if the rule's check matches the context
-                check = rule.get('check', '').lower()
-                action = rule.get('action', '')
-                tool_name = context.get('tool_name', '')
-                args_text = context.get('args_text', '')
+                check = rule.get("check", "").lower()
+                action = rule.get("action", "")
+                tool_name = context.get("tool_name", "")
+                args_text = context.get("args_text", "")
                 combined = f"{tool_name} {args_text}".lower()
 
                 # Keyword-based matching — check if the rule's query concepts appear in context
@@ -767,23 +905,23 @@ def _execute_prevention_rules(store: EliteStore, trigger_event: str, context: di
                     match_ratio = match_count / len(check_words)
 
                     if match_ratio >= 0.3:  # 30% keyword overlap = match
-                        store.increment_rule_trigger(rule['id'])
+                        store.increment_rule_trigger(rule["id"])
                         warnings.append(
                             f"🛡️ Rule `{rule['name']}` [{rule['severity']}] fired:\n"
                             f"   Check: {check}\n"
                             f"   Action: {action}"
                         )
             except Exception as e:
-                logger.debug(f'Individual rule evaluation failed: {e}')
+                logger.debug(f"Individual rule evaluation failed: {e}")
     except Exception as e:
-        logger.debug(f'Rule system retrieval failed: {e}')
+        logger.debug(f"Rule system retrieval failed: {e}")
     return warnings
 
 
 def _install_orchestration_interceptor(mcp: FastMCP, store: EliteStore, session_id: str):
     """
     Gap #2 FIX: Transport-level orchestration pre-hook.
-    
+
     Monkey-patches FastMCP.call_tool so that EVERY tool invocation:
     1. Executes prevention rules matching the trigger event
     2. Checks for relevant anti-patterns (past mistakes)
@@ -792,7 +930,7 @@ def _install_orchestration_interceptor(mcp: FastMCP, store: EliteStore, session_
     5. Logs tool usage to the adaptive learning system
     6. Runs periodic autonomous scans every 20 calls
     7. Prepends all warnings/context to the tool result
-    
+
     This ensures no tool call bypasses the orchestration system.
     """
     import time as _time
@@ -801,13 +939,15 @@ def _install_orchestration_interceptor(mcp: FastMCP, store: EliteStore, session_
     from mcp.types import TextContent
 
     # Tools exempt from the anti-pattern pre-hook (meta tools + identity tools)
-    EXEMPT_TOOLS = frozenset({
-        'orchestrate_request_tool',
-        'get_user_profile',
-        'update_user_config',
-        'list_team_users',
-        'share_skill',
-    })
+    EXEMPT_TOOLS = frozenset(
+        {
+            "orchestrate_request_tool",
+            "get_user_profile",
+            "update_user_config",
+            "list_team_users",
+            "share_skill",
+        }
+    )
 
     # Mutable counter for periodic autonomous scan
     _tool_call_counter = [0]
@@ -825,18 +965,18 @@ def _install_orchestration_interceptor(mcp: FastMCP, store: EliteStore, session_
         # ── PRE-HOOK 1: Execute prevention rules ──
         if name not in EXEMPT_TOOLS:
             try:
-                args_text = ' '.join(str(v) for v in (arguments or {}).values() if isinstance(v, str))[:200]
-                rule_ctx = {'tool_name': name, 'args_text': args_text}
+                args_text = " ".join(str(v) for v in (arguments or {}).values() if isinstance(v, str))[:200]
+                rule_ctx = {"tool_name": name, "args_text": args_text}
 
                 # Map tool names to canonical trigger events
                 trigger_map = {
-                    'record_decision': 'tool.before:record_decision',
-                    'set_goal': 'tool.before:set_goal',
-                    'record_mistake': 'tool.after:record_mistake',
-                    'check_anti_patterns': 'tool.after:check_anti_patterns',
-                    'orchestrate_request_tool': 'prompt.received',
+                    "record_decision": "tool.before:record_decision",
+                    "set_goal": "tool.before:set_goal",
+                    "record_mistake": "tool.after:record_mistake",
+                    "check_anti_patterns": "tool.after:check_anti_patterns",
+                    "orchestrate_request_tool": "prompt.received",
                 }
-                trigger = trigger_map.get(name, f'tool.before:{name}')
+                trigger = trigger_map.get(name, f"tool.before:{name}")
                 rule_warnings = _execute_prevention_rules(store, trigger, rule_ctx)
                 if rule_warnings:
                     pre_context_parts.append(
@@ -845,23 +985,21 @@ def _install_orchestration_interceptor(mcp: FastMCP, store: EliteStore, session_
                         + "\n╚═══════════════════════════════╝"
                     )
             except Exception as e:
-                logger.debug(f'Prevention rules pre-hook failed: {e}')
+                logger.debug(f"Prevention rules pre-hook failed: {e}")
 
         # ── PRE-HOOK 2: Anti-pattern scan ──
         if name not in EXEMPT_TOOLS:
             try:
-                search_terms = name.replace('_', ' ')
-                arg_text = ' '.join(str(v) for v in (arguments or {}).values() if isinstance(v, str))
+                search_terms = name.replace("_", " ")
+                arg_text = " ".join(str(v) for v in (arguments or {}).values() if isinstance(v, str))
                 if arg_text:
-                    search_terms += ' ' + arg_text[:200]
+                    search_terms += " " + arg_text[:200]
                 relevant_mistakes = store.check_anti_patterns(search_terms, limit=2)
                 if relevant_mistakes:
                     mistake_warns = []
                     for m in relevant_mistakes:
                         mistake_warns.append(
-                            f"⚠️ Past mistake: {m['mistake']}\n"
-                            f"   Root cause: {m['root_cause']}\n"
-                            f"   Fix: {m['fix']}"
+                            f"⚠️ Past mistake: {m['mistake']}\n   Root cause: {m['root_cause']}\n   Fix: {m['fix']}"
                         )
                     pre_context_parts.append(
                         "╔══ ELITE ORCHESTRATOR PRE-CHECK ══╗\n"
@@ -871,12 +1009,12 @@ def _install_orchestration_interceptor(mcp: FastMCP, store: EliteStore, session_
                         + "\n╚══════════════════════════════════╝"
                     )
             except Exception as e:
-                logger.debug(f'Anti-pattern scan failed: {e}')
+                logger.debug(f"Anti-pattern scan failed: {e}")
 
         # ── PROMPT ANALYSIS: classify intent on orchestration calls ──
-        if name == 'orchestrate_request_tool' and arguments:
+        if name == "orchestrate_request_tool" and arguments:
             try:
-                prompt = arguments.get('user_prompt', '')
+                prompt = arguments.get("user_prompt", "")
                 if prompt:
                     intent = _classify_intent(prompt)
                     reasoning = _classify_reasoning(prompt)
@@ -885,11 +1023,12 @@ def _install_orchestration_interceptor(mcp: FastMCP, store: EliteStore, session_
                         session_id=session_id,
                         prompt_text=prompt[:2000],  # Cap prompt size
                         intent_category=intent,
-                        reasoning_type=reasoning
+                        reasoning_type=reasoning,
                     )
 
                     # Classify thinking mode + zoom level (P1)
                     from core.tools.reasoning_amplifier import _classify_thinking_mode, _classify_zoom_level
+
                     thinking_mode = _classify_thinking_mode(prompt)
                     zoom_level = _classify_zoom_level(prompt)
 
@@ -902,112 +1041,88 @@ def _install_orchestration_interceptor(mcp: FastMCP, store: EliteStore, session_
                         )
 
                         # ── Complexity ≥ 2: Lightweight checks ──
-                        if intent in ('debug', 'investigate', 'fix'):
+                        if intent in ("debug", "investigate", "fix"):
                             preflight_lines.append(
                                 "  🔎 RECOMMENDED: Run `check_anti_patterns` — have I seen this bug before?"
                             )
 
                         # ── Complexity ≥ 3: Structured reasoning ──
                         if complexity >= 3:
-                            preflight_lines.append(
-                                "  📝 RECOMMENDED: Use `sequentialthinking` to decompose into steps"
-                            )
-                            if intent in ('build', 'create'):
+                            preflight_lines.append("  📝 RECOMMENDED: Use `sequentialthinking` to decompose into steps")
+                            if intent in ("build", "create"):
                                 preflight_lines.append(
                                     "  🔄 RECOMMENDED: Run `adopt_vs_build` — does this already exist?"
                                 )
-                            if intent in ('build', 'design', 'create'):
+                            if intent in ("build", "design", "create"):
                                 preflight_lines.append(
                                     "  📋 RECOMMENDED: Run `search_decisions` — check past architectural choices"
                                 )
                                 preflight_lines.append(
                                     "  📝 AFTER: Run `record_decision` to log your architectural choice"
                                 )
-                            if intent in ('decide', 'evaluate', 'compare'):
+                            if intent in ("decide", "evaluate", "compare"):
                                 preflight_lines.append(
                                     "  📊 RECOMMENDED: Run `calculate_expected_value` — quantify options"
                                 )
                                 preflight_lines.append(
                                     "  📋 RECOMMENDED: Run `search_decisions` — check past similar decisions"
                                 )
-                            if intent in ('test', 'experiment', 'verify'):
+                            if intent in ("test", "experiment", "verify"):
                                 preflight_lines.append(
                                     "  🧪 RECOMMENDED: Run `record_hypothesis` — state your prediction"
                                 )
                                 preflight_lines.append(
                                     "  📈 AFTER: Run `bayesian_update` to update beliefs with evidence"
                                 )
-                            if intent == 'deploy':
-                                preflight_lines.append(
-                                    "  ⚙️ RECOMMENDED: Run `fmea_risk_gate` — quantified risk score"
-                                )
+                            if intent == "deploy":
+                                preflight_lines.append("  ⚙️ RECOMMENDED: Run `fmea_risk_gate` — quantified risk score")
 
                         # ── Complexity ≥ 4: Deep analysis ──
                         if complexity >= 4:
                             preflight_lines.append(
                                 "  📚 RECOMMENDED: Run `get_elite_workflow` — load the quality playbook"
                             )
-                            if intent in ('build', 'improve'):
-                                preflight_lines.append(
-                                    "  🔍 RECOMMENDED: Run `fmea_analysis` — what can fail?"
-                                )
-                                preflight_lines.append(
-                                    "  🧠 RECOMMENDED: Run `bias_scan` — check for anchoring"
-                                )
-                                preflight_lines.append(
-                                    "  ✅ AFTER: Run `pre_commit_audit` before delivering code"
-                                )
-                            if intent == 'deploy':
+                            if intent in ("build", "improve"):
+                                preflight_lines.append("  🔍 RECOMMENDED: Run `fmea_analysis` — what can fail?")
+                                preflight_lines.append("  🧠 RECOMMENDED: Run `bias_scan` — check for anchoring")
+                                preflight_lines.append("  ✅ AFTER: Run `pre_commit_audit` before delivering code")
+                            if intent == "deploy":
                                 preflight_lines.append(
                                     "  🚦 RECOMMENDED: Create `smoke_test_gate` — capture before state"
                                 )
-                                preflight_lines.append(
-                                    "  🔮 RECOMMENDED: Run `simulate_future_regrets`"
-                                )
+                                preflight_lines.append("  🔮 RECOMMENDED: Run `simulate_future_regrets`")
                                 preflight_lines.append(
                                     "  ✅ AFTER: Run `validate_predictions` — did it work as expected?"
                                 )
-                            if intent in ('debug', 'investigate'):
-                                preflight_lines.append(
-                                    "  ❓ RECOMMENDED: Run `five_whys` — drill to root cause"
-                                )
+                            if intent in ("debug", "investigate"):
+                                preflight_lines.append("  ❓ RECOMMENDED: Run `five_whys` — drill to root cause")
                                 preflight_lines.append(
                                     "  🔍 RECOMMENDED: Run `query_temporal_graph` — check decision history"
                                 )
-                            if intent == 'audit':
-                                preflight_lines.append(
-                                    "  🧀 RECOMMENDED: Run `swiss_cheese_audit`"
-                                )
+                            if intent == "audit":
+                                preflight_lines.append("  🧀 RECOMMENDED: Run `swiss_cheese_audit`")
                                 preflight_lines.append(
                                     "  🔍 RECOMMENDED: Run `query_temporal_graph` — check causal chains"
                                 )
 
                         # ── Complexity 5: Mandatory checks ──
                         if complexity >= 5:
-                            preflight_lines.append(
-                                "  🏛️ MANDATORY: Run `socratic_challenge` on plan before executing"
-                            )
-                            preflight_lines.append(
-                                "  🎯 MANDATORY: Run `assess_confidence` on final deliverable"
-                            )
-                            preflight_lines.append(
-                                "  📋 MANDATORY: After completion, run `after_action_review`"
-                            )
+                            preflight_lines.append("  🏛️ MANDATORY: Run `socratic_challenge` on plan before executing")
+                            preflight_lines.append("  🎯 MANDATORY: Run `assess_confidence` on final deliverable")
+                            preflight_lines.append("  📋 MANDATORY: After completion, run `after_action_review`")
 
                         pre_context_parts.append("\n".join(preflight_lines))
 
                     # Execute prompt.received prevention rules (canonical event)
                     prompt_rules = _execute_prevention_rules(
-                        store, 'prompt.received', {'tool_name': name, 'args_text': prompt[:200]}
+                        store, "prompt.received", {"tool_name": name, "args_text": prompt[:200]}
                     )
                     if prompt_rules:
                         pre_context_parts.append(
-                            "╔══ 🛡️ PROMPT RULES ══╗\n"
-                            + "\n".join(prompt_rules)
-                            + "\n╚═════════════════════╝"
+                            "╔══ 🛡️ PROMPT RULES ══╗\n" + "\n".join(prompt_rules) + "\n╚═════════════════════╝"
                         )
             except Exception as e:
-                logger.debug(f'Prompt analysis failed: {e}')
+                logger.debug(f"Prompt analysis failed: {e}")
 
         # ── EXECUTE: run the original tool (timed) ──
         start_time = _time.time()
@@ -1016,53 +1131,50 @@ def _install_orchestration_interceptor(mcp: FastMCP, store: EliteStore, session_
 
         # ── TOOL USAGE LOG: record every call ──
         try:
-            args_summary = str(arguments)[:200] if arguments else ''
-            result_text = ''
-            if result and hasattr(result, '__iter__'):
+            args_summary = str(arguments)[:200] if arguments else ""
+            result_text = ""
+            if result and hasattr(result, "__iter__"):
                 for item in result:
-                    if hasattr(item, 'text'):
+                    if hasattr(item, "text"):
                         result_text = item.text[:200]
                         break
             store.log_tool_usage(name, args_summary, result_text, session_id, duration_ms)
         except Exception as e:
-            logger.debug(f'Tool usage logging failed for {name}: {e}')
+            logger.debug(f"Tool usage logging failed for {name}: {e}")
 
         # ── PERIODIC AUTONOMOUS SCAN: every 20 calls ──
         _tool_call_counter[0] += 1
         if _tool_call_counter[0] % 20 == 0:
             try:
                 scan = store.autonomous_scan()
-                if scan.get('p0_count', 0) > 0:
+                if scan.get("p0_count", 0) > 0:
                     scan_text = f"⚡ AUTONOMOUS SCAN: {scan['p0_count']} P0 gaps detected!\n"
-                    for gap in scan.get('gaps', []):
-                        if gap['severity'] == 'P0':
+                    for gap in scan.get("gaps", []):
+                        if gap["severity"] == "P0":
                             scan_text += f"  - {gap['detail']}\n"
                     pre_context_parts.insert(0, scan_text)
             except Exception as e:
-                logger.debug(f'Periodic autonomous scan failed: {e}')
+                logger.debug(f"Periodic autonomous scan failed: {e}")
 
         # ── POST-HOOK: inject context into result ──
         if pre_context_parts and result:
             try:
                 combined = "\n\n".join(pre_context_parts) + "\n\n"
                 result_list = list(result)
-                if result_list and hasattr(result_list[0], 'text'):
-                    result_list[0] = TextContent(
-                        type="text",
-                        text=combined + result_list[0].text
-                    )
+                if result_list and hasattr(result_list[0], "text"):
+                    result_list[0] = TextContent(type="text", text=combined + result_list[0].text)
                     return result_list
             except Exception as e:
-                logger.debug(f'Post-hook result injection failed: {e}')
+                logger.debug(f"Post-hook result injection failed: {e}")
 
         return result
 
     # ── MONKEY-PATCH: replace call_tool ──
     mcp.call_tool = _intercepted_call_tool
     try:
-        mcp._mcp_server._handlers['tools/call'] = _intercepted_call_tool
+        mcp._mcp_server._handlers["tools/call"] = _intercepted_call_tool
     except Exception as e:
-        logger.debug(f'Handler registration for tools/call failed: {e}')
+        logger.debug(f"Handler registration for tools/call failed: {e}")
 
 
 def _default_brain_dir() -> str:

@@ -10,7 +10,14 @@ PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(o
 METRICS_FILE = Path(PROJECT_ROOT) / ".ai" / "metrics" / "tool_usage.jsonl"
 
 
-def log_tool_usage(tool_name: str, start_time: float, success: bool, tokens_used: int = 0, task_id: str = "default", error: Optional[str] = None):
+def log_tool_usage(
+    tool_name: str,
+    start_time: float,
+    success: bool,
+    tokens_used: int = 0,
+    task_id: str = "default",
+    error: Optional[str] = None,
+):
     """Logs MCP tool usage with task_id for Proof-of-Work telemetry gating.
 
     Schema is ADDITIVE: existing keys (timestamp, task_id, tool,
@@ -25,7 +32,7 @@ def log_tool_usage(tool_name: str, start_time: float, success: bool, tokens_used
         "tool": tool_name,
         "duration_seconds": round(time.time() - start_time, 2),
         "success": success,
-        "tokens_used": tokens_used
+        "tokens_used": tokens_used,
     }
     if error is not None:
         entry["error"] = str(error)[:400]

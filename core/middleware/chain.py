@@ -1,4 +1,5 @@
 """Middleware chain that wraps tool functions with composable hooks."""
+
 import asyncio
 import logging
 import time
@@ -30,13 +31,13 @@ def _render(ctx: CallContext, result: CallResult):
 
 class MiddlewareChain:
     """Composable middleware chain for MCP tool execution.
-    
+
     Usage:
         chain = MiddlewareChain()
         chain.use(PreventionRuleMiddleware(store))
         chain.use(AntiPatternInjectionMiddleware(store))
         chain.use(UsageLogMiddleware(store))
-        
+
         wrapped_fn = chain.wrap("tool_name", original_fn)
     """
 
@@ -96,10 +97,14 @@ class MiddlewareChain:
                         await asyncio.sleep(delay)
                         continue
 
-                    failure = exc if isinstance(exc, EliteToolError) else EliteToolError(
-                        "tool_execution_failed",
-                        f"Tool `{tool_name}` failed safely. Inspect local diagnostics for details.",
-                        retryable=is_transient_error(exc),
+                    failure = (
+                        exc
+                        if isinstance(exc, EliteToolError)
+                        else EliteToolError(
+                            "tool_execution_failed",
+                            f"Tool `{tool_name}` failed safely. Inspect local diagnostics for details.",
+                            retryable=is_transient_error(exc),
+                        )
                     )
                     fallback_middleware = next((mw for mw in relevant if isinstance(mw, FallbackMiddleware)), None)
                     if fallback_middleware is not None:

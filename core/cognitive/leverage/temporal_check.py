@@ -10,9 +10,26 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional, Union
 
 TIME_SENSITIVE = [
-    "ai", "llm", "model", "tech", "software", "medicine", "health", "drug",
-    "finance", "market", "policy", "law", "election", "security", "startup",
-    "company", "regulation", "crypto", "war", "covid",
+    "ai",
+    "llm",
+    "model",
+    "tech",
+    "software",
+    "medicine",
+    "health",
+    "drug",
+    "finance",
+    "market",
+    "policy",
+    "law",
+    "election",
+    "security",
+    "startup",
+    "company",
+    "regulation",
+    "crypto",
+    "war",
+    "covid",
 ]
 
 _ABS_RE = re.compile(r"/abs/(\d{2})(\d{2})\.(\d{4,5})")
@@ -35,7 +52,11 @@ def _date_from_url(url: str) -> datetime | None:
     return None
 
 
-async def temporal_verify(claim: str, sources: Optional[List[Union[str, Dict[str, Any]]]] = None, dated_pages: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
+async def temporal_verify(
+    claim: str,
+    sources: Optional[List[Union[str, Dict[str, Any]]]] = None,
+    dated_pages: Optional[List[Dict[str, Any]]] = None,
+) -> Dict[str, Any]:
     sources = sources or []
     """URL-date check PLUS page-metadata dates (from deep_read's published_date).
 
@@ -51,7 +72,7 @@ async def temporal_verify(claim: str, sources: Optional[List[Union[str, Dict[str
         else:
             undated += 1
     seen_dated_urls = {d["url"] for d in dated}
-    for p in (dated_pages or []):
+    for p in dated_pages or []:
         if not isinstance(p, dict) or not p.get("url") or p["url"] in seen_dated_urls:
             continue
         d = p.get("published_date") or p.get("date") or ""
@@ -61,8 +82,14 @@ async def temporal_verify(claim: str, sources: Optional[List[Union[str, Dict[str
             except ValueError:
                 dt = None
             if dt:
-                dated.append({"url": p["url"], "date": dt.isoformat(), "age_days": (now - dt).days,
-                              "date_source": "deep_read-page-metadata"})
+                dated.append(
+                    {
+                        "url": p["url"],
+                        "date": dt.isoformat(),
+                        "age_days": (now - dt).days,
+                        "date_source": "deep_read-page-metadata",
+                    }
+                )
 
     is_ts = any(k in claim.lower() for k in TIME_SENSITIVE)
 

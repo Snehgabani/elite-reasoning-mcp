@@ -14,6 +14,7 @@ from typing import Dict, List, Optional
 
 try:
     from duckduckgo_search import DDGS
+
     HAS_DDG = True
 except ImportError:
     HAS_DDG = False
@@ -22,6 +23,7 @@ except ImportError:
 @dataclass
 class SearchResult:
     """A single search result."""
+
     title: str
     url: str
     snippet: str
@@ -31,68 +33,67 @@ class SearchResult:
 class WebSearchTool:
     """
     Optional web search tool for fact verification.
-    
+
     Usage:
         search = WebSearchTool()
         results = search.search("latest transformer efficiency research 2024", max_results=5)
-        
+
     Note: This is opt-in. Default MCP is local-first.
     """
-    
+
     def __init__(self, enabled: bool = False):
         """
         Initialize web search tool.
-        
+
         Args:
             enabled: Whether web search is enabled (default: False for local-first)
         """
         self.enabled = enabled
-        
+
         if enabled and not HAS_DDG:
-            raise ImportError(
-                "Web search requires duckduckgo-search. "
-                "Install with: pip install duckduckgo-search"
-            )
-    
+            raise ImportError("Web search requires duckduckgo-search. Install with: pip install duckduckgo-search")
+
     def search(self, query: str, max_results: int = 5) -> List[SearchResult]:
         """
         Search the web for information.
-        
+
         Args:
             query: Search query
             max_results: Maximum number of results (default: 5)
-            
+
         Returns:
             List of search results
         """
         if not self.enabled:
             return []
-        
+
         if not HAS_DDG:
             return []
-        
+
         try:
             with DDGS() as ddgs:
                 results = []
                 for r in ddgs.text(query, max_results=max_results):
-                    results.append(SearchResult(
-                        title=r.get('title', ''),
-                        url=r.get('href', ''),
-                        snippet=r.get('body', ''),
-                        source='duckduckgo'
-                    ))
+                    results.append(
+                        SearchResult(
+                            title=r.get("title", ""),
+                            url=r.get("href", ""),
+                            snippet=r.get("body", ""),
+                            source="duckduckgo",
+                        )
+                    )
                 return results
         except Exception:
             # Don't fail if search fails
             return []
-    
+
     def verify_fact(self, claim: str) -> Dict:
         """
         Verify a factual claim by searching for evidence.
-        
+
         Args:
             claim: The claim to verify
-            
+
         Returns:
             Dictionary with verification results
         """
@@ -101,50 +102,41 @@ class WebSearchTool:
                 "claim": claim,
                 "verified": False,
                 "evidence": [],
-                "reason": "Web search disabled (local-first mode)"
+                "reason": "Web search disabled (local-first mode)",
             }
-        
+
         # Search for the claim
         results = self.search(claim, max_results=5)
-        
+
         # Analyze results
         if not results:
-            return {
-                "claim": claim,
-                "verified": False,
-                "evidence": [],
-                "reason": "No search results found"
-            }
-        
+            return {"claim": claim, "verified": False, "evidence": [], "reason": "No search results found"}
+
         # Return evidence
         return {
             "claim": claim,
             "verified": len(results) > 0,
             "evidence": [
-                {
-                    "title": r.title,
-                    "url": r.url,
-                    "snippet": r.snippet
-                }
+                {"title": r.title, "url": r.url, "snippet": r.snippet}
                 for r in results[:3]  # Top 3 results
             ],
-            "reason": f"Found {len(results)} relevant results"
+            "reason": f"Found {len(results)} relevant results",
         }
 
 
 def create_web_search_tool(enabled: bool = False) -> Optional[WebSearchTool]:
     """
     Create web search tool (factory function).
-    
+
     Args:
         enabled: Whether to enable web search (default: False)
-        
+
     Returns:
         WebSearchTool instance or None if disabled
     """
     if not enabled:
         return None
-    
+
     try:
         return WebSearchTool(enabled=True)
     except ImportError:
@@ -153,11 +145,11 @@ def create_web_search_tool(enabled: bool = False) -> Optional[WebSearchTool]:
 
 if __name__ == "__main__":
     # Test web search
-    print("="*70)
+    print("=" * 70)
     print("WEB SEARCH TOOL — Testing")
-    print("="*70)
+    print("=" * 70)
     print()
-    
+
     # Test disabled (default)
     print("1. Testing disabled mode (local-first)...")
     search = WebSearchTool(enabled=False)
@@ -165,7 +157,7 @@ if __name__ == "__main__":
     print(f"   Results: {len(results)} (expected: 0)")
     print("   ✅ Disabled mode works")
     print()
-    
+
     # Test enabled (if available)
     if HAS_DDG:
         print("2. Testing enabled mode...")
@@ -179,8 +171,8 @@ if __name__ == "__main__":
     else:
         print("2. Skipping enabled mode (duckduckgo-search not installed)")
         print("   Install with: pip install duckduckgo-search")
-    
+
     print()
-    print("="*70)
+    print("=" * 70)
     print("✅ WEB SEARCH TOOL TEST COMPLETE")
-    print("="*70)
+    print("=" * 70)

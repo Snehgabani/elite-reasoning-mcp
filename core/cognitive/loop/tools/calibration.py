@@ -46,11 +46,16 @@ def register(mcp, store: SingularityStore):
         if action == "predict":
             if not claim.strip():
                 return CalibrationResult(action="predict", interpretation="Claim required.")
-            pred_id = hashlib.sha256(f"{claim}:{time.strftime('%Y-%m-%d %H:%M', time.gmtime())}".encode()).hexdigest()[:16]
+            pred_id = hashlib.sha256(f"{claim}:{time.strftime('%Y-%m-%d %H:%M', time.gmtime())}".encode()).hexdigest()[
+                :16
+            ]
             store.log_calibration(pred_id, claim, confidence, domain)
-            return CalibrationResult(action="predict", prediction_id=pred_id,
+            return CalibrationResult(
+                action="predict",
+                prediction_id=pred_id,
                 data={"claim": claim, "confidence": confidence},
-                interpretation=f"Logged. Use action='resolve' with prediction_id='{pred_id}' when outcome known.")
+                interpretation=f"Logged. Use action='resolve' with prediction_id='{pred_id}' when outcome known.",
+            )
 
         elif action == "resolve":
             if not prediction_id.strip():
@@ -58,15 +63,17 @@ def register(mcp, store: SingularityStore):
             resolved = store.resolve_calibration(prediction_id, outcome, correct)
             if not resolved:
                 return CalibrationResult(action="resolve", interpretation=f"Not found: {prediction_id}")
-            return CalibrationResult(action="resolve", prediction_id=prediction_id,
+            return CalibrationResult(
+                action="resolve",
+                prediction_id=prediction_id,
                 data={"outcome": outcome, "correct": correct},
-                interpretation="Resolved. Use action='score' for Brier report.")
+                interpretation="Resolved. Use action='score' for Brier report.",
+            )
 
         elif action == "score":
             result = store.get_calibration_score(domain=domain if domain != "general" else None, days=days)
             if result["total_predictions"] == 0:
-                return CalibrationResult(action="score", data=result,
-                    interpretation="No resolved predictions yet.")
+                return CalibrationResult(action="score", data=result, interpretation="No resolved predictions yet.")
             brier = result["brier_score"]
             interp = f"Brier={brier:.4f}: {'Good' if brier < 0.1 else 'Fair' if brier < 0.25 else 'Poor'}"
             return CalibrationResult(action="score", data=result, interpretation=interp)

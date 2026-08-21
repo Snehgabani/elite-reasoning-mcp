@@ -15,12 +15,25 @@ import re
 import sqlite3
 import tempfile
 from dataclasses import dataclass, field
+from functools import lru_cache
 from typing import Any, Dict, List, Optional, Tuple
+
+
+@lru_cache(maxsize=512)
+def _cached_parse_ast(code: str) -> Tuple[Optional[ast.AST], Optional[str]]:
+    """Memoized AST parsing for maximum throughput on Apple Silicon M2."""
+    try:
+        return ast.parse(code), None
+    except SyntaxError as e:
+        return None, f"SyntaxError at line {e.lineno}, col {e.offset}: {e.msg}"
+    except Exception as e:
+        return None, str(e)
 
 
 @dataclass
 class ValidationResult:
     """Standardized validation outcome across all deterministic gates."""
+
     passed: bool
     score: float  # 0.0 to 1.0
     issues: List[str] = field(default_factory=list)
@@ -39,6 +52,7 @@ class ValidationResult:
 # 1. POLYGLOT SYNTAX & AST VALIDATOR
 # ============================================================================
 
+
 def validate_syntax(code: str, language: str = "python") -> ValidationResult:
     """
     Validates code syntax across multiple languages with 0ms LLM latency.
@@ -51,56 +65,54 @@ def validate_syntax(code: str, language: str = "python") -> ValidationResult:
 
     # --- Python AST Validation ---
     if lang in ("python", "py"):
-        try:
-            tree = ast.parse(code)
-            issues = []
-            penalty = 0.0
-
-            # Inspect AST for common anti-patterns
-            for node in ast.walk(tree):
-                # Bare except clause
-                if isinstance(node, ast.ExceptHandler) and node.type is None:
-                    penalty += 0.20
-                    issues.append("Code Quality: Bare 'except:' clause masks critical exceptions.")
-                # Blocking time.sleep inside async functions
-                if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
-                    if node.func.attr == "sleep" and getattr(node.func.value, "id", "") == "time":
-                        for parent in ast.walk(tree):
-                            if isinstance(parent, ast.AsyncFunctionDef) and node in ast.walk(parent):
-                                penalty += 0.25
-                                issues.append("Concurrency Hazard: Blocking 'time.sleep()' inside async function (use 'await asyncio.sleep').")
-
-            score = max(0.0, 1.0 - penalty)
-            return ValidationResult(
-                passed=(score >= 0.80 and len(issues) == 0),
-                score=score,
-                issues=issues,
-                metadata={"language": "python", "ast_nodes": sum(1 for _ in ast.walk(tree))}
-            )
-        except SyntaxError as e:
+        tree, err = _cached_parse_ast(code)
+        if tree is None:
             return ValidationResult(
                 passed=False,
                 score=0.0,
-                issues=[f"Python SyntaxError: {e.msg} (line {e.lineno}, col {e.offset})"],
-                metadata={"language": "python", "lineno": e.lineno, "offset": e.offset}
+                issues=[err or "Unknown Python SyntaxError"],
+                metadata={"error_type": "SyntaxError"},
             )
+        issues = []
+        penalty = 0.0
+
+        # Inspect AST for common anti-patterns
+        for node in ast.walk(tree):
+            # Bare except clause
+            if isinstance(node, ast.ExceptHandler) and node.type is None:
+                penalty += 0.20
+                issues.append("Code Quality: Bare 'except:' clause masks critical exceptions.")
+            # Blocking time.sleep inside async functions
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
+                if node.func.attr == "sleep" and getattr(node.func.value, "id", "") == "time":
+                    for parent in ast.walk(tree):
+                        if isinstance(parent, ast.AsyncFunctionDef) and node in ast.walk(parent):
+                            penalty += 0.25
+                            issues.append(
+                                "Concurrency Hazard: Blocking 'time.sleep()' inside async function (use 'await asyncio.sleep')."
+                            )
+
+        score = max(0.0, 1.0 - penalty)
+        return ValidationResult(
+            passed=(score >= 0.80 and len(issues) == 0),
+            score=score,
+            issues=issues,
+            metadata={"language": "python", "ast_nodes": sum(1 for _ in ast.walk(tree))},
+        )
 
     # --- JSON Validation ---
     elif lang in ("json",):
         try:
             parsed = json.loads(code)
             return ValidationResult(
-                passed=True,
-                score=1.0,
-                issues=[],
-                metadata={"language": "json", "type": type(parsed).__name__}
+                passed=True, score=1.0, issues=[], metadata={"language": "json", "type": type(parsed).__name__}
             )
         except json.JSONDecodeError as e:
             return ValidationResult(
                 passed=False,
                 score=0.0,
                 issues=[f"JSON SyntaxError: {e.msg} (line {e.lineno}, col {e.colno})"],
-                metadata={"language": "json", "lineno": e.lineno}
+                metadata={"language": "json", "lineno": e.lineno},
             )
 
     # --- SQLite SQL Validation ---
@@ -114,8 +126,15 @@ def validate_syntax(code: str, language: str = "python") -> ValidationResult:
             err_msg = str(e).lower()
             # Missing table/column is schema-dependent, not a syntax failure
             if any(term in err_msg for term in ("no such table", "no such column", "no such view")):
-                return ValidationResult(passed=True, score=0.95, issues=[], metadata={"language": "sql", "note": "Valid syntax (schema unresolved)"})
-            return ValidationResult(passed=False, score=0.0, issues=[f"SQL SyntaxError: {e}"], metadata={"language": "sql"})
+                return ValidationResult(
+                    passed=True,
+                    score=0.95,
+                    issues=[],
+                    metadata={"language": "sql", "note": "Valid syntax (schema unresolved)"},
+                )
+            return ValidationResult(
+                passed=False, score=0.0, issues=[f"SQL SyntaxError: {e}"], metadata={"language": "sql"}
+            )
 
     # --- JavaScript / TypeScript Bracket & Structure Validation ---
     elif lang in ("javascript", "typescript", "js", "ts", "jsx", "tsx"):
@@ -148,7 +167,7 @@ def validate_syntax(code: str, language: str = "python") -> ValidationResult:
                         passed=False,
                         score=0.0,
                         issues=[f"JS/TS SyntaxError: Unbalanced or mismatched bracket '{char}' at char {idx}"],
-                        metadata={"language": lang, "char_index": idx}
+                        metadata={"language": lang, "char_index": idx},
                     )
 
         if stack:
@@ -156,17 +175,20 @@ def validate_syntax(code: str, language: str = "python") -> ValidationResult:
                 passed=False,
                 score=0.0,
                 issues=[f"JS/TS SyntaxError: Unclosed bracket (expected '{stack[-1]}')"],
-                metadata={"language": lang}
+                metadata={"language": lang},
             )
         return ValidationResult(passed=True, score=1.0, issues=[], metadata={"language": lang})
 
     # Default fallback for plaintext / unknown formats
-    return ValidationResult(passed=True, score=0.90, issues=[], metadata={"language": lang, "status": "unvalidated_text"})
+    return ValidationResult(
+        passed=True, score=0.90, issues=[], metadata={"language": lang, "status": "unvalidated_text"}
+    )
 
 
 # ============================================================================
 # 2. OWASP & SECURITY INVARIANT GATE
 # ============================================================================
+
 
 def validate_security_invariants(code: str) -> ValidationResult:
     """
@@ -184,7 +206,10 @@ def validate_security_invariants(code: str) -> ValidationResult:
         (r"os\.system\s*\(\s*['\"]rm\s+-rf", "Fatal Security Violation: 'rm -rf' command in os.system"),
         (r"shutil\.rmtree\s*\(\s*['\"]\/['\"]", "Fatal Security Violation: Root directory deletion attempt"),
         (r"subprocess\.call\s*\(\s*['\"]rm\s+-rf", "Fatal Security Violation: 'rm -rf' command in subprocess"),
-        (r"(ghp_[A-Za-z0-9]{36}|sk-[A-Za-z0-9]{48})", "Security Invariant: Hardcoded plaintext API credential/token detected"),
+        (
+            r"(ghp_[A-Za-z0-9]{36}|sk-[A-Za-z0-9]{48})",
+            "Security Invariant: Hardcoded plaintext API credential/token detected",
+        ),
     ]
     for pattern, desc in dangerous_patterns:
         if re.search(pattern, code, re.IGNORECASE):
@@ -205,13 +230,14 @@ def validate_security_invariants(code: str) -> ValidationResult:
         pass
 
     score = max(0.0, 1.0 - penalty)
-    passed = (score >= 0.90 and len(issues) == 0)
+    passed = score >= 0.90 and len(issues) == 0
     return ValidationResult(passed=passed, score=score, issues=issues)
 
 
 # ============================================================================
 # 3. MATHEMATICAL & LOGICAL INVARIANT GATE
 # ============================================================================
+
 
 def validate_math_invariants(text: str) -> ValidationResult:
     """
@@ -252,13 +278,14 @@ def validate_math_invariants(text: str) -> ValidationResult:
         issues.append("Math Invariant Error: NaN self-equality fallacy (NaN != NaN).")
 
     score = max(0.0, 1.0 - penalty)
-    passed = (score >= 0.85 and len(issues) == 0)
+    passed = score >= 0.85 and len(issues) == 0
     return ValidationResult(passed=passed, score=score, issues=issues)
 
 
 # ============================================================================
 # 4. DIFF INTEGRITY & CRYPTOGRAPHIC AUTHORIZATION GATE
 # ============================================================================
+
 
 def generate_diff_hmac(file_path: str, replacement: str, secret_key: bytes) -> str:
     """Generates an HMAC-SHA256 authorization token bound to canonical path & replacement hash."""
@@ -269,12 +296,7 @@ def generate_diff_hmac(file_path: str, replacement: str, secret_key: bytes) -> s
 
 
 def validate_diff_integrity(
-    file_path: str,
-    original: str,
-    replacement: str,
-    token: str,
-    secret_key: bytes,
-    verify_spliced_ast: bool = True
+    file_path: str, original: str, replacement: str, token: str, secret_key: bytes, verify_spliced_ast: bool = True
 ) -> ValidationResult:
     """
     The Ironclad Filesystem Gatekeeper:
@@ -287,7 +309,9 @@ def validate_diff_integrity(
 
     # 1. Path traversal check
     if ".." in file_path or not os.path.isabs(file_path):
-        return ValidationResult(passed=False, score=0.0, issues=["Security Error: Non-absolute or traversing file path"])
+        return ValidationResult(
+            passed=False, score=0.0, issues=["Security Error: Non-absolute or traversing file path"]
+        )
 
     norm_path = os.path.abspath(file_path)
 
@@ -297,12 +321,14 @@ def validate_diff_integrity(
         return ValidationResult(
             passed=False,
             score=0.0,
-            issues=["Authorization Error: Invalid or missing HMAC execution token (Execution Blocked)"]
+            issues=["Authorization Error: Invalid or missing HMAC execution token (Execution Blocked)"],
         )
 
     # 3. File existence check
     if not os.path.exists(norm_path):
-        return ValidationResult(passed=False, score=0.0, issues=[f"Filesystem Error: Target file '{norm_path}' does not exist"])
+        return ValidationResult(
+            passed=False, score=0.0, issues=[f"Filesystem Error: Target file '{norm_path}' does not exist"]
+        )
 
     # 4. Target snippet match check
     try:
@@ -315,7 +341,7 @@ def validate_diff_integrity(
         return ValidationResult(
             passed=False,
             score=0.0,
-            issues=["Diff Error: 'original' snippet does not match exact content in target file"]
+            issues=["Diff Error: 'original' snippet does not match exact content in target file"],
         )
 
     # 5. Spliced In-Memory AST Pre-flight
@@ -326,7 +352,7 @@ def validate_diff_integrity(
             return ValidationResult(
                 passed=False,
                 score=0.0,
-                issues=[f"Diff Pre-flight Error: Splicing this diff will break target file AST: {syntax_res.issues}"]
+                issues=[f"Diff Pre-flight Error: Splicing this diff will break target file AST: {syntax_res.issues}"],
             )
 
     return ValidationResult(passed=True, score=1.0, issues=[])

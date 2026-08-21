@@ -1,6 +1,7 @@
 """Thread-local SQLite connection pool.
 Fixes: fresh connection per transaction (cold page cache, re-applied PRAGMAs, FD exhaustion).
 Uses BEGIN IMMEDIATE for fail-fast lock acquisition in WAL mode."""
+
 import logging
 import sqlite3
 import threading
@@ -19,18 +20,18 @@ DEFAULT_PRAGMAS = {
 
 class ThreadLocalPool:
     """One connection per thread, cached. PRAGMAs applied once.
-    
+
     Usage:
         pool = ThreadLocalPool("/path/to/elite.db")
-        
+
         # Transactional write
         with pool.transaction() as conn:
             conn.execute("INSERT INTO ...")
-        
+
         # Read-only
         with pool.read() as conn:
             rows = conn.execute("SELECT ...").fetchall()
-        
+
         # Cleanup on thread exit
         pool.close_thread()
     """
@@ -80,7 +81,7 @@ class ThreadLocalPool:
     @contextmanager
     def transaction(self):
         """Write transaction with BEGIN IMMEDIATE (fail-fast lock acquisition).
-        
+
         Why IMMEDIATE: Default BEGIN is deferred — it upgrades to write lock when
         the first write happens, which can fail with SQLITE_BUSY mid-transaction.
         BEGIN IMMEDIATE acquires the writer lock upfront, fails fast, plays well

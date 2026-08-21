@@ -15,6 +15,7 @@ from typing import Any
 @dataclass
 class SessionMetrics:
     """Metrics collected during a single reasoning session."""
+
     session_id: str
     prompt: str
     intent: str
@@ -124,7 +125,7 @@ def score_output_quality(
     outcome_correct: bool | None = None,
 ) -> dict[str, Any]:
     """Score a candidate output using deterministic signals and scorecard weights.
-    
+
     This is the core scoring function that evaluates whether reasoning
     enhancements actually improved output quality.
     """
@@ -138,19 +139,44 @@ def score_output_quality(
         task_success = 0.35
     else:
         completion_signals = _keyword_ratio(
-            lower, ("implemented", "fixed", "completed", "solved", "configured",
-                     "mapped", "recommended", "analyzed", "created", "built",
-                     "identified", "evaluated", "assessed", "compared", "designed",
-                     "proposed", "researched", "investigated", "documented", "verified",
-                     "includes", "provides", "covering", "tracking", "calibration"), 5
+            lower,
+            (
+                "implemented",
+                "fixed",
+                "completed",
+                "solved",
+                "configured",
+                "mapped",
+                "recommended",
+                "analyzed",
+                "created",
+                "built",
+                "identified",
+                "evaluated",
+                "assessed",
+                "compared",
+                "designed",
+                "proposed",
+                "researched",
+                "investigated",
+                "documented",
+                "verified",
+                "includes",
+                "provides",
+                "covering",
+                "tracking",
+                "calibration",
+            ),
+            5,
         )
         blocker_penalty = 0.15 if _contains_any(lower, ("blocker", "cannot verify", "not validated", "failed")) else 0
         task_success = max(0, 0.45 + 0.40 * completion_signals - blocker_penalty)
 
     # 2. Regression Prevention (0-1)
     regression = 0.25 + 0.75 * _keyword_ratio(
-        lower, ("test", "pytest", "lint", "regression", "validation", "smoke",
-                 "passed", "eval", "held-out", "no regressions"), 4
+        lower,
+        ("test", "pytest", "lint", "regression", "validation", "smoke", "passed", "eval", "held-out", "no regressions"),
+        4,
     )
     if validation_passed is False:
         regression *= 0.6
@@ -167,10 +193,14 @@ def score_output_quality(
 
     # 4. Evidence Quality (0-1)
     evidence = min(1.0, evidence_sources / 5)
-    evidence = max(evidence, 0.20 + 0.80 * _keyword_ratio(
-        lower, ("evidence", "citation", "benchmark", "source", "research",
-                 "paper", "documentation", "reference"), 4
-    ))
+    evidence = max(
+        evidence,
+        0.20
+        + 0.80
+        * _keyword_ratio(
+            lower, ("evidence", "citation", "benchmark", "source", "research", "paper", "documentation", "reference"), 4
+        ),
+    )
     if _contains_any(lower, ("unsupported", "assumption", "uncertainty")):
         evidence = min(1.0, evidence + 0.05)
 
@@ -192,9 +222,25 @@ def score_output_quality(
 
     # 7. Robustness (0-1)
     robustness = 0.25 + 0.75 * _keyword_ratio(
-        lower, ("fallback", "risk", "edge case", "missing", "error handling",
-                 "safe", "fail-closed", "graceful", "retry", "verified",
-                 "validated", "checked", "confirmed", "tested", "no other"), 4
+        lower,
+        (
+            "fallback",
+            "risk",
+            "edge case",
+            "missing",
+            "error handling",
+            "safe",
+            "fail-closed",
+            "graceful",
+            "retry",
+            "verified",
+            "validated",
+            "checked",
+            "confirmed",
+            "tested",
+            "no other",
+        ),
+        4,
     )
 
     dimensions = {
@@ -221,10 +267,15 @@ def score_output_quality(
 
 # ── A/B Comparison Engine ───────────────────────────────────
 
+
 def compare_variants(baseline_scores: list[float], enhanced_scores: list[float]) -> dict[str, Any]:
     """Compare baseline vs enhanced variant scores statistically."""
     if not baseline_scores or not enhanced_scores:
-        return {"comparison": "insufficient_data", "baseline_n": len(baseline_scores), "enhanced_n": len(enhanced_scores)}
+        return {
+            "comparison": "insufficient_data",
+            "baseline_n": len(baseline_scores),
+            "enhanced_n": len(enhanced_scores),
+        }
 
     b_mean = sum(baseline_scores) / len(baseline_scores)
     e_mean = sum(enhanced_scores) / len(enhanced_scores)
@@ -233,7 +284,7 @@ def compare_variants(baseline_scores: list[float], enhanced_scores: list[float])
     # Effect size (Cohen's d approximation)
     b_std = _stddev(baseline_scores) if len(baseline_scores) > 1 else 0.1
     e_std = _stddev(enhanced_scores) if len(enhanced_scores) > 1 else 0.1
-    pooled_std = ((b_std ** 2 + e_std ** 2) / 2) ** 0.5 or 0.1
+    pooled_std = ((b_std**2 + e_std**2) / 2) ** 0.5 or 0.1
     cohens_d = delta / pooled_std
 
     # Win rate: % of enhanced scores above baseline mean
@@ -266,6 +317,7 @@ def compare_variants(baseline_scores: list[float], enhanced_scores: list[float])
 
 # ── Helpers ─────────────────────────────────────────────────
 
+
 def _keyword_ratio(text: str, terms: tuple[str, ...], cap: int) -> float:
     matches = sum(1 for t in terms if t in text)
     return min(matches / cap, 1.0)
@@ -293,6 +345,8 @@ def _interpret_effect(cohens_d: float, significance: str, delta: float) -> str:
     elif significance == "small":
         return f"Small {direction} (d={cohens_d:.2f}). Marginal benefit — consider if added latency is justified."
     elif significance == "medium":
-        return f"Medium {direction} (d={cohens_d:.2f}). Meaningful change — reasoning enhancement has measurable impact."
+        return (
+            f"Medium {direction} (d={cohens_d:.2f}). Meaningful change — reasoning enhancement has measurable impact."
+        )
     else:
         return f"Large {direction} (d={cohens_d:.2f}). Significant impact — reasoning enhancement substantially {'helps' if delta > 0 else 'hurts'}."

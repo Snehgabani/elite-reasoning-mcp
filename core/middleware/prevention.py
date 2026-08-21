@@ -4,6 +4,7 @@ Fixes the 0/26 rule firing rate by:
 2. Tracking evaluation_count vs times_triggered for observability
 3. Supporting wildcard event matching
 """
+
 import logging
 import time
 from collections import defaultdict
@@ -22,31 +23,31 @@ logger = logging.getLogger(__name__)
 
 # Migration map from old trigger vocabulary
 TRIGGER_MIGRATION = {
-    'on_prompt': 'prompt.received',
-    'prompt_received': 'prompt.received',
-    'on_startup': 'session.start',
-    'after_tool_call': 'tool.after:*',
-    'before_design': 'phase.before:design',
-    'before_code_change': 'phase.before:code_change',
-    'after_code_change': 'phase.after:code_change',
-    'pre_commit': 'phase.before:commit',
-    'after_audit': 'phase.after:audit',
+    "on_prompt": "prompt.received",
+    "prompt_received": "prompt.received",
+    "on_startup": "session.start",
+    "after_tool_call": "tool.after:*",
+    "before_design": "phase.before:design",
+    "before_code_change": "phase.before:code_change",
+    "after_code_change": "phase.after:code_change",
+    "pre_commit": "phase.before:commit",
+    "after_audit": "phase.after:audit",
 }
 
 # Intent-to-phase mapping for the orchestrator
 INTENT_PHASE_MAP = {
-    'design': 'design',
-    'architecture': 'design',
-    'build': 'code_change',
-    'create': 'code_change',
-    'fix': 'code_change',
-    'refactor': 'code_change',
-    'debug': 'code_change',
-    'deploy': 'deploy',
-    'audit': 'audit',
-    'test': 'code_change',
-    'security': 'code_change',
-    'research': 'audit',
+    "design": "design",
+    "architecture": "design",
+    "build": "code_change",
+    "create": "code_change",
+    "fix": "code_change",
+    "refactor": "code_change",
+    "debug": "code_change",
+    "deploy": "deploy",
+    "audit": "audit",
+    "test": "code_change",
+    "security": "code_change",
+    "research": "audit",
 }
 
 PROMPT_TOOLS = frozenset({"elite_prepare", "orchestrate_request_tool", "workflow_run"})
@@ -80,7 +81,7 @@ class EventBus:
             rules = self.store.get_active_prevention_rules()
             self._rules_by_event = defaultdict(list)
             for r in rules:
-                trigger = str(r.get('trigger_event') or '')
+                trigger = str(r.get("trigger_event") or "")
                 # Migrate old vocabulary
                 trigger = TRIGGER_MIGRATION.get(trigger, trigger)
                 self._rules_by_event[trigger].append(r)
@@ -97,8 +98,8 @@ class EventBus:
         matched_rules.extend(self._rules_by_event.get(event, []))
 
         # Wildcard match: tool.after:record_decision → also check tool.after:*
-        if ':' in event:
-            wildcard = event.split(':')[0] + ':*'
+        if ":" in event:
+            wildcard = event.split(":")[0] + ":*"
             matched_rules.extend(self._rules_by_event.get(wildcard, []))
 
         for rule in matched_rules:
@@ -106,8 +107,8 @@ class EventBus:
             error = None
             try:
                 # Keyword-based check against payload
-                check = rule.get('check_query', rule.get('check', '')).lower()
-                context_text = ' '.join(str(v) for v in payload.values() if isinstance(v, str)).lower()
+                check = rule.get("check_query", rule.get("check", "")).lower()
+                context_text = " ".join(str(v) for v in payload.values() if isinstance(v, str)).lower()
                 # Phase rules are intentionally event-gated: their check text
                 # describes the review to run, not a keyword condition that
                 # happens to be present in a user prompt. Other rules retain
@@ -119,7 +120,7 @@ class EventBus:
                     match_count = sum(1 for word in check_words if word in context_text)
                     matched = bool(check_words) and match_count / len(check_words) >= 0.25
                 if matched:
-                    self.store.increment_rule_trigger(rule['id'])
+                    self.store.increment_rule_trigger(rule["id"])
                     warnings.append(
                         f"Rule `{rule.get('name', rule.get('rule_name', 'unknown'))}` "
                         f"[{rule.get('severity', 'P1')}] fired: "
@@ -132,21 +133,25 @@ class EventBus:
                 # Observability: always record evaluation
                 elapsed_ms = (time.perf_counter() - start) * 1000
                 try:
-                    self.store.update_rule_evaluation(rule['id'], error=error, check_ms=elapsed_ms)
+                    self.store.update_rule_evaluation(rule["id"], error=error, check_ms=elapsed_ms)
                 except Exception as e:
-                    logger.debug(f'Rule evaluation tracking failed for rule {rule.get("id", "?")}: {e}')
+                    logger.debug(f"Rule evaluation tracking failed for rule {rule.get('id', '?')}: {e}")
 
         return warnings
 
 
 class PreventionRuleMiddleware(Middleware):
     """Fires prevention rules via EventBus on every tool call."""
+
     name = "prevention_rules"
     applies_to = "*"  # Evaluate on every tool
 
-    EXEMPT_TOOLS = frozenset({
-        'get_user_profile', 'update_user_config',
-    })
+    EXEMPT_TOOLS = frozenset(
+        {
+            "get_user_profile",
+            "update_user_config",
+        }
+    )
 
     def __init__(self, store, reload_interval: int = 50):
         self.bus = EventBus(store)
@@ -163,12 +168,12 @@ class PreventionRuleMiddleware(Middleware):
             return None
 
         payload = {
-            'tool_name': ctx.tool_name,
-            'args_text': ' '.join(str(v) for v in ctx.args.values() if isinstance(v, str))[:500],
+            "tool_name": ctx.tool_name,
+            "args_text": " ".join(str(v) for v in ctx.args.values() if isinstance(v, str))[:500],
         }
 
         # Emit tool.before:<tool_name>
-        warnings = self.bus.emit(f'tool.before:{ctx.tool_name}', payload)
+        warnings = self.bus.emit(f"tool.before:{ctx.tool_name}", payload)
 
         # NOTE: EventBus.emit() already handles wildcard matching internally
         # (tool.before:<name> → also checks tool.before:*), so no explicit
@@ -177,31 +182,30 @@ class PreventionRuleMiddleware(Middleware):
         # Gateway and legacy prompt-bearing tools all emit the same canonical
         # events so prevention coverage does not depend on the profile.
         if ctx.tool_name in PROMPT_TOOLS:
-            prompt = ctx.args.get('user_prompt', '')
-            payload['prompt'] = prompt[:500]
-            warnings.extend(self.bus.emit('prompt.received', payload))
+            prompt = ctx.args.get("user_prompt", "")
+            payload["prompt"] = prompt[:500]
+            warnings.extend(self.bus.emit("prompt.received", payload))
             phase = _phase_for_prompt(prompt)
             if phase:
-                payload['phase'] = phase
-                ctx.metadata['workflow_phase'] = phase
-                warnings.extend(self.bus.emit(f'phase.before:{phase}', payload))
+                payload["phase"] = phase
+                ctx.metadata["workflow_phase"] = phase
+                warnings.extend(self.bus.emit(f"phase.before:{phase}", payload))
 
         if warnings:
-            ctx.metadata['prevention_warnings'] = warnings
+            ctx.metadata["prevention_warnings"] = warnings
 
         return None  # Never short-circuit — just record
 
     async def after(self, ctx: CallContext, result: CallResult) -> CallResult:
         # Emit tool.after:<tool_name>
-        payload = {'tool_name': ctx.tool_name}
-        post_warnings = self.bus.emit(f'tool.after:{ctx.tool_name}', payload)
+        payload = {"tool_name": ctx.tool_name}
+        post_warnings = self.bus.emit(f"tool.after:{ctx.tool_name}", payload)
 
         # Inject any prevention warnings into result
-        all_warnings = ctx.metadata.get('prevention_warnings', []) + post_warnings
+        all_warnings = ctx.metadata.get("prevention_warnings", []) + post_warnings
         if all_warnings:
-            result.augmentations.insert(0,
-                "╔══ 🛡️ PREVENTION RULES FIRED ══╗\n"
-                + "\n".join(all_warnings)
-                + "\n╚═══════════════════════════════╝"
+            result.augmentations.insert(
+                0,
+                "╔══ 🛡️ PREVENTION RULES FIRED ══╗\n" + "\n".join(all_warnings) + "\n╚═══════════════════════════════╝",
             )
         return result

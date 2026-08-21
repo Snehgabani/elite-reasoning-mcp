@@ -2,6 +2,7 @@
 
 Reads injection_events (previously write-only), computes per-pattern
 effectiveness, retires ineffective patterns, boosts effective ones."""
+
 import logging
 import time
 from dataclasses import dataclass
@@ -12,6 +13,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class InjectionStats:
     """Per-anti-pattern injection statistics."""
+
     anti_pattern_id: int
     times_injected: int
     times_prevented: int
@@ -27,7 +29,7 @@ class InjectionStats:
 
     @property
     def staleness_days(self) -> float:
-        return (time.time() - self.last_injected) / 86400 if self.last_injected else float('inf')
+        return (time.time() - self.last_injected) / 86400 if self.last_injected else float("inf")
 
 
 class InjectionOptimizer:
@@ -93,13 +95,11 @@ class InjectionOptimizer:
             reason = None
             effectiveness = None
 
-            if (stat.effectiveness < self.EFFECTIVENESS_FLOOR
-                    and stat.times_injected >= self.MIN_INJECTIONS_TO_JUDGE):
+            if stat.effectiveness < self.EFFECTIVENESS_FLOOR and stat.times_injected >= self.MIN_INJECTIONS_TO_JUDGE:
                 eligible = False
                 reason = f"ineffective ({stat.effectiveness:.0%} after {stat.times_injected} injections)"
                 retired += 1
-            elif (stat.staleness_days > self.STALENESS_MAX_DAYS
-                    and stat.times_injected == 0):
+            elif stat.staleness_days > self.STALENESS_MAX_DAYS and stat.times_injected == 0:
                 eligible = False
                 reason = f"stale_never_used ({stat.staleness_days:.0f}d)"
                 retired += 1
@@ -134,7 +134,7 @@ class InjectionOptimizer:
                 f"SELECT id, COALESCE(injection_effectiveness, 0.5) as eff "
                 f"FROM anti_patterns WHERE id IN ({placeholders}) "
                 f"AND COALESCE(injection_eligible, 1) = 1",
-                candidate_ids
+                candidate_ids,
             )
             rows = {r[0]: r[1] for r in c.fetchall()}
         finally:
@@ -144,8 +144,9 @@ class InjectionOptimizer:
         scored.sort(key=lambda x: x[1], reverse=True)
         return [s[0] for s in scored]
 
-    def _update_eligibility(self, anti_pattern_id: int, eligible: bool,
-                            reason: str | None, effectiveness: float | None):
+    def _update_eligibility(
+        self, anti_pattern_id: int, eligible: bool, reason: str | None, effectiveness: float | None
+    ):
         """Update anti-pattern's injection eligibility."""
         conn = self.store._connect()
         try:
@@ -154,7 +155,7 @@ class InjectionOptimizer:
                 "UPDATE anti_patterns SET injection_eligible = ?, "
                 "injection_disabled_reason = ?, injection_effectiveness = ? "
                 "WHERE id = ?",
-                (1 if eligible else 0, reason, effectiveness, anti_pattern_id)
+                (1 if eligible else 0, reason, effectiveness, anti_pattern_id),
             )
         except Exception as e:
             logger.error(f"Failed to update eligibility for AP {anti_pattern_id}: {e}")

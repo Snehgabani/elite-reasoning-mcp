@@ -6,6 +6,7 @@ Usage:
     logger = get_logger(__name__)
     logger.info("Tool called", extra={"tool": "set_goal", "user": "sneh"})
 """
+
 import json
 import logging
 import os
@@ -26,7 +27,7 @@ class StructuredFormatter(logging.Formatter):
         }
 
         # Include any extra fields
-        for key in ('tool', 'user', 'action', 'duration_ms', 'error', 'gap_id'):
+        for key in ("tool", "user", "action", "duration_ms", "error", "gap_id"):
             if hasattr(record, key):
                 log_entry[key] = getattr(record, key)
 
@@ -39,7 +40,7 @@ class StructuredFormatter(logging.Formatter):
 def get_logger(name: str) -> logging.Logger:
     """
     Get a structured logger instance.
-    
+
     Log level controlled by ELITE_LOG_LEVEL env var (default: INFO).
     Output goes to stderr (for MCP stdio transport compatibility)
     and optionally to a file via ELITE_LOG_FILE.

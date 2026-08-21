@@ -23,6 +23,7 @@ class ProcessRewardModel:
     Evaluates logical coherence, mathematical invariant consistency, quantifier validity,
     security invariants, and code syntax integrity for each step in a multi-step reasoning chain.
     """
+
     def __init__(self, threshold: float = 0.80):
         self.threshold = threshold
 
@@ -37,7 +38,7 @@ class ProcessRewardModel:
             ("definitely without checking", 0.40, "Unchecked certainty without evidentiary support."),
             ("trivially true for all cases", 0.30, "Over-generalized universal claim."),
             ("it is self-evident", 0.25, "Appealing to self-evidence rather than formal proof."),
-            ("guaranteed to never fail", 0.35, "Absolutist stability claim without error boundary analysis.")
+            ("guaranteed to never fail", 0.35, "Absolutist stability claim without error boundary analysis."),
         ]
         for phrase, pen, desc in dogmatic_phrases:
             if phrase in text_lower:
@@ -60,7 +61,7 @@ class ProcessRewardModel:
         # 1. Math Invariants Gate
         math_res = validate_math_invariants(step_text)
         if not math_res.passed:
-            total_penalty += (1.0 - math_res.score)
+            total_penalty += 1.0 - math_res.score
             all_issues.extend(math_res.issues)
 
         # 2. Cognitive Biases Gate
@@ -102,8 +103,8 @@ class ProcessRewardModel:
             "dimensions": {
                 "math_validity": round(math_res.score, 2),
                 "epistemic_rigor": round(max(0.0, 1.0 - bias_pen), 2),
-                "code_syntax": round(code_score, 2)
-            }
+                "code_syntax": round(code_score, 2),
+            },
         }
 
     async def verify_step(self, step_text: str, context: str = "") -> Dict[str, Any]:

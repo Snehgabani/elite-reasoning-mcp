@@ -36,6 +36,7 @@ def _extract_pub_date(html: str) -> str | None:
     import re
 
     from bs4 import BeautifulSoup
+
     try:
         soup = BeautifulSoup(html, "html.parser")
         for attr in ("article:published_time", "og:published_time", "article:modified_time"):
@@ -69,8 +70,11 @@ async def deep_read_url(url: str, question: str = "", query: str = "") -> Dict[s
             if len(text) >= MIN_TEXT:
                 pub = _extract_pub_date(r.text)
                 out = {
-                    "url": url, "provider": "direct-http", "title": title,
-                    "full_text_length": len(text), "text": text[:MAX_TEXT],
+                    "url": url,
+                    "provider": "direct-http",
+                    "title": title,
+                    "full_text_length": len(text),
+                    "text": text[:MAX_TEXT],
                     "extracted": True,
                 }
                 if pub:
@@ -89,8 +93,11 @@ async def deep_read_url(url: str, question: str = "", query: str = "") -> Dict[s
             t = rr.text
             title = t.splitlines()[0].strip()[:200] if t else ""
             return {
-                "url": url, "provider": "jina-reader", "title": title,
-                "full_text_length": len(t), "text": t[:MAX_TEXT],
+                "url": url,
+                "provider": "jina-reader",
+                "title": title,
+                "full_text_length": len(t),
+                "text": t[:MAX_TEXT],
                 "extracted": True,
             }
     except Exception as exc:

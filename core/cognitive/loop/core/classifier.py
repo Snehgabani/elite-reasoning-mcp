@@ -13,6 +13,7 @@ from dataclasses import dataclass
 @dataclass
 class PromptClassification:
     """Complete classification result for a prompt."""
+
     intent: str
     reasoning_type: str
     complexity: int
@@ -27,49 +28,114 @@ class PromptClassification:
 
 INTENT_SIGNALS: dict[str, tuple[tuple[str, int], ...]] = {
     "debug": (
-        ("debug", 3), ("error", 2), ("broken", 2), ("crash", 2), ("bug", 2),
-        ("traceback", 3), ("exception", 2), ("not working", 3), ("fix error", 3),
-        ("stack trace", 3), ("segfault", 3), ("timeout", 2), ("500", 2),
+        ("debug", 3),
+        ("error", 2),
+        ("broken", 2),
+        ("crash", 2),
+        ("bug", 2),
+        ("traceback", 3),
+        ("exception", 2),
+        ("not working", 3),
+        ("fix error", 3),
+        ("stack trace", 3),
+        ("segfault", 3),
+        ("timeout", 2),
+        ("500", 2),
     ),
     "build": (
-        ("build", 2), ("implement", 3), ("add feature", 3), ("create", 2),
-        ("new project", 3), ("scaffold", 3), ("generate", 2), ("write code", 3),
-        ("set up", 2), ("integrate", 2),
+        ("build", 2),
+        ("implement", 3),
+        ("add feature", 3),
+        ("create", 2),
+        ("new project", 3),
+        ("scaffold", 3),
+        ("generate", 2),
+        ("write code", 3),
+        ("set up", 2),
+        ("integrate", 2),
     ),
     "audit": (
-        ("audit", 3), ("review", 2), ("check", 2), ("scan", 2),
-        ("diagnose", 2), ("health", 2), ("inspect", 2), ("verify", 2),
-        ("security review", 3), ("code review", 3),
+        ("audit", 3),
+        ("review", 2),
+        ("check", 2),
+        ("scan", 2),
+        ("diagnose", 2),
+        ("health", 2),
+        ("inspect", 2),
+        ("verify", 2),
+        ("security review", 3),
+        ("code review", 3),
     ),
     "research": (
-        ("research", 3), ("evidence", 2), ("paper", 2), ("benchmark", 2),
-        ("citation", 3), ("source", 2), ("state of the art", 3), ("survey", 2),
-        ("literature", 3), ("compare approaches", 3),
+        ("research", 3),
+        ("evidence", 2),
+        ("paper", 2),
+        ("benchmark", 2),
+        ("citation", 3),
+        ("source", 2),
+        ("state of the art", 3),
+        ("survey", 2),
+        ("literature", 3),
+        ("compare approaches", 3),
     ),
     "deploy": (
-        ("deploy", 3), ("push", 2), ("release", 2), ("publish", 2),
-        ("ship", 2), ("production", 3), ("staging", 2), ("migrate", 3),
+        ("deploy", 3),
+        ("push", 2),
+        ("release", 2),
+        ("publish", 2),
+        ("ship", 2),
+        ("production", 3),
+        ("staging", 2),
+        ("migrate", 3),
     ),
     "design": (
-        ("design", 2), ("architect", 3), ("architecture", 3), ("schema", 2),
-        ("data model", 3), ("api design", 3), ("system design", 3),
+        ("design", 2),
+        ("architect", 3),
+        ("architecture", 3),
+        ("schema", 2),
+        ("data model", 3),
+        ("api design", 3),
+        ("system design", 3),
     ),
     "decide": (
-        ("decide", 2), ("choose", 2), ("pick", 2), ("which one", 2),
-        ("should i", 2), ("trade-off", 3), ("tradeoff", 3), ("vs ", 2),
-        ("pros and cons", 3), ("comparison", 2),
+        ("decide", 2),
+        ("choose", 2),
+        ("pick", 2),
+        ("which one", 2),
+        ("should i", 2),
+        ("trade-off", 3),
+        ("tradeoff", 3),
+        ("vs ", 2),
+        ("pros and cons", 3),
+        ("comparison", 2),
     ),
     "optimize": (
-        ("optimize", 2), ("improve", 2), ("refactor", 2), ("performance", 2),
-        ("faster", 2), ("bottleneck", 3), ("profiling", 3), ("memory leak", 3),
+        ("optimize", 2),
+        ("improve", 2),
+        ("refactor", 2),
+        ("performance", 2),
+        ("faster", 2),
+        ("bottleneck", 3),
+        ("profiling", 3),
+        ("memory leak", 3),
     ),
     "test": (
-        ("test", 2), ("spec", 2), ("unittest", 3), ("e2e test", 3),
-        ("integration test", 3), ("coverage", 2), ("tdd", 3),
+        ("test", 2),
+        ("spec", 2),
+        ("unittest", 3),
+        ("e2e test", 3),
+        ("integration test", 3),
+        ("coverage", 2),
+        ("tdd", 3),
     ),
     "explain": (
-        ("explain", 2), ("how does", 2), ("why does", 2), ("what is", 1),
-        ("understand", 2), ("show me", 1), ("walk through", 2),
+        ("explain", 2),
+        ("how does", 2),
+        ("why does", 2),
+        ("what is", 1),
+        ("understand", 2),
+        ("show me", 1),
+        ("walk through", 2),
     ),
 }
 
@@ -91,31 +157,64 @@ def classify_intent(prompt: str) -> str:
 
 COMPLEXITY_SIGNALS = {
     "high": (
-        "production", "security", "authentication", "migration",
-        "database schema", "breaking change", "backwards compat",
-        "scale", "concurrent", "distributed", "microservice",
-        "encryption", "compliance", "payment", "billing",
+        "production",
+        "security",
+        "authentication",
+        "migration",
+        "database schema",
+        "breaking change",
+        "backwards compat",
+        "scale",
+        "concurrent",
+        "distributed",
+        "microservice",
+        "encryption",
+        "compliance",
+        "payment",
+        "billing",
     ),
     "medium": (
-        "refactor", "redesign", "architecture", "integrate",
-        "api design", "data model", "performance", "optimize",
-        "end to end", "full stack", "comprehensive", "multi-file",
+        "refactor",
+        "redesign",
+        "architecture",
+        "integrate",
+        "api design",
+        "data model",
+        "performance",
+        "optimize",
+        "end to end",
+        "full stack",
+        "comprehensive",
+        "multi-file",
     ),
     "low": (
-        "typo", "rename", "comment", "format", "lint",
-        "simple", "quick", "minor", "small fix", "one line",
+        "typo",
+        "rename",
+        "comment",
+        "format",
+        "lint",
+        "simple",
+        "quick",
+        "minor",
+        "small fix",
+        "one line",
     ),
 }
 
 COMPLEXITY_INTENT_BOOST = {
-    "deploy": 2, "audit": 2, "research": 2, "design": 2,
-    "build": 1, "optimize": 1, "debug": 1,
+    "deploy": 2,
+    "audit": 2,
+    "research": 2,
+    "design": 2,
+    "build": 1,
+    "optimize": 1,
+    "debug": 1,
 }
 
 
 def classify_complexity(prompt: str, intent: str) -> int:
     """Classify task complexity on a 1-5 scale.
-    
+
     Combines:
     - Prompt length (longer = more context = more complex)
     - Intent category (deploy/audit = inherently higher risk)
@@ -156,9 +255,10 @@ def classify_complexity(prompt: str, intent: str) -> int:
 
 # ── Reasoning Type Classification ────────────────────────────
 
+
 def classify_reasoning_type(prompt: str) -> str:
     """Classify the meta-pattern of the prompt.
-    
+
     Detects: loop_kick, depth_escalation, gap_injection,
     frustration, meta_instruction, correction, substantive.
     """
@@ -169,23 +269,28 @@ def classify_reasoning_type(prompt: str) -> str:
         return "loop_kick"
 
     # Depth escalation
-    if any(kw in lower for kw in ("think deeper", "more detail", "go deeper", "drill down",
-                                    "comprehensive", "thorough", "in depth")):
+    if any(
+        kw in lower
+        for kw in ("think deeper", "more detail", "go deeper", "drill down", "comprehensive", "thorough", "in depth")
+    ):
         return "depth_escalation"
 
     # Gap injection
-    if any(kw in lower for kw in ("also need", "what about", "we must", "don't forget",
-                                    "missing", "you forgot", "overlooked")):
+    if any(
+        kw in lower
+        for kw in ("also need", "what about", "we must", "don't forget", "missing", "you forgot", "overlooked")
+    ):
         return "gap_injection"
 
     # Frustration
-    if any(kw in lower for kw in ("still", "again", "why not", "already told",
-                                    "i said", "still not", "same problem")):
+    if any(kw in lower for kw in ("still", "again", "why not", "already told", "i said", "still not", "same problem")):
         return "frustration"
 
     # Meta-instruction
-    if any(kw in lower for kw in ("always", "every step", "make sure", "must",
-                                    "never", "from now on", "remember to", "rule:")):
+    if any(
+        kw in lower
+        for kw in ("always", "every step", "make sure", "must", "never", "from now on", "remember to", "rule:")
+    ):
         return "meta_instruction"
 
     # Correction
@@ -280,6 +385,7 @@ def recommend_budget_tier(complexity: int, risks: list[str]) -> str:
 
 # ── Tool Recommendation ─────────────────────────────────────
 
+
 def recommend_tools(intent: str, complexity: int, budget_tier: str) -> list[str]:
     """Recommend which reasoning tools to activate based on classification."""
     tools = []
@@ -320,6 +426,7 @@ def recommend_tools(intent: str, complexity: int, budget_tier: str) -> list[str]
 
 
 # ── Full Classification ──────────────────────────────────────
+
 
 def classify_prompt(prompt: str) -> PromptClassification:
     """Complete prompt classification — the entry point for routing."""

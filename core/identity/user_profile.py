@@ -10,6 +10,7 @@ Each user gets:
 Config lives at: ~/.elite-reasoning/config.json
 Brain lives at:  ~/.elite-reasoning/brain/
 """
+
 import copy
 import getpass
 import json
@@ -29,18 +30,18 @@ DEFAULT_CONFIG = {
         "sync_interval_minutes": 60,
     },
     "orchestration": {
-        "mode": "auto",             # "auto" | "heuristic" | "llm"
-        "disabled_mcps": [],        # MCPs to exclude from orchestration
-        "disabled_skills": [],      # Skills to exclude from orchestration
-        "priority_mcps": [],        # MCPs to always include
-        "priority_skills": [],      # Skills to always include
+        "mode": "auto",  # "auto" | "heuristic" | "llm"
+        "disabled_mcps": [],  # MCPs to exclude from orchestration
+        "disabled_skills": [],  # Skills to exclude from orchestration
+        "priority_mcps": [],  # MCPs to always include
+        "priority_skills": [],  # Skills to always include
     },
     "quality": {
         "auto_check_anti_patterns": True,
         "auto_record_decisions": True,
         "min_quality_score": 70,
     },
-    "shared_skills": [],            # Skills published to the team hub
+    "shared_skills": [],  # Skills published to the team hub
     "created_at": "",
     "updated_at": "",
 }
@@ -53,10 +54,7 @@ class UserProfile:
         if elite_dir:
             self.elite_dir = elite_dir
         else:
-            self.elite_dir = os.environ.get(
-                "ELITE_DIR",
-                os.path.join(os.path.expanduser("~"), ".elite-reasoning")
-            )
+            self.elite_dir = os.environ.get("ELITE_DIR", os.path.join(os.path.expanduser("~"), ".elite-reasoning"))
         self.config_path = os.path.join(self.elite_dir, "config.json")
         self.brain_dir = os.path.join(self.elite_dir, "brain")
         self._config = None
@@ -83,7 +81,7 @@ class UserProfile:
         self.ensure_dirs()
         if os.path.exists(self.config_path):
             try:
-                with open(self.config_path, 'r') as f:
+                with open(self.config_path, "r") as f:
                     stored = json.load(f)
                 # Migrate pre-v2 persisted credentials out of the profile.
                 # Keys must be supplied by the process environment or keychain,
@@ -154,6 +152,7 @@ class UserProfile:
             return explicit
         try:
             from core.orchestration.capabilities import build_capability_registry
+
             registry = build_capability_registry()
             if registry.active_ide:
                 return registry.active_ide
@@ -223,6 +222,7 @@ class UserProfile:
     def get_profile_summary(self) -> str:
         """Return a human-readable profile summary."""
         from core.orchestration.capabilities import build_capability_registry
+
         registry = build_capability_registry()
         mcps = registry.names("mcp")
         skills = registry.names("skill")

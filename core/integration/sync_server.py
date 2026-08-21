@@ -686,9 +686,7 @@ async def push_sync(payload: SyncPayload, actor: str = Depends(get_sync_actor)):
 
         for decision_payload in payload.decisions:
             dec = decision_payload.model_dump()
-            ch = _decision_hash(
-                dec["decision"], dec["rationale"], dec["alternatives_rejected"], dec["context"]
-            )
+            ch = _decision_hash(dec["decision"], dec["rationale"], dec["alternatives_rejected"], dec["context"])
             if _is_duplicate_push(ch):
                 deduped_decs += 1
                 continue

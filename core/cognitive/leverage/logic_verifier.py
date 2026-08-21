@@ -94,14 +94,26 @@ def _txt(resp) -> str:
 
 
 import asyncio
+import time
+
+_CIRCUIT_OPEN = False
+_LAST_CHECK_TIME = 0.0
 
 
-async def _llm(messages, timeout_seconds: float = 1.0):
-    try:
-        return await asyncio.wait_for(SOLVER_LLM.ainvoke(messages), timeout=timeout_seconds)
-    except Exception:
+async def _llm(messages, timeout_seconds: float = 0.35):
+    global _CIRCUIT_OPEN, _LAST_CHECK_TIME
+    now = time.time()
+    if _CIRCUIT_OPEN and (now - _LAST_CHECK_TIME < 60.0):
         return None
-
+    try:
+        res = await asyncio.wait_for(SOLVER_LLM.ainvoke(messages), timeout=timeout_seconds)
+        _CIRCUIT_OPEN = False
+        _LAST_CHECK_TIME = now
+        return res
+    except Exception:
+        _CIRCUIT_OPEN = True
+        _LAST_CHECK_TIME = now
+        return None
 
 
 class LogicVerifier:
@@ -109,8 +121,10 @@ class LogicVerifier:
 
     async def _structure(self, argument: str) -> Optional[Dict[str, Any]]:
         resp = await _llm(
-            [SystemMessage("You extract logical structure as JSON."),
-             HumanMessage(STRUCTURE_PROMPT.format(argument=argument[:5000]))]
+            [
+                SystemMessage("You extract logical structure as JSON."),
+                HumanMessage(STRUCTURE_PROMPT.format(argument=argument[:5000])),
+            ]
         )
         if resp is None:
             return None
@@ -122,10 +136,12 @@ class LogicVerifier:
 
     async def _fallacies_llm(self, argument: str, structure: Dict[str, Any]) -> List[Dict[str, str]]:
         resp = await _llm(
-            [SystemMessage("You analyze arguments for logical fallacies and return JSON."),
-             HumanMessage(FALLACY_PROMPT.format(
-                 argument=argument[:3500],
-                 structure=json.dumps(structure, indent=1)[:2000]))]
+            [
+                SystemMessage("You analyze arguments for logical fallacies and return JSON."),
+                HumanMessage(
+                    FALLACY_PROMPT.format(argument=argument[:3500], structure=json.dumps(structure, indent=1)[:2000])
+                ),
+            ]
         )
         if resp is None:
             return []
@@ -136,8 +152,9 @@ class LogicVerifier:
         out = []
         for it in items:
             if isinstance(it, dict) and it.get("name"):
-                out.append({"name": str(it["name"])[:60],
-                            "detail": str(it.get("why") or it.get("description") or "")[:200]})
+                out.append(
+                    {"name": str(it["name"])[:60], "detail": str(it.get("why") or it.get("description") or "")[:200]}
+                )
         return out[:6]
 
     @staticmethod
@@ -146,7 +163,7 @@ class LogicVerifier:
         premises = []
         conclusions = []
         steps = []
-        
+
         lines = [line.strip() for line in argument.splitlines() if line.strip()]
         if len(lines) < 2:
             # Try splitting by sentence if single line
@@ -156,8 +173,12 @@ class LogicVerifier:
             line_low = line.lower()
             if re.match(r"^(premise|given|assume|suppose)\s*\d*[:.-]", line_low):
                 premises.append(re.sub(r"^(premise|given|assume|suppose)\s*\d*[:.-]\s*", "", line, flags=re.I))
-            elif re.match(r"^(conclusion|therefore|thus|hence|ergo|so)\s*\d*[:.-]", line_low) or line_low.startswith("therefore "):
-                conclusions.append(re.sub(r"^(conclusion|therefore|thus|hence|ergo|so)\s*\d*[:.-]\s*", "", line, flags=re.I))
+            elif re.match(r"^(conclusion|therefore|thus|hence|ergo|so)\s*\d*[:.-]", line_low) or line_low.startswith(
+                "therefore "
+            ):
+                conclusions.append(
+                    re.sub(r"^(conclusion|therefore|thus|hence|ergo|so)\s*\d*[:.-]\s*", "", line, flags=re.I)
+                )
             else:
                 steps.append(line)
 
@@ -166,7 +187,7 @@ class LogicVerifier:
                 "premises": premises,
                 "conclusions": conclusions,
                 "reasoning_steps": steps if steps else premises + conclusions,
-                "implicit_premises": []
+                "implicit_premises": [],
             }
         return None
 
@@ -181,11 +202,16 @@ class LogicVerifier:
 
     async def _validity(self, structure: Dict[str, Any]) -> Dict[str, Any]:
         resp = await _llm(
-            [SystemMessage("You judge logical validity and return JSON."),
-             HumanMessage(VALIDITY_PROMPT.format(
-                 premises=str(structure.get("premises"))[:2000],
-                 steps=str(structure.get("reasoning_steps"))[:2000],
-                 conclusions=str(structure.get("conclusions"))[:2000]))]
+            [
+                SystemMessage("You judge logical validity and return JSON."),
+                HumanMessage(
+                    VALIDITY_PROMPT.format(
+                        premises=str(structure.get("premises"))[:2000],
+                        steps=str(structure.get("reasoning_steps"))[:2000],
+                        conclusions=str(structure.get("conclusions"))[:2000],
+                    )
+                ),
+            ]
         )
         if resp is None:
             return {"checked": False, "valid": None, "issues": [], "confidence": None}
@@ -194,10 +220,12 @@ class LogicVerifier:
         issues_raw = d.get("issues")
         issues: List[Any] = issues_raw if isinstance(issues_raw, list) else []
         conf = d.get("confidence")
-        return {"checked": True,
-                "valid": bool(valid) if valid is not None else None,
-                "issues": [str(i)[:200] for i in issues[:4]],
-                "confidence": conf if isinstance(conf, (int, float)) else None}
+        return {
+            "checked": True,
+            "valid": bool(valid) if valid is not None else None,
+            "issues": [str(i)[:200] for i in issues[:4]],
+            "confidence": conf if isinstance(conf, (int, float)) else None,
+        }
 
     @staticmethod
     def _completeness(structure: Dict[str, Any]) -> float:
@@ -224,7 +252,7 @@ class LogicVerifier:
                 "premises": [argument[:300]],
                 "conclusions": [argument[:300]],
                 "reasoning_steps": [argument[:300]],
-                "implicit_premises": []
+                "implicit_premises": [],
             }
 
         fall_llm: List[Dict[str, str]] = []
@@ -247,8 +275,9 @@ class LogicVerifier:
             "argument": argument[:200],
             "available": True,
             "overall_verdict": verdict,
-            "structure": {k: structure.get(k, []) for k in
-                          ("premises", "conclusions", "reasoning_steps", "implicit_premises")},
+            "structure": {
+                k: structure.get(k, []) for k in ("premises", "conclusions", "reasoning_steps", "implicit_premises")
+            },
             "fallacies_detected": fallacies,
             "logical_validity": validity,
             "completeness_score": round(completeness, 2),

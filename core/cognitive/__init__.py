@@ -2,6 +2,7 @@
 Elite Cognitive Singularity Package.
 Exposes the 9-stage cognitive engine, PRMs, AST invariant gates, and closed-loop reasoning graphs.
 """
+
 from core.cognitive.engine import _COGNITIVE_ENGINE, _MIX_ENGINE, EliteCognitiveEngine
 from core.cognitive.leverage.deterministic_gates import (
     apply_verified_diff,

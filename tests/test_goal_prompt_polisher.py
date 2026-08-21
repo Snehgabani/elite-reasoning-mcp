@@ -1,9 +1,10 @@
 """Tests for the Goal-Aligned Prompt Polisher."""
+
 import os
 import sys
 
 # Add project root to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from core.tools.goal_prompt_polisher import GoalPromptPolisher, PolishResult
 
@@ -72,18 +73,14 @@ class TestPromptScoring:
     def test_code_context_boosts_score(self):
         polisher = GoalPromptPolisher(MockStore())
         without = polisher.score_prompt("fix the auth issue")
-        with_context = polisher.score_prompt(
-            "fix the auth issue in `core/middleware/auth.py` file"
-        )
+        with_context = polisher.score_prompt("fix the auth issue in `core/middleware/auth.py` file")
         assert with_context > without
 
     def test_structured_prompt_scores_higher(self):
         polisher = GoalPromptPolisher(MockStore())
         flat = polisher.score_prompt("do several things and make them work")
         structured = polisher.score_prompt(
-            "1. First, check the database\n"
-            "2. Then validate the schema\n"
-            "3. Finally, run the migration"
+            "1. First, check the database\n2. Then validate the schema\n3. Finally, run the migration"
         )
         assert structured > flat
 
@@ -129,8 +126,7 @@ class TestComplexityClassification:
     def test_technical_prompt_higher_complexity(self):
         polisher = GoalPromptPolisher(MockStore())
         technical = (
-            "Set up the database migration for the microservice "
-            "with API authentication and deploy to kubernetes"
+            "Set up the database migration for the microservice with API authentication and deploy to kubernetes"
         )
         complexity = polisher._classify_complexity(technical, "deploy")
         assert complexity >= 3
@@ -146,33 +142,33 @@ class TestGoalAlignment:
         assert aligned == []
 
     def test_relevant_goal_is_aligned(self):
-        goals = [{
-            "id": 1,
-            "objective": "Improve login performance and fix auth bugs",
-            "key_results": ["Reduce login latency to <200ms", "Fix all auth bugs"],
-            "overall_pct": 30,
-            "progress": {},
-        }]
+        goals = [
+            {
+                "id": 1,
+                "objective": "Improve login performance and fix auth bugs",
+                "key_results": ["Reduce login latency to <200ms", "Fix all auth bugs"],
+                "overall_pct": 30,
+                "progress": {},
+            }
+        ]
         polisher = GoalPromptPolisher(MockStore(goals=goals))
-        context, aligned = polisher._build_goal_context(
-            goals, "fix the login auth bug", "debug"
-        )
+        context, aligned = polisher._build_goal_context(goals, "fix the login auth bug", "debug")
         assert len(aligned) >= 1
         assert "login" in aligned[0].lower() or "auth" in aligned[0].lower()
         assert "GOAL" in context or "FOCUS" in context
 
     def test_irrelevant_goal_falls_back_to_latest(self):
-        goals = [{
-            "id": 1,
-            "objective": "Redesign the payment system",
-            "key_results": ["New Stripe integration"],
-            "overall_pct": 50,
-            "progress": {},
-        }]
+        goals = [
+            {
+                "id": 1,
+                "objective": "Redesign the payment system",
+                "key_results": ["New Stripe integration"],
+                "overall_pct": 50,
+                "progress": {},
+            }
+        ]
         polisher = GoalPromptPolisher(MockStore(goals=goals))
-        context, aligned = polisher._build_goal_context(
-            goals, "fix the weather API", "debug"
-        )
+        context, aligned = polisher._build_goal_context(goals, "fix the weather API", "debug")
         # Should still inject the latest goal as general context
         assert len(aligned) >= 1
         assert context  # Non-empty
@@ -201,13 +197,15 @@ class TestFullPolish:
         assert "Output Standard" in result.polished_prompt
 
     def test_polish_injects_goal_context(self):
-        goals = [{
-            "id": 1,
-            "objective": "Ship the dashboard feature by Friday",
-            "key_results": ["Complete UI", "Add tests", "Deploy to staging"],
-            "overall_pct": 40,
-            "progress": {},
-        }]
+        goals = [
+            {
+                "id": 1,
+                "objective": "Ship the dashboard feature by Friday",
+                "key_results": ["Complete UI", "Add tests", "Deploy to staging"],
+                "overall_pct": 40,
+                "progress": {},
+            }
+        ]
         polisher = GoalPromptPolisher(MockStore(goals=goals))
         result = polisher.polish("build the dashboard components")
         assert result.goal_context_injected is True
@@ -224,8 +222,16 @@ class TestFullPolish:
         assert 0 <= result.polished_score <= 100
         assert result.complexity >= 1
         assert result.intent in (
-            "build", "debug", "deploy", "design", "refactor",
-            "investigate", "test", "optimize", "audit", "general"
+            "build",
+            "debug",
+            "deploy",
+            "design",
+            "refactor",
+            "investigate",
+            "test",
+            "optimize",
+            "audit",
+            "general",
         )
 
     def test_complex_prompt_gets_deeper_directives(self):

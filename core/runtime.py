@@ -32,7 +32,7 @@ def package_version() -> str:
 
 def resolve_tool_profile(value: str | None = None) -> ToolProfile:
     """Resolve the public tool surface without silently accepting typos."""
-    profile = (value or os.environ.get("ELITE_TOOL_PROFILE") or "unified").strip().lower()
+    profile = (value or os.environ.get("ELITE_TOOL_PROFILE") or "core").strip().lower()
     if profile not in SUPPORTED_TOOL_PROFILES:
         choices = ", ".join(sorted(SUPPORTED_TOOL_PROFILES))
         raise ValueError(f"Invalid ELITE_TOOL_PROFILE `{profile}`. Choose one of: {choices}.")

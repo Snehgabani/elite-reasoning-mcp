@@ -15,15 +15,16 @@ REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.a
 
 
 class SkillCompiler:
-    def __init__(self,
-                 trace_dir: str = f"{REPO}/.ai/metrics/runs",
-                 out_dir: str = f"{REPO}/.ai/skills/compiled",
-                 lessons_file: str = f"{REPO}/.ai/memory/lessons.jsonl"):
+    def __init__(
+        self,
+        trace_dir: str = f"{REPO}/.ai/metrics/runs",
+        out_dir: str = f"{REPO}/.ai/skills/compiled",
+        lessons_file: str = f"{REPO}/.ai/memory/lessons.jsonl",
+    ):
         self.trace_dir = trace_dir
         self.out_dir = out_dir
         self.lessons_file = lessons_file
         os.makedirs(self.out_dir, exist_ok=True)
-
 
     # task 'type' -> exemplar category (v1 categories kept for compat)
     _CATEGORY_MAP = {
@@ -94,18 +95,22 @@ class SkillCompiler:
             compiled_counts[cat] = len(winners)
 
             lines = [f"# Compiled Exemplars: {cat}", ""]
-            lines.append(f"_Source: {len(cat_traces)} real traces "
-                         f"({len(winners)} passed / {len(losers)} failed). "
-                         f"Compiled {__import__('datetime').datetime.now().isoformat(timespec='minutes')}._")
+            lines.append(
+                f"_Source: {len(cat_traces)} real traces "
+                f"({len(winners)} passed / {len(losers)} failed). "
+                f"Compiled {__import__('datetime').datetime.now().isoformat(timespec='minutes')}._"
+            )
             lines.append("")
             for i, w in enumerate(winners, 1):
                 lines.append(f"## Exemplar {i} — {w.get('task_id')} ({w.get('mode', '?')})")
                 lines.append(f"TASK: {w.get('_path')}")
-                lines.append(f"WINNING EVIDENCE: score={w.get('score')} "
-                             f"tokens={w.get('total_tokens')} "
-                             f"time={w.get('time_seconds')}s "
-                             f"backtracks={w.get('number_of_backtracks')} "
-                             f"human_edit={w.get('human_edit_required')}")
+                lines.append(
+                    f"WINNING EVIDENCE: score={w.get('score')} "
+                    f"tokens={w.get('total_tokens')} "
+                    f"time={w.get('time_seconds')}s "
+                    f"backtracks={w.get('number_of_backtracks')} "
+                    f"human_edit={w.get('human_edit_required')}"
+                )
                 lines.append(f"VERIFIER: {self._verifier_summary(w)}")
                 lines.append("")
             for los in losers:
@@ -116,9 +121,7 @@ class SkillCompiler:
                 lines.append("")
 
             # Real lessons from the lesson store that mention this category
-            cat_lessons = [l for l in lessons
-                                      if str(l.get("tool", "")) == cat
-                                      or cat in str(l.get("task", ""))]
+            cat_lessons = [l for l in lessons if str(l.get("tool", "")) == cat or cat in str(l.get("task", ""))]
             if cat_lessons:
                 lines.append("## Lessons (from lessons.jsonl)")
                 for l in cat_lessons[:5]:
@@ -126,8 +129,9 @@ class SkillCompiler:
                 lines.append("")
 
             if not cat_traces:
-                lines.append("_No real traces for this category yet — compiling nothing "
-                             "(avoiding fabricated exemplars)._")
+                lines.append(
+                    "_No real traces for this category yet — compiling nothing (avoiding fabricated exemplars)._"
+                )
                 lines.append("")
 
             with open(os.path.join(self.out_dir, f"{cat}.md"), "w", encoding="utf-8") as f:
@@ -136,9 +140,13 @@ class SkillCompiler:
         # general category: anything unmapped
         others = [t for t in traces if self._CATEGORY_MAP.get(str(t.get("type", ""))) is None]
         compiled_counts["general"] = len([t for t in others if t.get("passed") is True])
-        lines = ["# Compiled Exemplars: general", "",
-                 f"_Source: {len(others)} real traces with unmapped types. "
-                 f"Compiled {__import__('datetime').datetime.now().isoformat(timespec='seconds')}._", ""]
+        lines = [
+            "# Compiled Exemplars: general",
+            "",
+            f"_Source: {len(others)} real traces with unmapped types. "
+            f"Compiled {__import__('datetime').datetime.now().isoformat(timespec='seconds')}._",
+            "",
+        ]
         if others:
             for i, t in enumerate(others, 1):
                 if t.get("passed") is True:

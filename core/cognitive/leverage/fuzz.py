@@ -12,7 +12,7 @@ def _find_symbol_ast(symbol_name: str, file_path: Optional[str] = None) -> Optio
     candidates = []
     if file_path and os.path.exists(file_path):
         candidates.append(file_path)
-    
+
     root_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
     for root, _, files in os.walk(root_dir):
         if any(skip in root for knot, skip in enumerate([".git", ".venv", "__pycache__", ".pytest_cache"])):
@@ -40,7 +40,7 @@ async def generate_property_tests(file_path: str, symbol: str) -> str:
     """Dynamically generate property-based hypothesis tests based on symbol signature."""
     sym_info = _find_symbol_ast(symbol, file_path)
     args = []
-    
+
     if sym_info:
         node, actual_path = sym_info
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
@@ -52,8 +52,8 @@ async def generate_property_tests(file_path: str, symbol: str) -> str:
         args = ["a", "b"]
 
     args_str = ", ".join(args)
-    
-    test_code = f'''# Auto-generated dynamic property-based fuzz test for {symbol}
+
+    test_code = f"""# Auto-generated dynamic property-based fuzz test for {symbol}
 import pytest
 import math
 from hypothesis import given, strategies as st, settings, HealthCheck
@@ -77,28 +77,25 @@ def test_fuzz_{symbol}({args_str}):
     except ValueError as e:
         if "Unbounded float" in str(e):
             raise AssertionError(f"Fuzz invariant breach: {{e}} with inputs: {args_str}")
-'''
+"""
     return test_code
 
 
 async def run_property_tests(file_path: str = "dummy.py", symbol: str = "target") -> Dict[str, Any]:
     """Execute dynamic property fuzzing with edge case falsification."""
     test_code = await generate_property_tests(file_path, symbol)
-    
+
     with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as tmp:
         tmp.write(test_code)
         tmp_path = tmp.name
 
     try:
         res = subprocess.run(
-            [sys.executable, "-m", "pytest", tmp_path, "-q"],
-            capture_output=True,
-            text=True,
-            timeout=15
+            [sys.executable, "-m", "pytest", tmp_path, "-q"], capture_output=True, text=True, timeout=15
         )
-        passed = (res.returncode == 0)
+        passed = res.returncode == 0
         output = (res.stdout + res.stderr).strip()
-        
+
         falsifying_example = None
         if not passed:
             for line in output.split("\n"):
@@ -115,7 +112,7 @@ async def run_property_tests(file_path: str = "dummy.py", symbol: str = "target"
             "trials_run": 50,
             "output": output[:500] if output else "Property fuzz tests completed.",
             "falsifying_example": falsifying_example,
-            "coverage_pct": 96.0 if passed else 82.5
+            "coverage_pct": 96.0 if passed else 82.5,
         }
     except Exception as exc:
         return {
@@ -125,7 +122,7 @@ async def run_property_tests(file_path: str = "dummy.py", symbol: str = "target"
             "trials_run": 0,
             "output": f"Fuzz test execution error: {exc}",
             "falsifying_example": str(exc),
-            "coverage_pct": 0.0
+            "coverage_pct": 0.0,
         }
     finally:
         try:
@@ -138,10 +135,12 @@ async def run_property_tests(file_path: str = "dummy.py", symbol: str = "target"
 def fuzz_symbol(symbol_name: str, file_path: str = "", trials: int = 50) -> Dict[str, Any]:
     """Synchronous entry point for property-based fuzz testing."""
     import asyncio
+
     try:
         loop = asyncio.get_event_loop()
         if loop.is_running():
             import nest_asyncio
+
             nest_asyncio.apply()
         return loop.run_until_complete(run_property_tests(file_path=file_path, symbol=symbol_name))
     except Exception:
@@ -151,5 +150,5 @@ def fuzz_symbol(symbol_name: str, file_path: str = "", trials: int = 50) -> Dict
             "trials_run": trials,
             "passed": True,
             "falsifying_examples": [],
-            "coverage_pct": 95.0
+            "coverage_pct": 95.0,
         }

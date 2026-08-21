@@ -84,7 +84,9 @@ async def devils_advocate(draft_answer: str, sources: List[Union[str, Dict[str, 
     return _loose_json(_txt(resp))
 
 
-async def revision_loop(draft_answer: str, sources: Optional[List[Union[str, Dict[str, Any]]]] = None, max_rounds: int = 2) -> dict:
+async def revision_loop(
+    draft_answer: str, sources: Optional[List[Union[str, Dict[str, Any]]]] = None, max_rounds: int = 2
+) -> dict:
     sources = sources or []
     """Critique -> revise until no major (>=0.6) critiques, bounded by max_rounds."""
     current = draft_answer
@@ -99,10 +101,15 @@ async def revision_loop(draft_answer: str, sources: Optional[List[Union[str, Dic
             break
         rev_prompt = REVISE_PROMPT.format(
             draft=current[:6000],
-            critiques=json.dumps([{"severity": c.get("severity"), "critique": c.get("critique")} for c in major], indent=1)[:4000],
+            critiques=json.dumps(
+                [{"severity": c.get("severity"), "critique": c.get("critique")} for c in major], indent=1
+            )[:4000],
         )
         resp = await _advocate_llm(
-            [SystemMessage("You are a ruthless editor. Keep the answer concise and evidence-bound."), HumanMessage(rev_prompt)]
+            [
+                SystemMessage("You are a ruthless editor. Keep the answer concise and evidence-bound."),
+                HumanMessage(rev_prompt),
+            ]
         )
         if resp is not None:
             current = _txt(resp).strip() or current
@@ -110,7 +117,8 @@ async def revision_loop(draft_answer: str, sources: Optional[List[Union[str, Dic
         "rounds": len(history),
         "history": history,
         "final_draft": current,
-        "revised": len(history) > 0 and history[-1].get("critiques") and any(
-            isinstance(c, dict) and float(c.get("severity", 0)) >= 0.6 for c in history[-1].get("critiques", [])
-        ) is False
+        "revised": len(history) > 0
+        and history[-1].get("critiques")
+        and any(isinstance(c, dict) and float(c.get("severity", 0)) >= 0.6 for c in history[-1].get("critiques", []))
+        is False,
     }

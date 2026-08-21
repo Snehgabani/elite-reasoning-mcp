@@ -19,6 +19,7 @@ from core.cognitive.loop.core.store import SingularityStore
 @dataclass(frozen=True)
 class SmokeFixture:
     """A deterministic evaluation fixture."""
+
     name: str
     prompt: str
     candidate_output: str

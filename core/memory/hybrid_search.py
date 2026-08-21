@@ -1,5 +1,6 @@
 """Hybrid search: BM25 (FTS5) + Vector (sqlite-vec) with Reciprocal Rank Fusion.
 Expected 20-35% precision lift on natural-language queries vs FTS5 alone."""
+
 import logging
 import time
 from dataclasses import dataclass
@@ -25,9 +26,9 @@ def adaptive_weights(query: str) -> tuple[float, float]:
     """Short queries favor BM25 (lexical); long queries favor vectors (semantic)."""
     n = len(query.split())
     if n <= 3:
-        return 1.5, 0.7   # keyword queries → lexical
+        return 1.5, 0.7  # keyword queries → lexical
     elif n >= 12:
-        return 0.7, 1.5   # prose queries → semantic
+        return 0.7, 1.5  # prose queries → semantic
     return 1.0, 1.0
 
 
@@ -63,9 +64,9 @@ class HybridSearch:
         if not self._config:
             raise ValueError(f"Unsupported table: {table}. Supported: {list(self._TABLE_COLUMNS)}")
 
-    def search(self, query: str, limit: int = 10,
-               fts_weight: float | None = None,
-               vec_weight: float | None = None) -> list[SearchResult]:
+    def search(
+        self, query: str, limit: int = 10, fts_weight: float | None = None, vec_weight: float | None = None
+    ) -> list[SearchResult]:
         """Fused search: BM25 + vector with adaptive weights."""
         start = time.perf_counter()
 
@@ -78,11 +79,11 @@ class HybridSearch:
         # Reciprocal Rank Fusion
         scores: dict[int, dict] = {}
         for rank, hit in enumerate(fts_hits, start=1):
-            scores.setdefault(hit['id'], {"fts_rank": None, "vec_rank": None, "payload": hit})
-            scores[hit['id']]["fts_rank"] = rank
+            scores.setdefault(hit["id"], {"fts_rank": None, "vec_rank": None, "payload": hit})
+            scores[hit["id"]]["fts_rank"] = rank
         for rank, hit in enumerate(vec_hits, start=1):
-            scores.setdefault(hit['id'], {"fts_rank": None, "vec_rank": None, "payload": hit})
-            scores[hit['id']]["vec_rank"] = rank
+            scores.setdefault(hit["id"], {"fts_rank": None, "vec_rank": None, "payload": hit})
+            scores[hit["id"]]["vec_rank"] = rank
 
         fused = []
         for doc_id, s in scores.items():
@@ -91,11 +92,15 @@ class HybridSearch:
                 score += fts_weight / (self.k + s["fts_rank"])
             if s["vec_rank"] is not None:
                 score += vec_weight / (self.k + s["vec_rank"])
-            fused.append(SearchResult(
-                id=doc_id, score=score,
-                fts_rank=s["fts_rank"], vec_rank=s["vec_rank"],
-                payload=s["payload"],
-            ))
+            fused.append(
+                SearchResult(
+                    id=doc_id,
+                    score=score,
+                    fts_rank=s["fts_rank"],
+                    vec_rank=s["vec_rank"],
+                    payload=s["payload"],
+                )
+            )
         fused.sort(key=lambda r: r.score, reverse=True)
 
         duration = (time.perf_counter() - start) * 1000
@@ -116,11 +121,14 @@ class HybridSearch:
             keys = self._config["payload_keys"]
 
             safe_query = self.store._sanitize_fts_query(query)
-            c.execute(f"""
-                SELECT d.{columns.replace(', ', ', d.')}
+            c.execute(
+                f"""
+                SELECT d.{columns.replace(", ", ", d.")}
                 FROM {fts_table} f JOIN {table} d ON f.rowid = d.id
                 WHERE {fts_table} MATCH ? ORDER BY rank LIMIT ?
-            """, (safe_query, limit))
+            """,
+                (safe_query, limit),
+            )
 
             results = []
             for r in c.fetchall():
@@ -149,17 +157,20 @@ class HybridSearch:
             columns = self._config["select"]
             keys = self._config["payload_keys"]
 
-            c.execute(f"""
-                SELECT d.{columns.replace(', ', ', d.')}, v.distance
+            c.execute(
+                f"""
+                SELECT d.{columns.replace(", ", ", d.")}, v.distance
                 FROM {vec_table} v
                 JOIN {table} d ON v.id = d.id
                 WHERE v.embedding MATCH ? AND k = ?
                 ORDER BY v.distance
-            """, (sqlite_vec.serialize_float32(emb), limit))
+            """,
+                (sqlite_vec.serialize_float32(emb), limit),
+            )
 
             results = []
             for r in c.fetchall():
-                payload = dict(zip(keys, r[:len(keys)]))
+                payload = dict(zip(keys, r[: len(keys)]))
                 results.append(payload)
             return results
         except Exception as e:

@@ -40,29 +40,25 @@ VERSION = "15.1.0"
 # Logging Configuration
 # ═══════════════════════════════════════════════════════════
 
+
 def setup_logging():
     """Setup structured logging."""
     log_level = os.environ.get("LOOP_LOG_LEVEL", "INFO").upper()
     log_file = os.environ.get("LOOP_LOG_FILE")
-    
+
     # Create formatters
-    console_formatter = logging.Formatter(
-        '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        datefmt='%H:%M:%S'
-    )
-    file_formatter = logging.Formatter(
-        '%(asctime)s - %(name)s - %(levelname)s - %(funcName)s:%(lineno)d - %(message)s'
-    )
-    
+    console_formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s", datefmt="%H:%M:%S")
+    file_formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(funcName)s:%(lineno)d - %(message)s")
+
     # Setup root logger
     logger = logging.getLogger("loop_by_sg")
     logger.setLevel(getattr(logging, log_level, logging.INFO))
-    
+
     # Console handler
     console_handler = logging.StreamHandler(sys.stderr)
     console_handler.setFormatter(console_formatter)
     logger.addHandler(console_handler)
-    
+
     # File handler (optional)
     if log_file:
         log_path = Path(log_file).expanduser()
@@ -70,8 +66,9 @@ def setup_logging():
         file_handler = logging.FileHandler(log_path)
         file_handler.setFormatter(file_formatter)
         logger.addHandler(file_handler)
-    
+
     return logger
+
 
 logger = setup_logging()
 
@@ -80,21 +77,19 @@ logger = setup_logging()
 # Server Creation
 # ═══════════════════════════════════════════════════════════
 
+
 def create_server(brain_dir: str | None = None) -> FastMCP:
     """Create and configure the LOOP BY SG MCP server with error handling."""
     try:
         if brain_dir is None:
-            brain_dir = os.environ.get(
-                "LOOP_BRAIN_DIR",
-                os.path.expanduser("~/.loop-by-sg/brain")
-            )
-        
+            brain_dir = os.environ.get("LOOP_BRAIN_DIR", os.path.expanduser("~/.loop-by-sg/brain"))
+
         # Create brain directory if it doesn't exist
         Path(brain_dir).expanduser().mkdir(parents=True, exist_ok=True)
-        
+
         logger.info(f"Creating LOOP BY SG MCP server v{VERSION}")
         logger.info(f"Brain directory: {brain_dir}")
-        
+
         mcp = FastMCP(
             "LoopBySG",
             instructions=(
@@ -106,24 +101,24 @@ def create_server(brain_dir: str | None = None) -> FastMCP:
             ),
         )
         mcp._mcp_server.version = VERSION
-        
+
         store = SingularityStore(brain_dir)
         setattr(mcp, "_loop_store", store)
         _session_id = f"mcp_{uuid.uuid4().hex[:8]}"
         setattr(mcp, "_session_id", _session_id)
-        
+
         # ── Register all tools with error handling ──────────────
         _register_tools_safely(mcp, store)
-        
+
         # ── Resources ───────────────────────────────────────────
         _register_resources(mcp, store)
-        
+
         # ── Metrics middleware ──────────────────────────────────
         _install_metrics_middleware(mcp, store, _session_id)
-        
+
         logger.info("LOOP BY SG MCP server created successfully")
         return mcp
-    
+
     except Exception as e:
         logger.error(f"Failed to create server: {e}", exc_info=True)
         raise
@@ -140,25 +135,25 @@ def _register_tools_safely(mcp: FastMCP, store: SingularityStore):
             memory_tools,
             reasoning,
         )
-        
+
         reasoning.register(mcp, store)
         logger.info("Registered: reasoning tools")
-        
+
         memory_tools.register(mcp, store)
         logger.info("Registered: memory tools")
-        
+
         calibration.register(mcp, store)
         logger.info("Registered: calibration tools")
-        
+
         benchmark.register(mcp, store)
         logger.info("Registered: benchmark tools")
-        
+
         diagnostics.register(mcp, store)
         logger.info("Registered: diagnostics tools")
-        
+
         bias_tool.register(mcp, store)
         logger.info("Registered: bias scanning tools")
-        
+
     except Exception as e:
         logger.error(f"Failed to register tools: {e}", exc_info=True)
         raise
@@ -166,45 +161,50 @@ def _register_tools_safely(mcp: FastMCP, store: SingularityStore):
 
 def _register_resources(mcp: FastMCP, store: SingularityStore):
     """Register MCP resources."""
-    
+
     @mcp.resource("loop://health")
     def health_resource() -> str:
         """System health check."""
         try:
             checks = []
-            
+
             # Check MCP SDK
             try:
                 import mcp as _mcp  # noqa: F401
+
                 checks.append("✅ MCP SDK: Available")
             except ImportError:
                 checks.append("❌ MCP SDK: Not found")
-            
+
             # Check vector search
             try:
                 import sqlite_vec  # noqa: F401
+
                 checks.append("✅ sqlite_vec: Vector search available")
             except ImportError:
                 checks.append("⚠️ sqlite_vec: Using FTS fallback")
-            
+
             # Check database
             try:
                 summary = store.get_operational_summary(1)
-                checks.append(f"✅ Database: {summary['memory_items']} memory, {summary['anti_patterns']} anti-patterns")
+                checks.append(
+                    f"✅ Database: {summary['memory_items']} memory, {summary['anti_patterns']} anti-patterns"
+                )
             except Exception as e:
                 checks.append(f"❌ Database: {e}")
-            
+
             return "# Health\n\n" + "\n".join(checks)
-        
+
         except Exception as e:
             logger.error(f"Health check failed: {e}")
             return f"# Health Check Failed\n\nError: {e}"
-    
+
     @mcp.resource("loop://scorecard")
     def scorecard_resource() -> str:
         """The 7-dimension quality scorecard."""
         try:
             from core.cognitive.loop.core.metrics import SCORECARD_DIMENSIONS
+
             lines = ["# Quality Scorecard", "", "| Dimension | Weight | Description |", "|---|---:|---|"]
             for name, cfg in SCORECARD_DIMENSIONS.items():
                 lines.append(f"| `{name}` | {cfg['weight']:.0%} | {cfg['description']} |")
@@ -217,18 +217,19 @@ def _register_resources(mcp: FastMCP, store: SingularityStore):
 def _install_metrics_middleware(mcp: FastMCP, store: SingularityStore, session_id: str):
     """Lightweight metrics collection with error handling and timeout protection."""
     _original_call_tool = mcp.call_tool
-    
+
     async def _instrumented_call_tool(name: str, arguments: dict):
         import asyncio
+
         start = time.time()
         try:
             logger.debug(f"Tool call: {name}")
-            
+
             # Add timeout protection (5 minutes max per tool call)
             try:
                 result = await asyncio.wait_for(
                     _original_call_tool(name, arguments),
-                    timeout=300.0  # 5 minutes
+                    timeout=300.0,  # 5 minutes
                 )
             except asyncio.TimeoutError:
                 duration_ms = int((time.time() - start) * 1000)
@@ -236,11 +237,11 @@ def _install_metrics_middleware(mcp: FastMCP, store: SingularityStore, session_i
                 return {
                     "error": True,
                     "message": "Tool execution timed out after 5 minutes",
-                    "suggestion": "Try simplifying your request or using a different tool."
+                    "suggestion": "Try simplifying your request or using a different tool.",
                 }
-            
+
             duration_ms = int((time.time() - start) * 1000)
-            
+
             # Log usage (non-blocking)
             try:
                 args_summary = str(arguments)[:200] if arguments else ""
@@ -248,9 +249,9 @@ def _install_metrics_middleware(mcp: FastMCP, store: SingularityStore, session_i
                 logger.debug(f"Tool {name} completed in {duration_ms}ms")
             except Exception as e:
                 logger.warning(f"Failed to log tool usage: {e}")
-            
+
             return result
-        
+
         except asyncio.CancelledError:
             # Handle cancellation gracefully
             duration_ms = int((time.time() - start) * 1000)
@@ -258,27 +259,27 @@ def _install_metrics_middleware(mcp: FastMCP, store: SingularityStore, session_i
             return {
                 "error": True,
                 "message": "Tool execution was cancelled",
-                "suggestion": "This may happen if the request was interrupted. Try again."
+                "suggestion": "This may happen if the request was interrupted. Try again.",
             }
-        
+
         except Exception as e:
             duration_ms = int((time.time() - start) * 1000)
             logger.error(f"Tool {name} failed after {duration_ms}ms: {e}", exc_info=True)
-            
+
             # Log error (non-blocking)
             try:
                 store.log_tool_usage(name, str(arguments)[:200], f"ERROR: {e}", session_id, duration_ms)
             except Exception as exc:
                 # Explicit non-fatal exception suppression
                 _ = str(exc)
-            
+
             # Return user-friendly error
             return {
                 "error": True,
                 "message": f"Tool execution failed: {str(e)}",
-                "suggestion": "Try simplifying your request or using a different tool."
+                "suggestion": "Try simplifying your request or using a different tool.",
             }
-    
+
     mcp.call_tool = _instrumented_call_tool
 
 
@@ -286,41 +287,40 @@ def _install_metrics_middleware(mcp: FastMCP, store: SingularityStore, session_i
 # Main Entry Point
 # ═══════════════════════════════════════════════════════════
 
+
 def main(argv: list[str] | None = None) -> int:
     """Run the MCP server or diagnostic commands."""
     parser = argparse.ArgumentParser(prog=PACKAGE_NAME)
     parser.add_argument("--brain-dir", default=None, help="Brain directory path")
     parser.add_argument("--version", action="store_true", help="Show version")
     subcommands = parser.add_subparsers(dest="command")
-    
+
     # Doctor subcommand
     doctor_parser = subcommands.add_parser("doctor", help="Run diagnostics")
     doctor_parser.add_argument("--json", action="store_true", help="Output as JSON")
-    
+
     # Benchmark subcommand
     _ = subcommands.add_parser("benchmark", help="Run smoke benchmark")
-    
+
     args = parser.parse_args(argv)
-    
+
     if args.version:
         print(f"{PACKAGE_NAME} {VERSION}")
         return 0
-    
-    brain_dir = args.brain_dir or os.environ.get(
-        "LOOP_BRAIN_DIR", os.path.expanduser("~/.loop-by-sg/brain")
-    )
-    
+
+    brain_dir = args.brain_dir or os.environ.get("LOOP_BRAIN_DIR", os.path.expanduser("~/.loop-by-sg/brain"))
+
     if args.command == "doctor":
         try:
             server = create_server(brain_dir)
             store: SingularityStore = getattr(server, "_loop_store")
             import json as _json
-            
+
             summary = store.get_operational_summary(7)
             quality = store.get_quality_trend(days=7)
             calibration = store.get_calibration_score(days=7)
             tool_stats = store.get_tool_usage_stats(7)
-            
+
             report = {
                 "version": VERSION,
                 "brain_dir": brain_dir,
@@ -329,7 +329,7 @@ def main(argv: list[str] | None = None) -> int:
                 "calibration": calibration,
                 "tool_usage": tool_stats,
             }
-            
+
             if args.json:
                 print(_json.dumps(report, indent=2, sort_keys=True))
             else:
@@ -340,29 +340,29 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"Quality: {quality.get('trend', 'no_data')} (avg: {quality.get('average', 'N/A')})")
                 if calibration.get("brier_score") is not None:
                     print(f"Calibration: Brier={calibration['brier_score']:.4f}")
-            
+
             return 0
-        
+
         except Exception as e:
             logger.error(f"Doctor command failed: {e}", exc_info=True)
             print(f"Error: {e}", file=sys.stderr)
             return 1
-    
+
     if args.command == "benchmark":
         try:
             import json as _json
 
             from core.cognitive.loop.eval.harness import run_smoke_benchmark
-            
+
             report = run_smoke_benchmark(brain_dir)
             print(_json.dumps(report, indent=2, sort_keys=True))
             return 0 if report.get("passed") else 1
-        
+
         except Exception as e:
             logger.error(f"Benchmark command failed: {e}", exc_info=True)
             print(f"Error: {e}", file=sys.stderr)
             return 1
-    
+
     # Default: run server
     try:
         logger.info("Starting LOOP BY SG MCP server...")

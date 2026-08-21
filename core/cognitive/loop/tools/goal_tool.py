@@ -42,15 +42,15 @@ _LLM_MODEL = "gpt-oss:20b"
 def _default_model_executor(prompt: str) -> str:
     """Execute model prompt through local LLM proxy or fallback."""
     try:
-        body = json.dumps({
-            "model": _LLM_MODEL,
-            "messages": [{"role": "user", "content": prompt}],
-            "max_tokens": 1024,
-            "temperature": 0.3,
-        }).encode()
-        req = urllib.request.Request(
-            _LLM_PROXY_URL, data=body, headers={"Content-Type": "application/json"}
-        )
+        body = json.dumps(
+            {
+                "model": _LLM_MODEL,
+                "messages": [{"role": "user", "content": prompt}],
+                "max_tokens": 1024,
+                "temperature": 0.3,
+            }
+        ).encode()
+        req = urllib.request.Request(_LLM_PROXY_URL, data=body, headers={"Content-Type": "application/json"})
         with urllib.request.urlopen(req, timeout=30) as resp:
             data = json.loads(resp.read().decode())
         msg = data["choices"][0]["message"]
@@ -88,7 +88,9 @@ def register(mcp, store: SingularityStore):
     @mcp.tool(name="goal_execute", annotations=_GOAL_ANNOTATIONS)
     def goal_execute(
         goal: Annotated[str, Field(min_length=5, max_length=4000, description="High-level goal to accomplish")],
-        success_criteria: Annotated[List[str], Field(default_factory=list, description="Verifiable success criteria")] = None,
+        success_criteria: Annotated[
+            List[str], Field(default_factory=list, description="Verifiable success criteria")
+        ] = None,
         max_iterations: Annotated[int, Field(default=5, ge=1, le=10, description="Maximum execution loops")] = 5,
         quality_threshold: Annotated[float, Field(default=0.8, ge=0.0, le=1.0)] = 0.8,
     ) -> GoalExecutionResult:
@@ -99,7 +101,7 @@ def register(mcp, store: SingularityStore):
         """
         start = time.time()
         criteria = success_criteria or ["Task requirements addressed", "Output properly formatted and verified"]
-        
+
         verification_methods = {
             "rubric": rubric_verification,
             "keyword_check": keyword_verification,
@@ -124,8 +126,11 @@ def register(mcp, store: SingularityStore):
         duration_ms = int((time.time() - start) * 1000)
 
         store.log_tool_usage(
-            "goal_execute", f"goal={goal[:50]} complete={state.complete}", "",
-            getattr(mcp, "_session_id", ""), duration_ms
+            "goal_execute",
+            f"goal={goal[:50]} complete={state.complete}",
+            "",
+            getattr(mcp, "_session_id", ""),
+            duration_ms,
         )
 
         step_results = [
@@ -139,8 +144,10 @@ def register(mcp, store: SingularityStore):
             for s in state.steps
         ]
 
-        summary = f"Goal {'COMPLETED' if state.complete else 'IN PROGRESS'} in {state.iteration} iterations. " \
-                  f"Steps passed: {sum(1 for s in state.steps if s.verification_passed)}/{len(state.steps)}."
+        summary = (
+            f"Goal {'COMPLETED' if state.complete else 'IN PROGRESS'} in {state.iteration} iterations. "
+            f"Steps passed: {sum(1 for s in state.steps if s.verification_passed)}/{len(state.steps)}."
+        )
 
         return GoalExecutionResult(
             goal_id=goal_obj.id,

@@ -6,13 +6,14 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
+
 def bootstrap(brain_dir: str, include_demo_mcps: bool = False):
     """
     Initializes the base directory structure and defaults for an Elite System.
     Run this when spinning up a fresh brain.
     """
     logger.info(f"Bootstrapping brain directory at {brain_dir}")
-    
+
     brain_path = Path(brain_dir)
     brain_path.mkdir(parents=True, mode=0o700, exist_ok=True)
     try:
@@ -20,17 +21,17 @@ def bootstrap(brain_dir: str, include_demo_mcps: bool = False):
     except OSError:
         # Non-fatal exception intentionally suppressed
         pass
-    
+
     # 1. Setup Quarantine directory
     quarantine_path = brain_path / "skills" / ".quarantine"
     quarantine_path.mkdir(parents=True, exist_ok=True)
     logger.info(f"Ensured quarantine directory at {quarantine_path}")
-    
+
     # 2. Setup default MCP servers
     mcp_config_path = brain_path / "mcp_servers.json"
     if not mcp_config_path.exists():
         logger.info("Generating default mcp_servers.json payload")
-        
+
         default_mcp_payload = {"mcpServers": {}}
         if include_demo_mcps:
             default_mcp_payload["mcpServers"] = {
@@ -45,7 +46,8 @@ def bootstrap(brain_dir: str, include_demo_mcps: bool = False):
             pass
     else:
         logger.info("mcp_servers.json already exists. Skipping.")
-        
+
+
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     parser = argparse.ArgumentParser(description="Bootstrap Elite Reasoning System")
@@ -56,5 +58,5 @@ if __name__ == "__main__":
         help="Add a single demo MCP entry; review and pin it before execution.",
     )
     args = parser.parse_args()
-    
+
     bootstrap(args.brain_dir, include_demo_mcps=args.include_demo_mcps)

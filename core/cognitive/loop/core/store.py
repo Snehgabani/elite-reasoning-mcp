@@ -155,24 +155,23 @@ class SingularityStore:
 
     # ── Reasoning Sessions ──────────────────────────────────
 
-    def create_session(self, session_id: str, prompt: str, intent: str,
-                       complexity: int, budget_tier: str, steps: list[dict]) -> int:
+    def create_session(
+        self, session_id: str, prompt: str, intent: str, complexity: int, budget_tier: str, steps: list[dict]
+    ) -> int:
         with self._conn() as conn:
             # BUGFIX (telemetry flood guard): a runaway benchmark loop once wrote
             # ~749k sessions in 2.5h (avg ~5,000/min, 350MB DB). Real usage is
             # << 1/min, so cap session creation at 600/min — beyond that, drop
             # the record (reporting stays correct; no crash, no bloat).
             recent = conn.execute(
-                "SELECT COUNT(*) FROM reasoning_sessions WHERE created_at > "
-                "datetime('now', '-60 seconds')"
+                "SELECT COUNT(*) FROM reasoning_sessions WHERE created_at > datetime('now', '-60 seconds')"
             ).fetchone()[0]
             if recent >= 600:
                 return 0
             cur = conn.execute(
                 "INSERT INTO reasoning_sessions (session_id, prompt, intent, complexity, budget_tier, steps_json, created_at) "
                 "VALUES (?, ?, ?, ?, ?, ?, ?)",
-                (session_id, prompt, intent, complexity, budget_tier,
-                 json.dumps(steps), self._utc_now())
+                (session_id, prompt, intent, complexity, budget_tier, json.dumps(steps), self._utc_now()),
             )
             return cur.lastrowid
 
@@ -181,14 +180,12 @@ class SingularityStore:
             conn.execute(
                 "UPDATE reasoning_sessions SET outcome_json=?, metrics_json=?, duration_ms=?, completed_at=? "
                 "WHERE session_id=?",
-                (json.dumps(outcome), json.dumps(metrics), duration_ms, self._utc_now(), session_id)
+                (json.dumps(outcome), json.dumps(metrics), duration_ms, self._utc_now(), session_id),
             )
 
     def get_session(self, session_id: str) -> dict | None:
         with self._conn() as conn:
-            row = conn.execute(
-                "SELECT * FROM reasoning_sessions WHERE session_id=?", (session_id,)
-            ).fetchone()
+            row = conn.execute("SELECT * FROM reasoning_sessions WHERE session_id=?", (session_id,)).fetchone()
             if row:
                 return dict(row)
         return None
@@ -202,19 +199,25 @@ class SingularityStore:
 
     # ── Memory ──────────────────────────────────────────────
 
-    def remember(self, memory_type: str, content: str, scope: str = "global",
-                 source: str = "explicit", trust_score: float = 0.7,
-                 privacy_class: str = "internal", tags: str = "") -> int:
+    def remember(
+        self,
+        memory_type: str,
+        content: str,
+        scope: str = "global",
+        source: str = "explicit",
+        trust_score: float = 0.7,
+        privacy_class: str = "internal",
+        tags: str = "",
+    ) -> int:
         with self._conn() as conn:
             cur = conn.execute(
                 "INSERT INTO memory_items (memory_type, content, scope, source, trust_score, privacy_class, tags, created_at) "
                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                (memory_type, content, scope, source, trust_score, privacy_class, tags, self._utc_now())
+                (memory_type, content, scope, source, trust_score, privacy_class, tags, self._utc_now()),
             )
             return cur.lastrowid
 
-    def search_memory(self, query: str, scope: str = "", limit: int = 10,
-                      min_trust: float = 0.3) -> list[dict]:
+    def search_memory(self, query: str, scope: str = "", limit: int = 10, min_trust: float = 0.3) -> list[dict]:
         with self._conn() as conn:
             terms = query.lower().split()
             conditions = ["trust_score >= ?", "privacy_class != 'secret'"]
@@ -234,7 +237,7 @@ class SingularityStore:
             for r in results:
                 conn.execute(
                     "UPDATE memory_items SET access_count = access_count + 1, accessed_at = ? WHERE id = ?",
-                    (self._utc_now(), r['id'])
+                    (self._utc_now(), r["id"]),
                 )
             return results
 
@@ -258,13 +261,14 @@ class SingularityStore:
 
     # ── Anti-Patterns ──────────────────────────────────────
 
-    def record_anti_pattern(self, mistake: str, root_cause: str, fix: str,
-                            severity: str = "medium", tags: str = "") -> int:
+    def record_anti_pattern(
+        self, mistake: str, root_cause: str, fix: str, severity: str = "medium", tags: str = ""
+    ) -> int:
         with self._conn() as conn:
             cur = conn.execute(
                 "INSERT INTO anti_patterns (mistake, root_cause, fix, severity, tags, created_at) "
                 "VALUES (?, ?, ?, ?, ?, ?)",
-                (mistake, root_cause, fix, severity, tags, self._utc_now())
+                (mistake, root_cause, fix, severity, tags, self._utc_now()),
             )
             return cur.lastrowid
 
@@ -288,7 +292,7 @@ class SingularityStore:
             for r in results:
                 conn.execute(
                     "UPDATE anti_patterns SET hit_count = hit_count + 1, last_hit_at = ? WHERE id = ?",
-                    (self._utc_now(), r['id'])
+                    (self._utc_now(), r["id"]),
                 )
             return results
 
@@ -304,16 +308,41 @@ class SingularityStore:
             conn.execute(
                 "INSERT OR REPLACE INTO calibration_predictions (prediction_id, claim, confidence, domain, created_at) "
                 "VALUES (?, ?, ?, ?, ?)",
-                (prediction_id, claim, confidence, domain, self._utc_now())
+                (prediction_id, claim, confidence, domain, self._utc_now()),
             )
 
     def resolve_calibration(self, prediction_id: str, outcome: str, correct: bool) -> bool:
         with self._conn() as conn:
             cur = conn.execute(
                 "UPDATE calibration_predictions SET outcome=?, correct=?, resolved_at=? WHERE prediction_id=?",
-                (outcome, 1 if correct else 0, self._utc_now(), prediction_id)
+                (outcome, 1 if correct else 0, self._utc_now(), prediction_id),
             )
             return cur.rowcount > 0
+
+    def batch_log_mix(
+        self,
+        prediction_id: str,
+        claim: str,
+        confidence: float,
+        domain: str,
+        outcome: str,
+        correct: bool,
+        metric_name: str,
+        metric_value: float,
+    ) -> None:
+        """Single-transaction batch commit for calibration prediction, resolution, and quality metric."""
+        now = self._utc_now()
+        with self._conn() as conn:
+            conn.execute(
+                "INSERT OR REPLACE INTO calibration_predictions (prediction_id, claim, confidence, domain, outcome, correct, resolved_at, created_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (prediction_id, claim, confidence, domain, outcome, 1 if correct else 0, now, now),
+            )
+            conn.execute(
+                "INSERT INTO metrics_snapshots (metric_name, value, unit, tags_json, created_at) "
+                "VALUES (?, ?, ?, ?, ?)",
+                (metric_name, metric_value, "score", "{}", now),
+            )
 
     def get_calibration_score(self, domain: str | None = None, days: int = 30) -> dict:
         with self._conn() as conn:
@@ -326,8 +355,13 @@ class SingularityStore:
             sql = f"SELECT confidence, correct FROM calibration_predictions WHERE {' AND '.join(conditions)}"
             rows = conn.execute(sql, params).fetchall()
             if not rows:
-                return {"total_predictions": 0, "brier_score": None, "accuracy": None,
-                        "avg_confidence": None, "calibration_status": "no_data"}
+                return {
+                    "total_predictions": 0,
+                    "brier_score": None,
+                    "accuracy": None,
+                    "avg_confidence": None,
+                    "calibration_status": "no_data",
+                }
             confidences = [r[0] for r in rows]
             outcomes = [r[1] for r in rows]
             n = len(rows)
@@ -338,35 +372,48 @@ class SingularityStore:
             # per bucket so ECE = |bucket accuracy − bucket mean confidence|).
             buckets = {"0-20%": [], "20-40%": [], "40-60%": [], "60-80%": [], "80-100%": []}
             for c, o in zip(confidences, outcomes):
-                if c < 0.2: buckets["0-20%"].append((c, o))
-                elif c < 0.4: buckets["20-40%"].append((c, o))
-                elif c < 0.6: buckets["40-60%"].append((c, o))
-                elif c < 0.8: buckets["60-80%"].append((c, o))
-                else: buckets["80-100%"].append((c, o))
+                if c < 0.2:
+                    buckets["0-20%"].append((c, o))
+                elif c < 0.4:
+                    buckets["20-40%"].append((c, o))
+                elif c < 0.6:
+                    buckets["40-60%"].append((c, o))
+                elif c < 0.8:
+                    buckets["60-80%"].append((c, o))
+                else:
+                    buckets["80-100%"].append((c, o))
             table = []
             for name, pairs in buckets.items():
                 if pairs:
                     acc = sum(1 for _, o in pairs if o) / len(pairs)
                     conf = sum(c for c, _ in pairs) / len(pairs)
-                    table.append({
-                        "bucket": name, "count": len(pairs),
-                        "expected": round(conf, 3),
-                        "actual": round(acc, 3),
-                    })
+                    table.append(
+                        {
+                            "bucket": name,
+                            "count": len(pairs),
+                            "expected": round(conf, 3),
+                            "actual": round(acc, 3),
+                        }
+                    )
             # BUGFIX: status labels are meaningless below a minimum sample size —
             # n=2 "well_calibrated" is statistically void. Require >= 10 resolved
             # predictions before emitting a calibration verdict.
             if n < 10:
                 status = "insufficient_data"
             else:
-                status = "well_calibrated" if brier < 0.1 else "overconfident" if avg_conf > accuracy + 0.1 else "underconfident" if avg_conf < accuracy - 0.1 else "fair"
+                status = (
+                    "well_calibrated"
+                    if brier < 0.1
+                    else "overconfident"
+                    if avg_conf > accuracy + 0.1
+                    else "underconfident"
+                    if avg_conf < accuracy - 0.1
+                    else "fair"
+                )
             # v15 P1: ECE — weighted mean |bucket accuracy − bucket confidence|
             # (Naeini et al. 2015 standard). Requires >= 1 populated bucket.
             if table:
-                ece = sum(
-                    b["count"] * abs(b["actual"] - b["expected"])
-                    for b in table
-                ) / n
+                ece = sum(b["count"] * abs(b["actual"] - b["expected"]) for b in table) / n
             else:
                 ece = None
             return {
@@ -381,13 +428,12 @@ class SingularityStore:
 
     # ── Eval Results ────────────────────────────────────────
 
-    def record_eval(self, eval_name: str, variant: str, prompt: str,
-                    output: str, score: float, metrics: dict):
+    def record_eval(self, eval_name: str, variant: str, prompt: str, output: str, score: float, metrics: dict):
         with self._conn() as conn:
             conn.execute(
                 "INSERT INTO eval_results (eval_name, variant, prompt, output, score, metrics_json, created_at) "
                 "VALUES (?, ?, ?, ?, ?, ?, ?)",
-                (eval_name, variant, prompt, output, score, json.dumps(metrics), self._utc_now())
+                (eval_name, variant, prompt, output, score, json.dumps(metrics), self._utc_now()),
             )
 
     def get_eval_comparison(self, eval_name: str, days: int = 30) -> dict:
@@ -395,7 +441,7 @@ class SingularityStore:
             cutoff = self._utc_offset(days)
             rows = conn.execute(
                 "SELECT variant, score, metrics_json FROM eval_results WHERE eval_name=? AND created_at > ?",
-                (eval_name, cutoff)
+                (eval_name, cutoff),
             ).fetchall()
             if not rows:
                 return {"eval_name": eval_name, "variants": {}, "comparison": "no_data"}
@@ -422,13 +468,12 @@ class SingularityStore:
 
     # ── Tool Usage ──────────────────────────────────────────
 
-    def log_tool_usage(self, tool_name: str, args_summary: str, result_summary: str,
-                       session_id: str, duration_ms: int):
+    def log_tool_usage(self, tool_name: str, args_summary: str, result_summary: str, session_id: str, duration_ms: int):
         with self._conn() as conn:
             conn.execute(
                 "INSERT INTO tool_usage (tool_name, args_summary, result_summary, duration_ms, session_id, created_at) "
                 "VALUES (?, ?, ?, ?, ?, ?)",
-                (tool_name, args_summary[:500], result_summary[:500], duration_ms, session_id, self._utc_now())
+                (tool_name, args_summary[:500], result_summary[:500], duration_ms, session_id, self._utc_now()),
             )
 
     def get_tool_usage_stats(self, days: int = 7) -> dict:
@@ -438,13 +483,12 @@ class SingularityStore:
                 "SELECT tool_name, COUNT(*) as cnt, AVG(duration_ms) as avg_ms, "
                 "SUM(duration_ms) as total_ms FROM tool_usage WHERE created_at > ? "
                 "GROUP BY tool_name ORDER BY cnt DESC",
-                (cutoff,)
+                (cutoff,),
             ).fetchall()
             return {
                 "period_days": days,
                 "tools": [
-                    {"name": r[0], "calls": r[1], "avg_ms": round(r[2] or 0, 1), "total_ms": r[3] or 0}
-                    for r in rows
+                    {"name": r[0], "calls": r[1], "avg_ms": round(r[2] or 0, 1), "total_ms": r[3] or 0} for r in rows
                 ],
                 "total_calls": sum(r[1] for r in rows),
                 "total_ms": sum(r[3] or 0 for r in rows),
@@ -452,13 +496,11 @@ class SingularityStore:
 
     # ── Decisions ───────────────────────────────────────────
 
-    def record_decision(self, decision: str, rationale: str = "",
-                        alternatives: str = "", context: str = "") -> int:
+    def record_decision(self, decision: str, rationale: str = "", alternatives: str = "", context: str = "") -> int:
         with self._conn() as conn:
             cur = conn.execute(
-                "INSERT INTO decisions (decision, rationale, alternatives, context, created_at) "
-                "VALUES (?, ?, ?, ?, ?)",
-                (decision, rationale, alternatives, context, self._utc_now())
+                "INSERT INTO decisions (decision, rationale, alternatives, context, created_at) VALUES (?, ?, ?, ?, ?)",
+                (decision, rationale, alternatives, context, self._utc_now()),
             )
             return cur.lastrowid
 
@@ -485,7 +527,7 @@ class SingularityStore:
         with self._conn() as conn:
             conn.execute(
                 "INSERT INTO quality_scores (score, dimension, notes, created_at) VALUES (?, ?, ?, ?)",
-                (score, dimension, notes, self._utc_now())
+                (score, dimension, notes, self._utc_now()),
             )
 
     def get_quality_trend(self, dimension: str = "", days: int = 30) -> dict:
@@ -522,10 +564,7 @@ class SingularityStore:
                 "average": round(avg, 2),
                 "min": round(min(scores), 2),
                 "max": round(max(scores), 2),
-                "recent": [
-                    {"score": r[0], "dimension": r[1], "date": r[2]}
-                    for r in rows[:10]
-                ],
+                "recent": [{"score": r[0], "dimension": r[1], "date": r[2]} for r in rows[:10]],
             }
 
     def get_quality_variance(self, dimension: str = "", days: int = 30) -> dict:
@@ -548,7 +587,7 @@ class SingularityStore:
             n = len(scores)
             mean = sum(scores) / n
             var = sum((s - mean) ** 2 for s in scores) / n
-            std = var ** 0.5
+            std = var**0.5
             cv = (std / mean) if mean else 0.0
             if cv < 0.05:
                 grade = "stable"
@@ -580,7 +619,7 @@ class SingularityStore:
             conn.execute(
                 "INSERT INTO metrics_snapshots (metric_name, value, unit, tags_json, created_at) "
                 "VALUES (?, ?, ?, ?, ?)",
-                (name, value, unit, json.dumps(tags or {}), self._utc_now())
+                (name, value, unit, json.dumps(tags or {}), self._utc_now()),
             )
 
     def get_metric_trend(self, name: str, days: int = 30) -> dict:
@@ -588,7 +627,7 @@ class SingularityStore:
             cutoff = self._utc_offset(days)
             rows = conn.execute(
                 "SELECT value, unit, created_at FROM metrics_snapshots WHERE metric_name=? AND created_at > ? ORDER BY created_at",
-                (name, cutoff)
+                (name, cutoff),
             ).fetchall()
             if not rows:
                 return {"metric": name, "trend": "no_data", "count": 0}
@@ -611,12 +650,10 @@ class SingularityStore:
         with self._conn() as conn:
             cutoff = self._utc_offset(days)
             sessions = conn.execute(
-                "SELECT COUNT(*), AVG(duration_ms) FROM reasoning_sessions WHERE created_at > ?",
-                (cutoff,)
+                "SELECT COUNT(*), AVG(duration_ms) FROM reasoning_sessions WHERE created_at > ?", (cutoff,)
             ).fetchone()
             tool_calls = conn.execute(
-                "SELECT COUNT(*), AVG(duration_ms) FROM tool_usage WHERE created_at > ?",
-                (cutoff,)
+                "SELECT COUNT(*), AVG(duration_ms) FROM tool_usage WHERE created_at > ?", (cutoff,)
             ).fetchone()
             memory = conn.execute("SELECT COUNT(*) FROM memory_items").fetchone()[0]
             patterns = conn.execute("SELECT COUNT(*) FROM anti_patterns").fetchone()[0]
@@ -646,7 +683,7 @@ class SingularityStore:
             return 0.0
         mean = sum(values) / len(values)
         variance = sum((v - mean) ** 2 for v in values) / (len(values) - 1)
-        return variance ** 0.5
+        return variance**0.5
 
     @staticmethod
     def _compute_trend(values: list[float]) -> str:

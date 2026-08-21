@@ -14,6 +14,7 @@ from dataclasses import dataclass
 @dataclass(frozen=True)
 class ResearchTechnique:
     """A research-backed reasoning technique with proven improvement data."""
+
     name: str
     paper: str
     authors: str
@@ -33,7 +34,6 @@ class ResearchTechnique:
 # Numbers are from the original papers or peer-reviewed replications.
 
 TECHNIQUES: dict[str, ResearchTechnique] = {
-
     "chain_of_thought": ResearchTechnique(
         name="Chain-of-Thought Prompting",
         paper="Chain-of-Thought Prompting Elicits Reasoning in Large Language Models",
@@ -48,7 +48,6 @@ TECHNIQUES: dict[str, ResearchTechnique] = {
         url="https://arxiv.org/abs/2201.11903",
         notes="Critical limitation: CoT is unreliable in models <100B params. Smaller models produce illogical chains.",
     ),
-
     "self_consistency": ResearchTechnique(
         name="Self-Consistency Decoding",
         paper="Self-Consistency Improves Chain of Thought Reasoning in Language Models",
@@ -63,7 +62,6 @@ TECHNIQUES: dict[str, ResearchTechnique] = {
         url="https://arxiv.org/abs/2203.11171",
         notes="Works across model sizes. Confidence-weighted voting (CISC) reduces required paths by 40%.",
     ),
-
     "tree_of_thoughts": ResearchTechnique(
         name="Tree of Thoughts",
         paper="Tree of Thoughts: Deliberate Problem Solving with Large Language Models",
@@ -78,7 +76,6 @@ TECHNIQUES: dict[str, ResearchTechnique] = {
         url="https://arxiv.org/abs/2305.10601",
         notes="Best for tasks requiring planning/search. GPT-3.5+ToT still gets 19% vs GPT-4+ToT 74% on Game of 24.",
     ),
-
     "self_refine": ResearchTechnique(
         name="Self-Refine (Iterative Refinement with Self-Feedback)",
         paper="Self-Refine: Iterative Refinement with Self-Feedback",
@@ -93,7 +90,6 @@ TECHNIQUES: dict[str, ResearchTechnique] = {
         url="https://selfrefine.info/",
         notes="Diminishing returns after 2-3 iterations. First iteration yields largest gains.",
     ),
-
     "least_to_most": ResearchTechnique(
         name="Least-to-Most Prompting",
         paper="Least-to-Most Prompting Enables Complex Reasoning in Large Language Models",
@@ -108,7 +104,6 @@ TECHNIQUES: dict[str, ResearchTechnique] = {
         url="https://arxiv.org/abs/2205.10625",
         notes="Particularly effective for smaller models because it reduces cognitive load per step.",
     ),
-
     "step_back_prompting": ResearchTechnique(
         name="Step-Back Prompting",
         paper="Take a Step Back: Evoking Reasoning via Abstraction in Large Language Models",
@@ -123,7 +118,6 @@ TECHNIQUES: dict[str, ResearchTechnique] = {
         url="https://arxiv.org/abs/2310.06117",
         notes="Forces model to ground reasoning in principles rather than surface patterns.",
     ),
-
     "reflexion": ResearchTechnique(
         name="Reflexion (Self-Reflective Reasoning)",
         paper="Reflexion: Language Agents with Verbal Reinforcement Learning",
@@ -138,7 +132,6 @@ TECHNIQUES: dict[str, ResearchTechnique] = {
         url="https://arxiv.org/abs/2303.11366",
         notes="The reflection is stored as episodic memory and used to avoid repeating mistakes.",
     ),
-
     "confidence_self_consistency": ResearchTechnique(
         name="Confidence-Informed Self-Consistency (CISC)",
         paper="Confidence Improves Self-Consistency in LLMs",
@@ -153,7 +146,6 @@ TECHNIQUES: dict[str, ResearchTechnique] = {
         url="https://aclanthology.org/2025.findings-acl.1030",
         notes="P(True) method works best. Drop-in replacement for self-consistency.",
     ),
-
     "tree_of_problems": ResearchTechnique(
         name="Tree of Problems (ToP)",
         paper="Tree of Problems: Improving structured problem solving with compositionality",
@@ -168,7 +160,6 @@ TECHNIQUES: dict[str, ResearchTechnique] = {
         url="https://arxiv.org/abs/2410.06634",
         notes="Outperforms ToT and GoT. Works at all model scales (7B, 13B, 70B).",
     ),
-
     "rdolt": ResearchTechnique(
         name="Recursive Decomposition of Logical Thoughts (RDoLT)",
         paper="Recursive Decomposition of Logical Thoughts",
@@ -183,7 +174,6 @@ TECHNIQUES: dict[str, ResearchTechnique] = {
         url="https://www.jair.org/index.php/jair/article/download/18562/27208",
         notes="Outperforms CoT-SC (89.4%) and ReAct (90.5%) on GSM8K.",
     ),
-
     "cpo": ResearchTechnique(
         name="Chain of Preference Optimization (CPO)",
         paper="Chain of Preference Optimization: Improving Chain-of-Thought Reasoning",
@@ -198,7 +188,6 @@ TECHNIQUES: dict[str, ResearchTechnique] = {
         url="https://proceedings.neurips.cc/paper_files/paper/2024/file/00d80722b754de0166523a87805dd00f-Paper-Conference.pdf",
         notes="Training-time technique. Inference is just standard CoT — no slowdown.",
     ),
-
     "rstar_math": ResearchTechnique(
         name="rStar-Math (Self-Evolved MCTS)",
         paper="rStar-Math: Small LLMs Can Master Math Problem Solving with Self-Evolved MCTS",
@@ -213,7 +202,6 @@ TECHNIQUES: dict[str, ResearchTechnique] = {
         url="https://arxiv.org/abs/2501.04682",
         notes="7B model surpasses o1-preview on MATH. AIME: 53.3% vs o1-preview's 46.7%.",
     ),
-
     "skeleton_of_thought": ResearchTechnique(
         name="Skeleton-of-Thought",
         paper="Skeleton-of-Thought: Large Language Models Can Do Parallel Decoding",
@@ -228,7 +216,6 @@ TECHNIQUES: dict[str, ResearchTechnique] = {
         url="https://arxiv.org/abs/2307.15337",
         notes="Speed + quality. The skeleton constrains each section, reducing drift.",
     ),
-
     "system2_attention": ResearchTechnique(
         name="System 2 Attention",
         paper="System 2 Attention (is something you might expect to happen)",
@@ -257,7 +244,7 @@ def get_applicable_techniques(
     budget: str = "standard",
 ) -> list[ResearchTechnique]:
     """Get techniques applicable to the given constraints.
-    
+
     Args:
         model_size: 'small' (<7B), 'medium' (7-70B), 'large' (>70B)
         task_type: 'reasoning', 'coding', 'math', 'creative', 'qa'
@@ -268,17 +255,21 @@ def get_applicable_techniques(
         # Filter by model size
         if model_size == "small" and not tech.small_model_effective:
             continue
-        
+
         # Filter by budget
         if budget == "trivial":
             continue  # No techniques for trivial tasks
         elif budget == "standard":
-            if tech.implementation_key in ("multi_path_majority_vote", "step_by_step_decomposition",
-                                            "subproblem_decomposition", "generate_critique_refine_loop"):
+            if tech.implementation_key in (
+                "multi_path_majority_vote",
+                "step_by_step_decomposition",
+                "subproblem_decomposition",
+                "generate_critique_refine_loop",
+            ):
                 applicable.append(tech)
         elif budget in ("high_risk", "research_grade"):
             applicable.append(tech)
-    
+
     return applicable
 
 
@@ -296,11 +287,15 @@ def technique_recommendation_table() -> str:
 
 def small_model_technique_ranking() -> list[tuple[str, str, str]]:
     """Rank techniques by expected impact for small models.
-    
+
     Returns list of (technique_name, expected_impact, rationale).
     """
     return [
-        ("self_consistency", "HIGH (+15-18%)", "Largest proven improvement across all benchmarks. Works at all scales."),
+        (
+            "self_consistency",
+            "HIGH (+15-18%)",
+            "Largest proven improvement across all benchmarks. Works at all scales.",
+        ),
         ("self_refine", "HIGH (+5-40%)", "Iterative refinement catches errors. 2-3 iterations optimal."),
         ("least_to_most", "HIGH", "Reduces cognitive load per step. Critical for smaller models."),
         ("tree_of_problems", "HIGH (+21-40%)", "Compositional decomposition outperforms ToT. Works at all scales."),
@@ -310,6 +305,10 @@ def small_model_technique_ranking() -> list[tuple[str, str, str]]:
         ("system2_attention", "MEDIUM (+8-12%)", "Removes distracting context that confuses smaller models."),
         ("rdolt", "MEDIUM (+5%)", "Structured 3-stage scoring. Marginal over CoT-SC."),
         ("skeleton_of_thought", "MEDIUM (2x speed)", "Quality maintained with parallel generation."),
-        ("tree_of_thoughts", "MEDIUM (task-dependent)", "Powerful for search/planning tasks. Less for linear reasoning."),
+        (
+            "tree_of_thoughts",
+            "MEDIUM (task-dependent)",
+            "Powerful for search/planning tasks. Less for linear reasoning.",
+        ),
         ("chain_of_thought", "LOW for small models", "Unreliable <100B params. Produces illogical chains."),
     ]

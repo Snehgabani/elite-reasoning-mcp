@@ -34,6 +34,7 @@ from core.cognitive.loop.research.techniques import TECHNIQUES
 @dataclass
 class PipelineStateV2:
     """State that flows through the v2 pipeline."""
+
     # Input
     prompt: str
     session_id: str
@@ -88,6 +89,7 @@ class PipelineStateV2:
 
 # ── Node Base ────────────────────────────────────────────────
 
+
 class Node:
     name: str = "base"
     technique: str = ""
@@ -107,12 +109,14 @@ class Node:
 
 # ── Node: Classify & Route ──────────────────────────────────
 
+
 class ClassifyAndRouteNode(Node):
     """Classify prompt and route to appropriate pipeline depth.
-    
+
     Research: Efficient reasoning — don't waste compute on simple tasks.
     Simple prompts get direct mode. Complex/risky prompts get full pipeline.
     """
+
     name = "classify_route"
 
     def _run(self, state: PipelineStateV2, store: SingularityStore) -> PipelineStateV2:
@@ -135,9 +139,11 @@ class ClassifyAndRouteNode(Node):
 
 # ── Node: Step-Back Abstraction ──────────────────────────────
 
+
 class StepBackNode(Node):
     """Abstract to principles before specifics.
     Research: Zheng et al. 2024 (ICLR) — +7-27% on reasoning benchmarks."""
+
     name = "step_back"
     technique = "step_back_prompting"
 
@@ -181,18 +187,23 @@ class StepBackNode(Node):
 
     def _run(self, state: PipelineStateV2, store: SingularityStore) -> PipelineStateV2:
         intent = state.classification.intent if state.classification else "general"
-        state.step_back_abstractions = self.ABSTRACTIONS.get(intent, [
-            "What is the core question stripped of framing?",
-            "What domain principles apply?",
-        ])
+        state.step_back_abstractions = self.ABSTRACTIONS.get(
+            intent,
+            [
+                "What is the core question stripped of framing?",
+                "What domain principles apply?",
+            ],
+        )
         return state
 
 
 # ── Node: Decompose with Memory Cross-Ref ────────────────────
 
+
 class DecomposeNode(Node):
     """Break into subproblems AND solve each with memory cross-reference.
     Research: Zhou et al. 2023 (ICLR) — Least-to-Most solves tasks CoT fails on."""
+
     name = "decompose"
     technique = "least_to_most"
 
@@ -208,27 +219,20 @@ class DecomposeNode(Node):
             # Anti-pattern check
             patterns = store.check_anti_patterns(sp["description"], limit=2)
             if patterns:
-                sp["anti_patterns"] = [
-                    {"mistake": p["mistake"][:100], "fix": p["fix"][:100]}
-                    for p in patterns
-                ]
+                sp["anti_patterns"] = [{"mistake": p["mistake"][:100], "fix": p["fix"][:100]} for p in patterns]
                 sp["warning"] = f"⚠️ {len(patterns)} past mistake(s) related to this step"
 
             # Decision check
             decisions = store.search_decisions(sp["description"], limit=2)
             if decisions:
                 sp["prior_decisions"] = [
-                    {"decision": d["decision"][:100], "rationale": d["rationale"][:100]}
-                    for d in decisions
+                    {"decision": d["decision"][:100], "rationale": d["rationale"][:100]} for d in decisions
                 ]
 
             # Memory check
             memories = store.search_memory(sp["description"], limit=2, min_trust=0.5)
             if memories:
-                sp["relevant_memory"] = [
-                    {"content": m["content"][:150], "trust": m["trust_score"]}
-                    for m in memories
-                ]
+                sp["relevant_memory"] = [{"content": m["content"][:150], "trust": m["trust_score"]} for m in memories]
 
             # Generate solution guidance for each subproblem
             sp["solution_guidance"] = self._solve_guidance(sp, cls)
@@ -241,71 +245,168 @@ class DecomposeNode(Node):
         idx = 1
 
         # Universal first step
-        subproblems.append({
-            "index": idx, "name": "understand",
-            "description": "Parse requirements. Identify inputs, outputs, constraints, edge cases.",
-            "depends_on": [], "validation": "All requirements enumerated.",
-        })
+        subproblems.append(
+            {
+                "index": idx,
+                "name": "understand",
+                "description": "Parse requirements. Identify inputs, outputs, constraints, edge cases.",
+                "depends_on": [],
+                "validation": "All requirements enumerated.",
+            }
+        )
         idx += 1
 
         # Intent-specific subproblems
         intent_subs = {
             "debug": [
-                ("reproduce", "Reproduce the exact error. Capture message, stack trace, conditions.", "Error reproduced consistently."),
-                ("localize", "Binary search or trace to find exact failure point.", "Failure point identified with evidence."),
-                ("root_cause", "Five-whys analysis. WHY does it fail, not just WHERE.", "Root cause explains all symptoms."),
-                ("fix_verify", "Minimal fix addressing root cause. Run tests. Verify no regressions.", "Fix works. Tests pass. No regressions."),
+                (
+                    "reproduce",
+                    "Reproduce the exact error. Capture message, stack trace, conditions.",
+                    "Error reproduced consistently.",
+                ),
+                (
+                    "localize",
+                    "Binary search or trace to find exact failure point.",
+                    "Failure point identified with evidence.",
+                ),
+                (
+                    "root_cause",
+                    "Five-whys analysis. WHY does it fail, not just WHERE.",
+                    "Root cause explains all symptoms.",
+                ),
+                (
+                    "fix_verify",
+                    "Minimal fix addressing root cause. Run tests. Verify no regressions.",
+                    "Fix works. Tests pass. No regressions.",
+                ),
             ],
             "build": [
-                ("design", "Define interface, data structures, error handling, invariants.", "Interface documented. Edge cases enumerated."),
-                ("implement", "Build incrementally. Each piece testable independently.", "Code compiles. Unit tests pass."),
-                ("integrate", "Connect components. Verify system-level behavior.", "Integration tests pass. No regressions."),
+                (
+                    "design",
+                    "Define interface, data structures, error handling, invariants.",
+                    "Interface documented. Edge cases enumerated.",
+                ),
+                (
+                    "implement",
+                    "Build incrementally. Each piece testable independently.",
+                    "Code compiles. Unit tests pass.",
+                ),
+                (
+                    "integrate",
+                    "Connect components. Verify system-level behavior.",
+                    "Integration tests pass. No regressions.",
+                ),
             ],
             "decide": [
-                ("enumerate", "List all viable options with explicit constraints and trade-offs.", "At least 3 options with pros/cons."),
-                ("challenge", "Adversarial review: security, scalability, simplicity, future regret.", "Each option challenged on 4+ axes."),
-                ("decide", "Select best option. Document rationale and rejected alternatives.", "Decision recorded with self-contained rationale."),
+                (
+                    "enumerate",
+                    "List all viable options with explicit constraints and trade-offs.",
+                    "At least 3 options with pros/cons.",
+                ),
+                (
+                    "challenge",
+                    "Adversarial review: security, scalability, simplicity, future regret.",
+                    "Each option challenged on 4+ axes.",
+                ),
+                (
+                    "decide",
+                    "Select best option. Document rationale and rejected alternatives.",
+                    "Decision recorded with self-contained rationale.",
+                ),
             ],
             "design": [
-                ("requirements", "Functional and non-functional requirements. Quality attributes.", "Requirements prioritized and validated."),
-                ("architecture", "Component diagram, data flow, API contracts, error boundaries.", "Architecture addresses all quality attributes."),
-                ("validate", "Review against requirements. Identify gaps and risks.", "All requirements mapped to components."),
+                (
+                    "requirements",
+                    "Functional and non-functional requirements. Quality attributes.",
+                    "Requirements prioritized and validated.",
+                ),
+                (
+                    "architecture",
+                    "Component diagram, data flow, API contracts, error boundaries.",
+                    "Architecture addresses all quality attributes.",
+                ),
+                (
+                    "validate",
+                    "Review against requirements. Identify gaps and risks.",
+                    "All requirements mapped to components.",
+                ),
             ],
             "research": [
-                ("gather", "Collect evidence from 3+ sources. Verify recency and quality.", "Sources cited with dates. Recency verified."),
-                ("synthesize", "Map evidence to claims. Assign confidence levels.", "Every claim has supporting evidence."),
-                ("verify", "Cross-check contradictions. Flag unsupported assertions.", "No contradictions. Uncertainty documented."),
+                (
+                    "gather",
+                    "Collect evidence from 3+ sources. Verify recency and quality.",
+                    "Sources cited with dates. Recency verified.",
+                ),
+                (
+                    "synthesize",
+                    "Map evidence to claims. Assign confidence levels.",
+                    "Every claim has supporting evidence.",
+                ),
+                (
+                    "verify",
+                    "Cross-check contradictions. Flag unsupported assertions.",
+                    "No contradictions. Uncertainty documented.",
+                ),
             ],
             "deploy": [
-                ("pre_check", "Capture before-state. Smoke tests. Rollback plan tested.", "Before-state captured. Rollback documented."),
-                ("execute", "Deploy with monitoring. Watch error rate and latency.", "Deployment complete. Metrics within bounds."),
-                ("post_verify", "Post-deploy smoke tests. Compare metrics to baseline.", "All health checks green. Metrics nominal."),
+                (
+                    "pre_check",
+                    "Capture before-state. Smoke tests. Rollback plan tested.",
+                    "Before-state captured. Rollback documented.",
+                ),
+                (
+                    "execute",
+                    "Deploy with monitoring. Watch error rate and latency.",
+                    "Deployment complete. Metrics within bounds.",
+                ),
+                (
+                    "post_verify",
+                    "Post-deploy smoke tests. Compare metrics to baseline.",
+                    "All health checks green. Metrics nominal.",
+                ),
             ],
             "optimize": [
-                ("profile", "Measure current performance. Identify hotspots.", "Profile data captured. Bottleneck identified."),
-                ("optimize", "Apply targeted optimization. Measure improvement.", "Optimization applied. Improvement measured."),
+                (
+                    "profile",
+                    "Measure current performance. Identify hotspots.",
+                    "Profile data captured. Bottleneck identified.",
+                ),
+                (
+                    "optimize",
+                    "Apply targeted optimization. Measure improvement.",
+                    "Optimization applied. Improvement measured.",
+                ),
                 ("verify", "Verify no regressions. Compare to baseline.", "No regressions. Improvement confirmed."),
             ],
         }
 
-        for name, desc, validation in intent_subs.get(cls.intent, [
-            ("execute", "Perform the task with focused execution.", "Task completed. No blockers."),
-        ]):
-            subproblems.append({
-                "index": idx, "name": name,
-                "description": desc,
-                "depends_on": [idx - 1],
-                "validation": validation,
-            })
+        for name, desc, validation in intent_subs.get(
+            cls.intent,
+            [
+                ("execute", "Perform the task with focused execution.", "Task completed. No blockers."),
+            ],
+        ):
+            subproblems.append(
+                {
+                    "index": idx,
+                    "name": name,
+                    "description": desc,
+                    "depends_on": [idx - 1],
+                    "validation": validation,
+                }
+            )
             idx += 1
 
         # Universal last step
-        subproblems.append({
-            "index": idx, "name": "validate_learn",
-            "description": "Run all validation gates. Record decisions and lessons learned.",
-            "depends_on": [idx - 1],
-            "validation": "All gates passed. Learning artifacts persisted.",
-        })
+        subproblems.append(
+            {
+                "index": idx,
+                "name": "validate_learn",
+                "description": "Run all validation gates. Record decisions and lessons learned.",
+                "depends_on": [idx - 1],
+                "validation": "All gates passed. Learning artifacts persisted.",
+            }
+        )
 
         return subproblems
 
@@ -324,12 +425,14 @@ class DecomposeNode(Node):
 
 # ── Node: Self-Consistency with Scoring ──────────────────────
 
+
 class SelfConsistencyNode(Node):
     """Generate N reasoning paths, score each, select best.
-    
+
     Research: Wang et al. 2023 — +17.9% GSM8K
     CISC: Guter et al. 2025 — confidence-weighted voting, -40% paths needed
     """
+
     name = "self_consistency"
     technique = "self_consistency"
 
@@ -412,7 +515,8 @@ class SelfConsistencyNode(Node):
 
         # Evidence: Does it leverage memory/anti-patterns?
         evidence_count = sum(
-            1 for sp in path.get("subproblems", [])
+            1
+            for sp in path.get("subproblems", [])
             if sp.get("anti_patterns") or sp.get("prior_decisions") or sp.get("relevant_memory")
         )
         evidence = min(1.0, evidence_count / max(1, n_subs)) if n_subs > 0 else 0.3
@@ -430,25 +534,45 @@ class SelfConsistencyNode(Node):
 
 # ── Node: Self-Refine Critique ──────────────────────────────
 
+
 class SelfRefineCritiqueNode(Node):
     """Generate structured critique of current answer.
     Research: Madaan et al. 2023 — +5-40% with iterative refinement."""
+
     name = "self_refine_critique"
     technique = "self_refine"
 
     CRITIQUE_DIMENSIONS = [
-        ("completeness", "Does the answer address ALL subproblems and requirements?",
-         "Check each subproblem has a corresponding answer component."),
-        ("correctness", "Is each claim logically sound? Hidden assumptions?",
-         "Verify each conclusion follows from stated premises."),
-        ("evidence", "Is every factual claim backed by evidence or marked uncertain?",
-         "Flag unsupported assertions. Require evidence or explicit uncertainty."),
-        ("edge_cases", "Are failure modes and boundary conditions handled?",
-         "Check null, empty, huge input, concurrent access, partial failure."),
-        ("simplicity", "Is this the simplest solution that works?",
-         "Flag over-engineering. YAGNI. Junior dev comprehension test."),
-        ("anti_patterns", "Does this repeat any known past mistakes?",
-         "Cross-reference anti-pattern registry. Flag matches."),
+        (
+            "completeness",
+            "Does the answer address ALL subproblems and requirements?",
+            "Check each subproblem has a corresponding answer component.",
+        ),
+        (
+            "correctness",
+            "Is each claim logically sound? Hidden assumptions?",
+            "Verify each conclusion follows from stated premises.",
+        ),
+        (
+            "evidence",
+            "Is every factual claim backed by evidence or marked uncertain?",
+            "Flag unsupported assertions. Require evidence or explicit uncertainty.",
+        ),
+        (
+            "edge_cases",
+            "Are failure modes and boundary conditions handled?",
+            "Check null, empty, huge input, concurrent access, partial failure.",
+        ),
+        (
+            "simplicity",
+            "Is this the simplest solution that works?",
+            "Flag over-engineering. YAGNI. Junior dev comprehension test.",
+        ),
+        (
+            "anti_patterns",
+            "Does this repeat any known past mistakes?",
+            "Cross-reference anti-pattern registry. Flag matches.",
+        ),
     ]
 
     def _run(self, state: PipelineStateV2, store: SingularityStore) -> PipelineStateV2:
@@ -469,9 +593,7 @@ class SelfRefineCritiqueNode(Node):
                 for sp in state.subproblems:
                     all_patterns.extend(sp.get("anti_patterns", []))
                 if all_patterns:
-                    critique["specific_flags"] = [
-                        f"Past mistake: {p['mistake']}" for p in all_patterns[:3]
-                    ]
+                    critique["specific_flags"] = [f"Past mistake: {p['mistake']}" for p in all_patterns[:3]]
 
             critiques.append(critique)
 
@@ -481,9 +603,11 @@ class SelfRefineCritiqueNode(Node):
 
 # ── Node: Self-Refine Resolution ─────────────────────────────
 
+
 class SelfRefineResolutionNode(Node):
     """Resolve each critique dimension. Generate refinement guidance.
     Research: Madaan et al. 2023 — iterative refinement with self-feedback."""
+
     name = "self_refine_resolve"
     technique = "self_refine"
 
@@ -496,12 +620,14 @@ class SelfRefineResolutionNode(Node):
             critique["resolution"] = resolution
 
         # Record refinement history
-        state.refinement_history.append({
-            "round": state.refinement_round,
-            "critiques_count": len(state.critique_results),
-            "subproblems_count": len(state.subproblems),
-            "best_path_score": state.best_path.get("total_score", 0),
-        })
+        state.refinement_history.append(
+            {
+                "round": state.refinement_round,
+                "critiques_count": len(state.critique_results),
+                "subproblems_count": len(state.subproblems),
+                "best_path_score": state.best_path.get("total_score", 0),
+            }
+        )
 
         return state
 
@@ -510,35 +636,57 @@ class SelfRefineResolutionNode(Node):
         dimension = critique["dimension"]
         resolutions = {
             "completeness": f"Ensure all {len(state.subproblems)} subproblems are addressed: "
-                           + ", ".join(sp["name"] for sp in state.subproblems),
+            + ", ".join(sp["name"] for sp in state.subproblems),
             "correctness": "For each claim, verify: (1) premise is stated, (2) logic is valid, "
-                          "(3) conclusion follows. Flag any logical leaps.",
+            "(3) conclusion follows. Flag any logical leaps.",
             "evidence": "For each factual claim, either: (a) cite a source, (b) reference a "
-                       "prior decision, or (c) mark as 'assumption' with confidence level.",
+            "prior decision, or (c) mark as 'assumption' with confidence level.",
             "edge_cases": "Enumerate: null/empty input, maximum size, concurrent access, "
-                         "network failure, partial failure, timeout, permission denied.",
+            "network failure, partial failure, timeout, permission denied.",
             "simplicity": "Ask: 'Could a junior developer understand this in 5 minutes?' "
-                         "If not, simplify. Remove unnecessary abstractions.",
+            "If not, simplify. Remove unnecessary abstractions.",
             "anti_patterns": "Cross-reference anti-pattern registry for each decision point. "
-                            "If a past mistake matches, apply the documented fix.",
+            "If a past mistake matches, apply the documented fix.",
         }
         return resolutions.get(dimension, "Review and improve.")
 
 
 # ── Node: Adversarial Verification ───────────────────────────
 
+
 class AdversarialVerifyNode(Node):
     """Multi-perspective adversarial challenge.
     Research: ToT evaluation (Yao et al. 2023) + decision councils."""
+
     name = "adversarial_verify"
     technique = "tree_of_thoughts"
 
     PERSPECTIVES = [
-        {"name": "Security", "focus": ("auth", "inject", "secret", "permission", "xss", "csrf", "bypass", "token"), "lens": "What attack vector does this expose?"},
-        {"name": "Scalability", "focus": ("query", "loop", "lock", "memory", "connection", "unbounded", "cache", "pool"), "lens": "Where does this break at 10x scale?"},
-        {"name": "Correctness", "focus": ("error", "null", "edge", "boundary", "race", "concurrent", "overflow"), "lens": "What edge case is silently wrong?"},
-        {"name": "Simplicity", "focus": ("abstract", "layer", "wrapper", "pattern", "generic", "flexible", "indirection"), "lens": "What simpler solution was overlooked?"},
-        {"name": "Future", "focus": ("lock-in", "debt", "coupling", "assumption", "deprecated", "irreversible", "migration"), "lens": "What will be regretted in 6 months?"},
+        {
+            "name": "Security",
+            "focus": ("auth", "inject", "secret", "permission", "xss", "csrf", "bypass", "token"),
+            "lens": "What attack vector does this expose?",
+        },
+        {
+            "name": "Scalability",
+            "focus": ("query", "loop", "lock", "memory", "connection", "unbounded", "cache", "pool"),
+            "lens": "Where does this break at 10x scale?",
+        },
+        {
+            "name": "Correctness",
+            "focus": ("error", "null", "edge", "boundary", "race", "concurrent", "overflow"),
+            "lens": "What edge case is silently wrong?",
+        },
+        {
+            "name": "Simplicity",
+            "focus": ("abstract", "layer", "wrapper", "pattern", "generic", "flexible", "indirection"),
+            "lens": "What simpler solution was overlooked?",
+        },
+        {
+            "name": "Future",
+            "focus": ("lock-in", "debt", "coupling", "assumption", "deprecated", "irreversible", "migration"),
+            "lens": "What will be regretted in 6 months?",
+        },
     ]
 
     def _run(self, state: PipelineStateV2, store: SingularityStore) -> PipelineStateV2:
@@ -548,14 +696,16 @@ class AdversarialVerifyNode(Node):
         for p in self.PERSPECTIVES:
             matched = [f for f in p["focus"] if f in combined]
             risk = min(1.0, 0.15 + len(matched) * 0.15) if matched else 0.1
-            challenges.append({
-                "perspective": p["name"],
-                "lens": p["lens"],
-                "risk_level": "high" if risk > 0.6 else "medium" if risk > 0.3 else "low",
-                "risk_score": round(risk, 3),
-                "flags": matched,
-                "must_answer": risk > 0.3,
-            })
+            challenges.append(
+                {
+                    "perspective": p["name"],
+                    "lens": p["lens"],
+                    "risk_level": "high" if risk > 0.6 else "medium" if risk > 0.3 else "low",
+                    "risk_score": round(risk, 3),
+                    "flags": matched,
+                    "must_answer": risk > 0.3,
+                }
+            )
 
         state.adversarial_challenges = challenges
 
@@ -564,16 +714,31 @@ class AdversarialVerifyNode(Node):
         medium_risks = sum(1 for c in challenges if c["risk_level"] == "medium")
 
         state.verification_gates = [
-            {"name": "all_subproblems_addressed", "status": "pass" if len(state.subproblems) >= 3 else "warn",
-             "detail": f"{len(state.subproblems)} subproblems decomposed"},
-            {"name": "critiques_resolved", "status": "pass" if all(c.get("resolution") for c in state.critique_results) else "fail",
-             "detail": f"{len(state.critique_results)} critiques, {sum(1 for c in state.critique_results if c.get('resolution'))} resolved"},
-            {"name": "adversarial_risks", "status": "pass" if high_risks == 0 else "warn" if high_risks <= 1 else "fail",
-             "detail": f"{high_risks} high, {medium_risks} medium risks"},
-            {"name": "path_quality", "status": "pass" if state.best_path.get("total_score", 0) > 0.6 else "warn",
-             "detail": f"Best path score: {state.best_path.get('total_score', 0):.3f}"},
-            {"name": "refinement_sufficient", "status": "pass" if state.refinement_round >= 1 else "warn",
-             "detail": f"{state.refinement_round} refinement rounds completed"},
+            {
+                "name": "all_subproblems_addressed",
+                "status": "pass" if len(state.subproblems) >= 3 else "warn",
+                "detail": f"{len(state.subproblems)} subproblems decomposed",
+            },
+            {
+                "name": "critiques_resolved",
+                "status": "pass" if all(c.get("resolution") for c in state.critique_results) else "fail",
+                "detail": f"{len(state.critique_results)} critiques, {sum(1 for c in state.critique_results if c.get('resolution'))} resolved",
+            },
+            {
+                "name": "adversarial_risks",
+                "status": "pass" if high_risks == 0 else "warn" if high_risks <= 1 else "fail",
+                "detail": f"{high_risks} high, {medium_risks} medium risks",
+            },
+            {
+                "name": "path_quality",
+                "status": "pass" if state.best_path.get("total_score", 0) > 0.6 else "warn",
+                "detail": f"Best path score: {state.best_path.get('total_score', 0):.3f}",
+            },
+            {
+                "name": "refinement_sufficient",
+                "status": "pass" if state.refinement_round >= 1 else "warn",
+                "detail": f"{state.refinement_round} refinement rounds completed",
+            },
         ]
 
         state.verification_passed = all(g["status"] != "fail" for g in state.verification_gates)
@@ -582,8 +747,10 @@ class AdversarialVerifyNode(Node):
 
 # ── Node: Quality Scoring ────────────────────────────────────
 
+
 class QualityScoreNode(Node):
     """Score output on 7-dimension scorecard + rubric + bias scan."""
+
     name = "quality_score"
 
     def _run(self, state: PipelineStateV2, store: SingularityStore) -> PipelineStateV2:
@@ -622,7 +789,7 @@ class QualityScoreNode(Node):
             score=int(quality["total_score"] * 100),
             dimension="pipeline_v2",
             notes=f"Session: {state.session_id} | Route: {state.route} | "
-                  f"Refinement: {state.refinement_round} | Techniques: {len(state.techniques_applied)}"
+            f"Refinement: {state.refinement_round} | Techniques: {len(state.techniques_applied)}",
         )
 
         return state
@@ -630,8 +797,10 @@ class QualityScoreNode(Node):
 
 # ── Node: Calibration ────────────────────────────────────────
 
+
 class CalibrationNode(Node):
     """Compute and log confidence calibration."""
+
     name = "calibrate"
     technique = "confidence_self_consistency"
 
@@ -669,9 +838,8 @@ class CalibrationNode(Node):
 
         # Log calibration
         import hashlib
-        pred_id = hashlib.sha256(
-            f"{state.session_id}:{state.prompt[:100]}".encode()
-        ).hexdigest()[:16]
+
+        pred_id = hashlib.sha256(f"{state.session_id}:{state.prompt[:100]}".encode()).hexdigest()[:16]
         store.log_calibration(pred_id, state.prompt[:200], confidence, "reasoning")
         state.calibration_id = pred_id
 
@@ -682,10 +850,11 @@ class CalibrationNode(Node):
 # PIPELINE v2 — With iterative refinement loop
 # ══════════════════════════════════════════════════════════════
 
+
 class ReasoningPipelineV2:
     """v2 pipeline with iterative refinement, self-consistency scoring,
     quality-gated feedback, and conditional routing.
-    
+
     Modes:
     - direct: Classify only (baseline for A/B testing)
     - standard: Classify → Decompose → SelfConsistency → Calibrate → Score
@@ -695,13 +864,22 @@ class ReasoningPipelineV2:
     MODES = {
         "direct": ["classify_route"],
         "standard": [
-            "classify_route", "decompose", "self_consistency",
-            "calibrate", "quality_score",
+            "classify_route",
+            "decompose",
+            "self_consistency",
+            "calibrate",
+            "quality_score",
         ],
         "amplified": [
-            "classify_route", "step_back", "decompose", "self_consistency",
-            "self_refine_critique", "self_refine_resolve",
-            "adversarial_verify", "calibrate", "quality_score",
+            "classify_route",
+            "step_back",
+            "decompose",
+            "self_consistency",
+            "self_refine_critique",
+            "self_refine_resolve",
+            "adversarial_verify",
+            "calibrate",
+            "quality_score",
         ],
     }
 
@@ -818,8 +996,9 @@ class ReasoningPipelineV2:
                 },
                 duration_ms=state.pipeline_duration_ms,
             )
-            self.store.record_metric("pipeline_v2_duration_ms", state.pipeline_duration_ms, "ms",
-                                      {"mode": effective_mode})
+            self.store.record_metric(
+                "pipeline_v2_duration_ms", state.pipeline_duration_ms, "ms", {"mode": effective_mode}
+            )
             self.store.record_metric("pipeline_v2_confidence", state.confidence)
             self.store.record_metric("pipeline_v2_quality", state.quality_score.get("total_score", 0))
             self.store.record_metric("pipeline_v2_refinement_rounds", state.refinement_round)
@@ -837,16 +1016,18 @@ class ReasoningPipelineV2:
             factory = self.NODE_REGISTRY.get(name)
             if factory:
                 instance = factory() if isinstance(factory, type) else factory()
-                if hasattr(instance, 'technique') and instance.technique:
+                if hasattr(instance, "technique") and instance.technique:
                     tech = TECHNIQUES.get(instance.technique)
                     if tech:
-                        techniques.append({
-                            "name": tech.name,
-                            "improvement": tech.improvement,
-                            "paper": f"{tech.authors} ({tech.year})",
-                            "venue": tech.venue,
-                            "small_model_effective": tech.small_model_effective,
-                        })
+                        techniques.append(
+                            {
+                                "name": tech.name,
+                                "improvement": tech.improvement,
+                                "paper": f"{tech.authors} ({tech.year})",
+                                "venue": tech.venue,
+                                "small_model_effective": tech.small_model_effective,
+                            }
+                        )
 
         return {
             "mode": self.mode,

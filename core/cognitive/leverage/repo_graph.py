@@ -8,6 +8,7 @@ import networkx as nx
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
+
 class RepoGraph:
     def __init__(self, graph_path: str = os.path.join(BASE_DIR, ".ai", "memory", "repo_graph.json")):
         self.graph_path = graph_path
@@ -30,7 +31,7 @@ class RepoGraph:
         for filepath in python_files:
             rel_path = os.path.relpath(filepath, root)
             self.graph.add_node(rel_path, type="FILE", label=rel_path, file=rel_path)
-            
+
             try:
                 with open(filepath, "r", encoding="utf-8") as file:
                     node = ast.parse(file.read(), filename=filepath)
@@ -108,21 +109,27 @@ class RepoGraph:
         for node, data in self.graph.nodes(data=True):
             name = str(node)
             if q_lower in name.lower():
-                results.append({
-                    "symbol": name,
-                    "file": data.get("file", name),
-                    "type": data.get("type", "UNKNOWN"),
-                    "score": 0.95 if q_lower == name.lower().split(".")[-1] else 0.85,
-                    "reason": "exact AST symbol match" if q_lower == name.lower().split(".")[-1] else "partial AST symbol match"
-                })
+                results.append(
+                    {
+                        "symbol": name,
+                        "file": data.get("file", name),
+                        "type": data.get("type", "UNKNOWN"),
+                        "score": 0.95 if q_lower == name.lower().split(".")[-1] else 0.85,
+                        "reason": "exact AST symbol match"
+                        if q_lower == name.lower().split(".")[-1]
+                        else "partial AST symbol match",
+                    }
+                )
         if not results:
-            results.append({
-                "symbol": query,
-                "file": "src/engine.py",
-                "type": "MODULE",
-                "score": 0.90,
-                "reason": "fallback definition location"
-            })
+            results.append(
+                {
+                    "symbol": query,
+                    "file": "src/engine.py",
+                    "type": "MODULE",
+                    "score": 0.90,
+                    "reason": "fallback definition location",
+                }
+            )
         results.sort(key=lambda x: x["score"], reverse=True)
         return results[:k]
 
@@ -132,7 +139,7 @@ class RepoGraph:
             if symbol.lower() == str(n).lower().split(".")[-1] or symbol.lower() in str(n).lower():
                 match_node = n
                 break
-        
+
         if not match_node:
             return {
                 "symbol": symbol,
@@ -141,7 +148,7 @@ class RepoGraph:
                 "dependents": ["src/server.py"],
                 "tests": ["tests/test_mix_mcp.py"],
                 "risk_score": 0.4,
-                "recommended_files_to_read": ["src/engine.py", "src/server.py"]
+                "recommended_files_to_read": ["src/engine.py", "src/server.py"],
             }
 
         data = self.graph.nodes[match_node]
@@ -157,7 +164,12 @@ class RepoGraph:
                     tests.append(str(n))
 
         risk_score = min(1.0, round((len(dependents) * 0.15) + 0.2, 2))
-        rec_files = list(set([file_path] + [self.graph.nodes[d].get("file", str(d)) for d in dependents if "file" in self.graph.nodes[d]]))
+        rec_files = list(
+            set(
+                [file_path]
+                + [self.graph.nodes[d].get("file", str(d)) for d in dependents if "file" in self.graph.nodes[d]]
+            )
+        )
 
         return {
             "symbol": str(match_node),
@@ -166,7 +178,7 @@ class RepoGraph:
             "dependents": [str(d) for d in dependents[:10]],
             "tests": [str(t) for t in tests[:5]],
             "risk_score": risk_score,
-            "recommended_files_to_read": rec_files[:5]
+            "recommended_files_to_read": rec_files[:5],
         }
 
 
@@ -178,4 +190,3 @@ def search_repo(query: str, repo_path: str = ".") -> List[Dict[str, Any]]:
 def impact_map(symbol: str, repo_path: str = ".") -> Dict[str, Any]:
     rg = RepoGraph()
     return rg.impact_map(symbol)
-

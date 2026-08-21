@@ -1,6 +1,7 @@
 """Base middleware classes for the Elite Reasoning MCP.
 Replaces the monkey-patched _intercepted_call_tool with explicit,
 testable, composable middleware."""
+
 from abc import ABC
 from dataclasses import dataclass, field
 from typing import Any, Optional
@@ -9,6 +10,7 @@ from typing import Any, Optional
 @dataclass
 class CallContext:
     """Context passed through the middleware chain for each tool call."""
+
     tool_name: str
     args: dict
     session_id: str
@@ -19,6 +21,7 @@ class CallContext:
 @dataclass
 class CallResult:
     """Result container that middleware can modify."""
+
     value: Any
     duration_ms: float = 0.0
     short_circuited: bool = False
@@ -27,6 +30,7 @@ class CallResult:
 
 class Middleware(ABC):
     """Base middleware class. Each middleware decides per-tool whether it applies."""
+
     name: str = "unnamed"
     applies_to: set[str] | str = "*"  # "*" = all tools, or set of tool names
 

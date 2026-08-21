@@ -3,6 +3,7 @@
 5 triggers that fire when metrics breach thresholds.
 Runs as a hook (every Nth tool call) since MCP is request-driven.
 Each trigger has an independent cooldown."""
+
 import logging
 import time
 from dataclasses import dataclass
@@ -14,10 +15,11 @@ logger = logging.getLogger(__name__)
 @dataclass
 class OptimizationTrigger:
     """A metric-threshold pair that fires an action."""
+
     name: str
     metric: str
     threshold: float
-    direction: str             # "above" or "below"
+    direction: str  # "above" or "below"
     window_calls: int
     cooldown_hours: float
     description: str = ""
@@ -27,36 +29,46 @@ DEFAULT_TRIGGERS = [
     OptimizationTrigger(
         name="quality_decline",
         metric="quality_score.rolling_avg",
-        threshold=70.0, direction="below",
-        window_calls=20, cooldown_hours=24,
+        threshold=70.0,
+        direction="below",
+        window_calls=20,
+        cooldown_hours=24,
         description="Quality dropping — run autonomous scan + generate goal",
     ),
     OptimizationTrigger(
         name="injection_ineffective",
         metric="injection.prevention_rate",
-        threshold=0.40, direction="below",
-        window_calls=50, cooldown_hours=12,
+        threshold=0.40,
+        direction="below",
+        window_calls=50,
+        cooldown_hours=12,
         description="Injection prevention rate falling — adjust pool",
     ),
     OptimizationTrigger(
         name="rule_fp_climbing",
         metric="rules.false_positive_rate",
-        threshold=0.30, direction="above",
-        window_calls=100, cooldown_hours=6,
+        threshold=0.30,
+        direction="above",
+        window_calls=100,
+        cooldown_hours=6,
         description="Rule false positive rate climbing — lifecycle tick",
     ),
     OptimizationTrigger(
         name="latency_spike",
         metric="latency.p99_ms",
-        threshold=2500.0, direction="above",
-        window_calls=100, cooldown_hours=2,
+        threshold=2500.0,
+        direction="above",
+        window_calls=100,
+        cooldown_hours=2,
         description="Latency p99 over budget — flag slow tools",
     ),
     OptimizationTrigger(
         name="tool_concentration",
         metric="tool_usage.gini_coefficient",
-        threshold=0.75, direction="above",
-        window_calls=200, cooldown_hours=48,
+        threshold=0.75,
+        direction="above",
+        window_calls=200,
+        cooldown_hours=48,
         description="Tool diversity dropping — boost underused tools",
     ),
 ]
@@ -95,9 +107,8 @@ class OptimizationLoop:
             value = self._compute_metric(trigger.metric, trigger.window_calls)
             if value is None:
                 continue
-            breached = (
-                (trigger.direction == "below" and value < trigger.threshold) or
-                (trigger.direction == "above" and value > trigger.threshold)
+            breached = (trigger.direction == "below" and value < trigger.threshold) or (
+                trigger.direction == "above" and value > trigger.threshold
             )
             if breached:
                 events.append(self._fire(trigger, value))
@@ -106,13 +117,15 @@ class OptimizationLoop:
     def _fire(self, trigger: OptimizationTrigger, value: float) -> dict:
         """Execute the action for a breached trigger."""
         logger.warning(
-            f"Optimization trigger fired: {trigger.name} "
-            f"({trigger.metric}={value:.2f}, threshold={trigger.threshold})"
+            f"Optimization trigger fired: {trigger.name} ({trigger.metric}={value:.2f}, threshold={trigger.threshold})"
         )
         event = {
-            "trigger": trigger.name, "metric": trigger.metric,
-            "value": value, "threshold": trigger.threshold,
-            "direction": trigger.direction, "timestamp": time.time(),
+            "trigger": trigger.name,
+            "metric": trigger.metric,
+            "value": value,
+            "threshold": trigger.threshold,
+            "direction": trigger.direction,
+            "timestamp": time.time(),
             "action_result": None,
         }
         try:
@@ -143,7 +156,7 @@ class OptimizationLoop:
         try:
             goal_id = self.store.set_goal(
                 "[AUTO] Improve quality score above 70 (decline detected)",
-                '["Identify top 3 quality issues", "Create prevention rules", "Verify improvement"]'
+                '["Identify top 3 quality issues", "Create prevention rules", "Verify improvement"]',
             )
             return {"action": "goal_created", "goal_id": goal_id}
         except Exception as e:
@@ -152,6 +165,7 @@ class OptimizationLoop:
     def _action_injection_ineffective(self) -> dict:
         try:
             from core.learning.injection_optimizer import InjectionOptimizer
+
             return InjectionOptimizer(self.store).adjust_injection_pool()
         except Exception as e:
             return {"error": str(e)}
@@ -159,6 +173,7 @@ class OptimizationLoop:
     def _action_rule_fp_climbing(self) -> dict:
         try:
             from core.learning.rule_lifecycle import RuleLifecycle
+
             return RuleLifecycle(self.store).tick()
         except Exception as e:
             return {"error": str(e)}
@@ -173,8 +188,7 @@ class OptimizationLoop:
                 FROM tool_usage_log WHERE created_at > datetime('now', '-1 day')
                 GROUP BY tool_name ORDER BY avg_ms DESC LIMIT 5
             """)
-            slow = [{"tool": r[0], "calls": r[1], "avg_ms": r[2]}
-                    for r in c.fetchall() if r[2] is not None]
+            slow = [{"tool": r[0], "calls": r[1], "avg_ms": r[2]} for r in c.fetchall() if r[2] is not None]
             return {"action": "flagged_slow_tools", "tools": slow}
         except Exception as e:
             return {"error": str(e)}
@@ -190,8 +204,10 @@ class OptimizationLoop:
                 WHERE created_at > datetime('now', '-7 days')
                 GROUP BY tool_name ORDER BY COUNT(*) ASC LIMIT 10
             """)
-            return {"action": "identified_underused_tools",
-                    "tools": [{"tool": r[0], "calls": r[1]} for r in c.fetchall()]}
+            return {
+                "action": "identified_underused_tools",
+                "tools": [{"tool": r[0], "calls": r[1]} for r in c.fetchall()],
+            }
         except Exception as e:
             return {"error": str(e)}
         finally:
@@ -248,12 +264,15 @@ class OptimizationLoop:
         conn = self.store._connect()
         try:
             c = conn.cursor()
-            c.execute("""
+            c.execute(
+                """
                 SELECT CAST(json_extract(result_summary, '$.latency_ms') AS REAL)
                 FROM tool_usage_log WHERE created_at > datetime('now', '-1 day')
                 AND json_extract(result_summary, '$.latency_ms') IS NOT NULL
                 ORDER BY created_at DESC LIMIT ?
-            """, (window,))
+            """,
+                (window,),
+            )
             values = sorted([r[0] for r in c.fetchall() if r[0] is not None])
             if not values:
                 return None
@@ -290,12 +309,14 @@ class OptimizationLoop:
         try:
             conn = self.store._connect()
             c = conn.cursor()
-            c.execute("""
+            c.execute(
+                """
                 INSERT INTO optimization_events
                 (metric, value, threshold, action_taken, created_at)
                 VALUES (?, ?, ?, ?, ?)
-            """, (trigger.metric, value, trigger.threshold,
-                  str(result)[:1000] if result else None, time.time()))
+            """,
+                (trigger.metric, value, trigger.threshold, str(result)[:1000] if result else None, time.time()),
+            )
             self.store._close(conn)
         except Exception as e:
             logger.debug(f"Failed to record optimization event: {e}")
@@ -305,16 +326,22 @@ class OptimizationLoop:
         status = {"call_count": self._call_count, "check_interval": self.CHECK_INTERVAL, "triggers": []}
         for t in self.triggers:
             value = self._compute_metric(t.metric, t.window_calls)
-            status["triggers"].append({
-                "name": t.name, "metric": t.metric,
-                "current_value": value, "threshold": t.threshold,
-                "direction": t.direction,
-                "breached": (
-                    (t.direction == "below" and value is not None and value < t.threshold) or
-                    (t.direction == "above" and value is not None and value > t.threshold)
-                ) if value is not None else None,
-                "in_cooldown": self._in_cooldown(t),
-                "last_fired": self._last_fired.get(t.name),
-                "description": t.description,
-            })
+            status["triggers"].append(
+                {
+                    "name": t.name,
+                    "metric": t.metric,
+                    "current_value": value,
+                    "threshold": t.threshold,
+                    "direction": t.direction,
+                    "breached": (
+                        (t.direction == "below" and value is not None and value < t.threshold)
+                        or (t.direction == "above" and value is not None and value > t.threshold)
+                    )
+                    if value is not None
+                    else None,
+                    "in_cooldown": self._in_cooldown(t),
+                    "last_fired": self._last_fired.get(t.name),
+                    "description": t.description,
+                }
+            )
         return status

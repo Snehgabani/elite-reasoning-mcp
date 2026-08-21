@@ -1,6 +1,6 @@
 [project]
 name = "elite-reasoning-mcp"
-version = "2.2.1"
+version = "2.3.0"
 description = "The Unified Cognitive Operating System for AI Coding Agents: 9-Stage Cognitive Loop, Process Reward Model (PRM), Deterministic AST Invariant Gates, Stanford STORM Deep Research, and Trusted Memory."
 readme = "README.md"
 requires-python = ">=3.11"

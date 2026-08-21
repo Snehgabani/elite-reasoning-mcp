@@ -26,6 +26,7 @@ from core.memory.persistent_store import EliteStore
 # Fixtures
 # ──────────────────────────────────────────────
 
+
 @pytest.fixture()
 def brain_dir():
     """Provide an isolated temp directory for each test."""
@@ -43,6 +44,7 @@ def store(brain_dir):
 # 1. Initialization & table creation
 # ──────────────────────────────────────────────
 
+
 class TestInitialization:
     def test_creates_brain_directory(self, brain_dir):
         sub = os.path.join(brain_dir, "nested", "sub")
@@ -55,9 +57,7 @@ class TestInitialization:
     def test_creates_graph_db_file(self, store, brain_dir):
         # Graph tables are now consolidated into elite.db (no separate file)
         conn = sqlite3.connect(os.path.join(brain_dir, "elite.db"))
-        cursor = conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'graph_%'"
-        )
+        cursor = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'graph_%'")
         graph_tables = {row[0] for row in cursor.fetchall()}
         conn.close()
         assert "graph_nodes" in graph_tables
@@ -65,9 +65,7 @@ class TestInitialization:
 
     def test_expected_tables_exist(self, store, brain_dir):
         conn = sqlite3.connect(os.path.join(brain_dir, "elite.db"))
-        cursor = conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
-        )
+        cursor = conn.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
         tables = {row[0] for row in cursor.fetchall()}
         conn.close()
 
@@ -92,11 +90,10 @@ class TestInitialization:
 # 2. record_mistake + check_anti_patterns
 # ──────────────────────────────────────────────
 
+
 class TestAntiPatterns:
     def test_record_mistake_returns_positive_id(self, store):
-        row_id = store.record_mistake(
-            "forgot null check", "root: no guard", "add if x is None", "high", "python"
-        )
+        row_id = store.record_mistake("forgot null check", "root: no guard", "add if x is None", "high", "python")
         assert isinstance(row_id, int)
         assert row_id >= 1
 
@@ -152,6 +149,7 @@ class TestAntiPatterns:
 # 3. record_decision + search_decisions
 # ──────────────────────────────────────────────
 
+
 class TestDecisions:
     def test_record_decision_returns_id(self, store):
         row_id = store.record_decision("use postgres", "better scalability")
@@ -199,7 +197,9 @@ class TestDecisions:
 
     def test_get_all_decisions_ordering(self, store):
         store.record_decision("first", "r1")
-        import time; time.sleep(0.01)  # noqa: I001, E702 - Ensure different timestamps
+        import time
+
+        time.sleep(0.01)  # noqa: I001, E702 - Ensure different timestamps
         store.record_decision("second", "r2")
         all_d = store.get_all_decisions()
         # With same-second timestamps, ordering may vary
@@ -212,6 +212,7 @@ class TestDecisions:
 # ──────────────────────────────────────────────
 # 4. Goals lifecycle
 # ──────────────────────────────────────────────
+
 
 class TestGoals:
     def test_set_goal_returns_id(self, store):
@@ -310,6 +311,7 @@ class TestGoals:
 # 5. Quality scores
 # ──────────────────────────────────────────────
 
+
 class TestQualityScores:
     def test_record_quality_score(self, store):
         row_id = store.record_quality_score(85, "overall", "good sprint")
@@ -334,6 +336,7 @@ class TestQualityScores:
         # With same-second timestamps, ORDER BY DESC may reverse
         # So we test that the function returns a valid trend direction
         import time
+
         for s in [60, 60, 60, 60]:
             store.record_quality_score(s)
         time.sleep(0.01)
@@ -347,6 +350,7 @@ class TestQualityScores:
 
     def test_quality_trend_declining(self, store):
         import time
+
         for s in [90, 90, 90, 90]:
             store.record_quality_score(s)
         time.sleep(0.01)
@@ -389,6 +393,7 @@ class TestQualityScores:
 # 6. Benchmarks (SPC tracking)
 # ──────────────────────────────────────────────
 
+
 class TestBenchmarks:
     def test_record_benchmark(self, store):
         row_id = store.record_benchmark("latency_p99", 120.5, "ms", "API endpoint")
@@ -411,6 +416,7 @@ class TestBenchmarks:
     def test_benchmark_trend_above_control(self, store):
         # Create a tight cluster then a huge outlier as latest
         import time
+
         for v in [10.0, 10.0, 10.0, 10.0, 10.0]:
             store.record_benchmark("throughput", v)
         time.sleep(0.01)
@@ -422,6 +428,7 @@ class TestBenchmarks:
 
     def test_benchmark_trend_below_control(self, store):
         import time
+
         for v in [100.0, 100.0, 100.0, 100.0, 100.0]:
             store.record_benchmark("speed", v)
         time.sleep(0.01)
@@ -432,6 +439,7 @@ class TestBenchmarks:
 
     def test_benchmark_delta_pct(self, store):
         import time
+
         store.record_benchmark("cpu", 50.0)
         time.sleep(0.01)
         store.record_benchmark("cpu", 100.0)
@@ -457,6 +465,7 @@ class TestBenchmarks:
 # ──────────────────────────────────────────────
 # 7. FTS5 sanitizer
 # ──────────────────────────────────────────────
+
 
 class TestFTSSanitizer:
     def test_plain_query(self):
@@ -512,6 +521,7 @@ class TestFTSSanitizer:
 # 8. Connection caching (thread-local)
 # ──────────────────────────────────────────────
 
+
 class TestConnectionCaching:
     def test_same_thread_reuses_connection(self, store):
         conn1 = store._connect()
@@ -540,6 +550,7 @@ class TestConnectionCaching:
 # ──────────────────────────────────────────────
 # 9. Error recovery on stale connections
 # ──────────────────────────────────────────────
+
 
 class TestStaleConnectionRecovery:
     def test_recovers_after_closed_cached_connection(self, store):

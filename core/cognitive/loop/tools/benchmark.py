@@ -48,15 +48,24 @@ def register(mcp, store: SingularityStore):
         """
         if action == "score":
             if not output.strip():
-                return BenchmarkResult(action="score", eval_name=eval_name,
-                    interpretation="Output required for scoring.")
-            quality = score_output_quality(output, validation_passed=validation_passed,
-                tool_calls=tool_calls, evidence_sources=evidence_sources, confidence=confidence)
+                return BenchmarkResult(
+                    action="score", eval_name=eval_name, interpretation="Output required for scoring."
+                )
+            quality = score_output_quality(
+                output,
+                validation_passed=validation_passed,
+                tool_calls=tool_calls,
+                evidence_sources=evidence_sources,
+                confidence=confidence,
+            )
             store.record_eval(eval_name, variant, prompt, output, quality["total_score"], quality)
             store.record_metric(f"benchmark_{eval_name}_{variant}_score", quality["total_score"])
-            return BenchmarkResult(action="score", eval_name=eval_name,
+            return BenchmarkResult(
+                action="score",
+                eval_name=eval_name,
                 data={"variant": variant, "score": quality["total_score"], "dimensions": quality["raw_dimensions"]},
-                interpretation=f"Scored {quality['total_score']:.4f} ({variant}). Record more, then compare.")
+                interpretation=f"Scored {quality['total_score']:.4f} ({variant}). Record more, then compare.",
+            )
 
         elif action == "compare":
             comparison_data = store.get_eval_comparison(eval_name, days=days)
@@ -64,24 +73,40 @@ def register(mcp, store: SingularityStore):
             baseline_scores, enhanced_scores = [], []
             with store._conn() as conn:
                 rows = conn.execute(
-                    "SELECT variant, score FROM eval_results WHERE eval_name=? AND created_at > ?",
-                    (eval_name, cutoff)).fetchall()
+                    "SELECT variant, score FROM eval_results WHERE eval_name=? AND created_at > ?", (eval_name, cutoff)
+                ).fetchall()
                 for r in rows:
-                    if r[0] == "baseline": baseline_scores.append(r[1])
-                    elif r[0] == "enhanced": enhanced_scores.append(r[1])
+                    if r[0] == "baseline":
+                        baseline_scores.append(r[1])
+                    elif r[0] == "enhanced":
+                        enhanced_scores.append(r[1])
             stats = compare_variants(baseline_scores, enhanced_scores)
-            return BenchmarkResult(action="compare", eval_name=eval_name,
-                data=comparison_data, comparison=stats,
-                interpretation=stats.get("interpretation", "Insufficient data."))
+            return BenchmarkResult(
+                action="compare",
+                eval_name=eval_name,
+                data=comparison_data,
+                comparison=stats,
+                interpretation=stats.get("interpretation", "Insufficient data."),
+            )
 
         elif action == "report":
             comparison_data = store.get_eval_comparison(eval_name, days=days)
             quality_trend = store.get_quality_trend(days=days)
             calibration = store.get_calibration_score(days=days)
-            report = {"eval_name": eval_name, "period_days": days,
-                      "comparison": comparison_data, "quality_trend": quality_trend, "calibration": calibration}
-            return BenchmarkResult(action="report", eval_name=eval_name, data=report,
-                interpretation=f"Report for '{eval_name}' over {days} days.")
+            report = {
+                "eval_name": eval_name,
+                "period_days": days,
+                "comparison": comparison_data,
+                "quality_trend": quality_trend,
+                "calibration": calibration,
+            }
+            return BenchmarkResult(
+                action="report",
+                eval_name=eval_name,
+                data=report,
+                interpretation=f"Report for '{eval_name}' over {days} days.",
+            )
 
-        return BenchmarkResult(action=action, eval_name=eval_name,
-            interpretation=f"Unknown: {action}. Use score, compare, or report.")
+        return BenchmarkResult(
+            action=action, eval_name=eval_name, interpretation=f"Unknown: {action}. Use score, compare, or report."
+        )

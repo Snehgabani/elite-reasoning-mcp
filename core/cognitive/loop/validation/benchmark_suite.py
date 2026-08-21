@@ -13,12 +13,14 @@ from typing import Dict, List, Optional
 
 try:
     import anthropic
+
     HAS_ANTHROPIC = True
 except ImportError:
     HAS_ANTHROPIC = False
 
 try:
     import openai
+
     HAS_OPENAI = True
 except ImportError:
     HAS_OPENAI = False
@@ -27,6 +29,7 @@ except ImportError:
 @dataclass
 class BenchmarkPrompt:
     """A single benchmark prompt with ground truth."""
+
     id: str
     prompt: str
     category: str  # debug, build, decide, research, etc.
@@ -34,7 +37,7 @@ class BenchmarkPrompt:
     ground_truth: str  # Expected good answer
     evaluation_criteria: List[str]  # What makes a good answer
     tags: List[str] = None
-    
+
     def to_dict(self):
         return asdict(self)
 
@@ -42,22 +45,23 @@ class BenchmarkPrompt:
 @dataclass
 class BenchmarkResult:
     """Result from running a benchmark."""
+
     prompt_id: str
     mode: str  # "with_mcp" or "without_mcp"
     output: str
     duration_ms: int
     mcp_structure: Optional[Dict] = None  # Structure from MCP (if used)
-    
+
     # Evaluation scores (0-10)
     quality_score: float = 0.0
     helpfulness_score: float = 0.0
     accuracy_score: float = 0.0
     completeness_score: float = 0.0
-    
+
     # Detailed evaluation
     criteria_scores: Dict[str, float] = None
     llm_judge_reasoning: str = ""
-    
+
     def to_dict(self):
         return asdict(self)
 
@@ -65,19 +69,19 @@ class BenchmarkResult:
 class RealBenchmarkSuite:
     """
     Real benchmark suite that tests MCP effectiveness with actual LLM calls.
-    
+
     Usage:
         suite = RealBenchmarkSuite(api_key="...", provider="anthropic")
         results = suite.run_all_benchmarks()
         report = suite.generate_report(results)
     """
-    
+
     def __init__(self, api_key: str = None, provider: str = "anthropic"):
         self.api_key = api_key
         self.provider = provider
         self.client = self._init_client()
         self.benchmarks = self._load_benchmarks()
-    
+
     def _init_client(self):
         """Initialize LLM client."""
         if self.provider == "anthropic" and HAS_ANTHROPIC and self.api_key:
@@ -86,11 +90,11 @@ class RealBenchmarkSuite:
             return openai.OpenAI(api_key=self.api_key)
         else:
             return None
-    
+
     def _load_benchmarks(self) -> List[BenchmarkPrompt]:
         """Load benchmark prompts from file or create defaults."""
         benchmark_file = Path(__file__).parent.parent.parent / "benchmarks" / "real_prompts.json"
-        
+
         if benchmark_file.exists():
             with open(benchmark_file) as f:
                 data = json.load(f)
@@ -98,7 +102,7 @@ class RealBenchmarkSuite:
         else:
             # Create default benchmarks
             return self._create_default_benchmarks()
-    
+
     def _create_default_benchmarks(self) -> List[BenchmarkPrompt]:
         """Create a set of real-world benchmark prompts."""
         return [
@@ -112,9 +116,9 @@ class RealBenchmarkSuite:
                     "Identifies root cause (unnecessary re-renders)",
                     "Provides specific solutions (memo, useMemo, useCallback)",
                     "Explains when to use each technique",
-                    "Mentions profiling tools (React DevTools)"
+                    "Mentions profiling tools (React DevTools)",
                 ],
-                tags=["react", "performance", "optimization"]
+                tags=["react", "performance", "optimization"],
             ),
             BenchmarkPrompt(
                 id="build_01",
@@ -127,9 +131,9 @@ class RealBenchmarkSuite:
                     "Proposes efficient encoding scheme",
                     "Considers database design",
                     "Mentions caching and CDN",
-                    "Discusses trade-offs"
+                    "Discusses trade-offs",
                 ],
-                tags=["system-design", "scalability", "distributed-systems"]
+                tags=["system-design", "scalability", "distributed-systems"],
             ),
             BenchmarkPrompt(
                 id="decide_01",
@@ -142,9 +146,9 @@ class RealBenchmarkSuite:
                     "Considers team size and organization",
                     "Discusses deployment complexity",
                     "Mentions hybrid approaches",
-                    "Provides clear recommendation with reasoning"
+                    "Provides clear recommendation with reasoning",
                 ],
-                tags=["architecture", "decision-making", "trade-offs"]
+                tags=["architecture", "decision-making", "trade-offs"],
             ),
             BenchmarkPrompt(
                 id="research_01",
@@ -157,9 +161,9 @@ class RealBenchmarkSuite:
                     "Mentions specific models/approaches",
                     "Provides quantitative comparisons",
                     "Cites recent work (2023-2024)",
-                    "Discusses trade-offs (accuracy vs efficiency)"
+                    "Discusses trade-offs (accuracy vs efficiency)",
                 ],
-                tags=["ml", "transformers", "edge-computing", "research"]
+                tags=["ml", "transformers", "edge-computing", "research"],
             ),
             BenchmarkPrompt(
                 id="debug_02",
@@ -172,30 +176,30 @@ class RealBenchmarkSuite:
                     "Suggests ANALYZE command",
                     "Explains query planner behavior",
                     "Provides diagnostic steps",
-                    "Mentions index optimization"
+                    "Mentions index optimization",
                 ],
-                tags=["postgresql", "performance", "query-optimization"]
+                tags=["postgresql", "performance", "query-optimization"],
             ),
         ]
-    
+
     def run_benchmark(self, benchmark: BenchmarkPrompt, mode: str = "with_mcp") -> BenchmarkResult:
         """Run a single benchmark."""
         if not self.client:
             raise ValueError("No LLM client available. Provide API key.")
-        
+
         start = time.time()
-        
+
         if mode == "with_mcp":
             # Get MCP structure
             import tempfile
 
             from core.cognitive.loop.core.store import SingularityStore
             from core.cognitive.loop.pipeline.graph_v7 import ReasoningPipelineV7
-            
+
             store = SingularityStore(tempfile.mkdtemp())
             pipeline = ReasoningPipelineV7(store, mode="amplified")
             state = pipeline.run(benchmark.prompt)
-            
+
             # Build prompt with MCP structure
             full_prompt = self._build_prompt_with_mcp(benchmark.prompt, state)
             mcp_structure = {
@@ -207,24 +211,24 @@ class RealBenchmarkSuite:
             # Direct prompt without MCP
             full_prompt = benchmark.prompt
             mcp_structure = None
-        
+
         # Call LLM
         output = self._call_llm(full_prompt)
-        
+
         duration_ms = int((time.time() - start) * 1000)
-        
+
         # Evaluate output
         evaluation = self._evaluate_output(benchmark, output)
-        
+
         return BenchmarkResult(
             prompt_id=benchmark.id,
             mode=mode,
             output=output,
             duration_ms=duration_ms,
             mcp_structure=mcp_structure,
-            **evaluation
+            **evaluation,
         )
-    
+
     def _build_prompt_with_mcp(self, original_prompt: str, state) -> str:
         """Build prompt that includes MCP structure."""
         parts = [
@@ -236,46 +240,36 @@ class RealBenchmarkSuite:
             "",
             state.reasoning_template if state.reasoning_template else "",
             "",
-            "## Subproblems to Address"
+            "## Subproblems to Address",
         ]
-        
+
         for sp in state.subproblems:
             parts.append(f"- {sp['name']}: {sp['description']}")
-        
-        parts.extend([
-            "",
-            "## Quality Checklist"
-        ])
-        
+
+        parts.extend(["", "## Quality Checklist"])
+
         for criterion in state.quality_checklist:
             parts.append(f"- {criterion}")
-        
-        parts.extend([
-            "",
-            "Now provide your complete answer following this structure."
-        ])
-        
+
+        parts.extend(["", "Now provide your complete answer following this structure."])
+
         return "\n".join(parts)
-    
+
     def _call_llm(self, prompt: str) -> str:
         """Call LLM API."""
         if self.provider == "anthropic":
             response = self.client.messages.create(
-                model="claude-3-5-sonnet-20241022",
-                max_tokens=4000,
-                messages=[{"role": "user", "content": prompt}]
+                model="claude-3-5-sonnet-20241022", max_tokens=4000, messages=[{"role": "user", "content": prompt}]
             )
             return response.content[0].text
         elif self.provider == "openai":
             response = self.client.chat.completions.create(
-                model="gpt-4",
-                max_tokens=4000,
-                messages=[{"role": "user", "content": prompt}]
+                model="gpt-4", max_tokens=4000, messages=[{"role": "user", "content": prompt}]
             )
             return response.choices[0].message.content
         else:
             raise ValueError(f"Unsupported provider: {self.provider}")
-    
+
     def _evaluate_output(self, benchmark: BenchmarkPrompt, output: str) -> Dict:
         """Evaluate output quality using LLM-as-judge."""
         # Build evaluation prompt
@@ -315,12 +309,13 @@ Respond in JSON format:
   "reasoning": "Brief explanation of scores"
 }}
 """
-        
+
         try:
             eval_output = self._call_llm(eval_prompt)
             # Parse JSON from response
             import re
-            json_match = re.search(r'\{.*\}', eval_output, re.DOTALL)
+
+            json_match = re.search(r"\{.*\}", eval_output, re.DOTALL)
             if json_match:
                 scores = json.loads(json_match.group())
                 return {
@@ -329,45 +324,45 @@ Respond in JSON format:
                     "accuracy_score": scores.get("accuracy", 0),
                     "completeness_score": scores.get("completeness", 0),
                     "criteria_scores": scores.get("criteria_scores", {}),
-                    "llm_judge_reasoning": scores.get("reasoning", "")
+                    "llm_judge_reasoning": scores.get("reasoning", ""),
                 }
         except Exception as e:
             print(f"Evaluation failed: {e}")
-        
+
         return {
             "quality_score": 0,
             "helpfulness_score": 0,
             "accuracy_score": 0,
             "completeness_score": 0,
             "criteria_scores": {},
-            "llm_judge_reasoning": "Evaluation failed"
+            "llm_judge_reasoning": "Evaluation failed",
         }
-    
+
     def run_all_benchmarks(self) -> List[BenchmarkResult]:
         """Run all benchmarks in both modes."""
         results = []
-        
+
         for benchmark in self.benchmarks:
             print(f"Running benchmark: {benchmark.id}")
-            
+
             # Run without MCP
             print("  - Without MCP...")
             result_without = self.run_benchmark(benchmark, mode="without_mcp")
             results.append(result_without)
-            
+
             # Run with MCP
             print("  - With MCP...")
             result_with = self.run_benchmark(benchmark, mode="with_mcp")
             results.append(result_with)
-        
+
         return results
-    
+
     def generate_report(self, results: List[BenchmarkResult]) -> Dict:
         """Generate comprehensive report."""
         # Separate results by mode
         with_mcp = [r for r in results if r.mode == "with_mcp"]
         without_mcp = [r for r in results if r.mode == "without_mcp"]
-        
+
         # Calculate statistics
         def calc_stats(results_list):
             return {
@@ -378,10 +373,10 @@ Respond in JSON format:
                 "avg_completeness": sum(r.completeness_score for r in results_list) / len(results_list),
                 "avg_duration_ms": sum(r.duration_ms for r in results_list) / len(results_list),
             }
-        
+
         stats_with = calc_stats(with_mcp)
         stats_without = calc_stats(without_mcp)
-        
+
         # Calculate improvements
         improvements = {
             "quality": stats_with["avg_quality"] - stats_without["avg_quality"],
@@ -389,29 +384,27 @@ Respond in JSON format:
             "accuracy": stats_with["avg_accuracy"] - stats_without["avg_accuracy"],
             "completeness": stats_with["avg_completeness"] - stats_without["avg_completeness"],
         }
-        
+
         # Calculate percentage improvements
         pct_improvements = {
-            k: (v / stats_without[k.replace("_improvement", "")] * 100) if stats_without[k.replace("_improvement", "")] > 0 else 0
+            k: (v / stats_without[k.replace("_improvement", "")] * 100)
+            if stats_without[k.replace("_improvement", "")] > 0
+            else 0
             for k, v in improvements.items()
         }
-        
+
         # Statistical significance (simplified t-test)
         from scipy import stats as scipy_stats
-        
+
         t_tests = {}
         for metric in ["quality", "helpfulness", "accuracy", "completeness"]:
             with_values = [getattr(r, f"{metric}_score") for r in with_mcp]
             without_values = [getattr(r, f"{metric}_score") for r in without_mcp]
-            
+
             if len(with_values) > 1 and len(without_values) > 1:
                 t_stat, p_value = scipy_stats.ttest_ind(with_values, without_values)
-                t_tests[metric] = {
-                    "t_statistic": t_stat,
-                    "p_value": p_value,
-                    "significant": p_value < 0.05
-                }
-        
+                t_tests[metric] = {"t_statistic": t_stat, "p_value": p_value, "significant": p_value < 0.05}
+
         return {
             "total_benchmarks": len(self.benchmarks),
             "with_mcp": stats_with,
@@ -419,5 +412,5 @@ Respond in JSON format:
             "improvements": improvements,
             "percentage_improvements": pct_improvements,
             "statistical_tests": t_tests,
-            "detailed_results": [r.to_dict() for r in results]
+            "detailed_results": [r.to_dict() for r in results],
         }

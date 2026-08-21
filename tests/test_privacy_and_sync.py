@@ -218,9 +218,7 @@ def test_privacy_migration_scrubs_legacy_prompt_telemetry_and_memory_rows(tmp_pa
         args_summary, result_summary = raw_conn.execute(
             "SELECT args_summary, result_summary FROM tool_usage_log"
         ).fetchone()
-        applied = raw_conn.execute(
-            "SELECT version FROM schema_migrations WHERE version = 6"
-        ).fetchone()
+        applied = raw_conn.execute("SELECT version FROM schema_migrations WHERE version = 6").fetchone()
 
     assert secret not in prompt_text
     assert prompt_text.startswith("[prompt withheld;")
@@ -312,7 +310,11 @@ async def test_sync_uses_directional_cursors_and_replays_after_legacy_cursor(tmp
     monkeypatch.setenv("ELITE_SYNC_ALLOW_OUTBOUND", "1")
     mcp = create_mcp_server(str(tmp_path / "brain"), tool_profile="legacy")
     store = mcp._elite_store
-    store.record_mistake("Local sync record with enough detail", "A specific root cause is documented", "Apply a durable corrective action")
+    store.record_mistake(
+        "Local sync record with enough detail",
+        "A specific root cause is documented",
+        "Apply a durable corrective action",
+    )
     cursor_path = tmp_path / "brain" / "sync_cursor.json"
     cursor_path.write_text(json.dumps({"last_synced_at": "2099-01-01T00:00:00+00:00"}), encoding="utf-8")
     sync_tool = mcp._tool_manager._tools["sync_team_memory"].fn

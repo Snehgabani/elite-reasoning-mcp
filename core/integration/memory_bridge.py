@@ -9,11 +9,12 @@ works by:
 
 Entity Types:
 - DecisionRecord: Architectural/design decisions
-- MistakeRecord: Past mistakes with root causes and fixes  
+- MistakeRecord: Past mistakes with root causes and fixes
 - PreventionRule: Automated prevention rules
 - UserPreference: User thinking patterns and preferences
 - QualityBaseline: Quality scores and trends
 """
+
 import json
 import logging
 import time
@@ -22,34 +23,26 @@ logger = logging.getLogger(__name__)
 
 # Entity type constants
 ENTITY_TYPES = {
-    'decision': 'DecisionRecord',
-    'mistake': 'MistakeRecord',
-    'rule': 'PreventionRule',
-    'preference': 'UserPreference',
-    'quality': 'QualityBaseline',
+    "decision": "DecisionRecord",
+    "mistake": "MistakeRecord",
+    "rule": "PreventionRule",
+    "preference": "UserPreference",
+    "quality": "QualityBaseline",
 }
 
 
 def _build_entity(entity_type: str, name: str, observations: list[str]) -> dict:
     """Build an entity payload for mcp-server-memory create_entities."""
-    return {
-        'entityType': entity_type,
-        'name': name,
-        'observations': observations
-    }
+    return {"entityType": entity_type, "name": name, "observations": observations}
 
 
 def _build_relation(from_name: str, to_name: str, relation_type: str) -> dict:
     """Build a relation payload for mcp-server-memory create_relations."""
-    return {
-        'from': from_name,
-        'to': to_name,
-        'relationType': relation_type
-    }
+    return {"from": from_name, "to": to_name, "relationType": relation_type}
 
 
 def _timestamp() -> str:
-    return time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime())
+    return time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
 
 
 def register(mcp, store):
@@ -59,7 +52,7 @@ def register(mcp, store):
     def memory_sync_decisions(limit: int = 10) -> str:
         """Generate mcp-server-memory payloads for recent decisions.
         Returns structured JSON that should be passed to mcp-server-memory's create_entities and create_relations tools.
-        
+
         Args:
             limit: Max number of recent decisions to sync.
         """
@@ -78,12 +71,12 @@ def register(mcp, store):
                     f"Rationale: {d['rationale']}",
                     f"Recorded: {d['created_at']}",
                 ]
-                if d.get('alternatives_rejected'):
+                if d.get("alternatives_rejected"):
                     obs.append(f"Alternatives rejected: {d['alternatives_rejected']}")
-                if d.get('context'):
+                if d.get("context"):
                     obs.append(f"Context: {d['context']}")
 
-                entities.append(_build_entity('DecisionRecord', name, obs))
+                entities.append(_build_entity("DecisionRecord", name, obs))
 
             out = "## Memory Sync: Decisions\n\n"
             out += "**To persist these across sessions, call `mcp-server-memory.create_entities` with:**\n\n"
@@ -102,7 +95,7 @@ def register(mcp, store):
     def memory_sync_mistakes(limit: int = 10) -> str:
         """Generate mcp-server-memory payloads for recent anti-patterns/mistakes.
         Returns structured JSON for cross-session persistence.
-        
+
         Args:
             limit: Max number of recent mistakes to sync.
         """
@@ -121,10 +114,10 @@ def register(mcp, store):
                     f"Fix: {m['fix']}",
                     f"Severity: {m.get('severity', 'unknown')}",
                 ]
-                if m.get('tags'):
+                if m.get("tags"):
                     obs.append(f"Tags: {m['tags']}")
 
-                entities.append(_build_entity('MistakeRecord', name, obs))
+                entities.append(_build_entity("MistakeRecord", name, obs))
 
             out = "## Memory Sync: Mistakes\n\n"
             out += "**To persist these across sessions, call `mcp-server-memory.create_entities` with:**\n\n"
@@ -138,7 +131,7 @@ def register(mcp, store):
     def memory_sync_rules(limit: int = 20) -> str:
         """Generate mcp-server-memory payloads for active prevention rules.
         Returns structured JSON for cross-session persistence.
-        
+
         Args:
             limit: Max number of rules to sync.
         """
@@ -158,15 +151,11 @@ def register(mcp, store):
                     f"Action: {r['action']}",
                     f"Times triggered: {r.get('times_triggered', 0)}",
                 ]
-                entities.append(_build_entity('PreventionRule', name, obs))
+                entities.append(_build_entity("PreventionRule", name, obs))
 
                 # Link rule to what it prevents
-                if r.get('source_mistake_id'):
-                    relations.append(_build_relation(
-                        name,
-                        f"Mistake_{r['source_mistake_id']}",
-                        'PREVENTS'
-                    ))
+                if r.get("source_mistake_id"):
+                    relations.append(_build_relation(name, f"Mistake_{r['source_mistake_id']}", "PREVENTS"))
 
             out = "## Memory Sync: Prevention Rules\n\n"
             out += "**To persist these across sessions, call `mcp-server-memory.create_entities` with:**\n\n"
@@ -185,7 +174,7 @@ def register(mcp, store):
     def memory_search_context(query: str) -> str:
         """Search mcp-server-memory for relevant context before a task.
         Returns instructions for calling mcp-server-memory search_nodes.
-        
+
         Args:
             query: What to search for in cross-session memory.
         """
@@ -214,4 +203,6 @@ def register(mcp, store):
 
         return out
 
-    logger.info("Memory bridge tools registered (memory_sync_decisions, memory_sync_mistakes, memory_sync_rules, memory_search_context)")
+    logger.info(
+        "Memory bridge tools registered (memory_sync_decisions, memory_sync_mistakes, memory_sync_rules, memory_search_context)"
+    )

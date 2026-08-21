@@ -53,36 +53,76 @@ PERSPECTIVES = [
     {
         "name": "Security Adversary",
         "lens": "Attack vectors, data exposure, permission scope, injection risks",
-        "focus": ("injection", "auth", "permission", "token", "secret", "credential",
-                  "bypass", "xss", "csrf", "sql", "exposure", "leak"),
+        "focus": (
+            "injection",
+            "auth",
+            "permission",
+            "token",
+            "secret",
+            "credential",
+            "bypass",
+            "xss",
+            "csrf",
+            "sql",
+            "exposure",
+            "leak",
+        ),
         "question_template": "What attack vector does this expose? What data could leak? What permissions are overly broad?",
     },
     {
         "name": "Scalability Critic",
         "lens": "Bottlenecks at 10x/100x scale, O(n²) hiding, resource limits",
-        "focus": ("query", "loop", "memory", "connection", "lock", "timeout",
-                  "unbounded", "cache", "pool", "thread", "batch"),
+        "focus": (
+            "query",
+            "loop",
+            "memory",
+            "connection",
+            "lock",
+            "timeout",
+            "unbounded",
+            "cache",
+            "pool",
+            "thread",
+            "batch",
+        ),
         "question_template": "Does this still work at 10x scale? Where is the hidden O(n²)? What resource limit will it hit?",
     },
     {
         "name": "Simplicity Advocate",
         "lens": "Over-engineering, maintenance cost, simpler alternatives",
-        "focus": ("abstraction", "pattern", "layer", "framework", "complex",
-                  "wrapper", "indirection", "generic", "flexible"),
+        "focus": (
+            "abstraction",
+            "pattern",
+            "layer",
+            "framework",
+            "complex",
+            "wrapper",
+            "indirection",
+            "generic",
+            "flexible",
+        ),
         "question_template": "Is there a simpler way? What is the maintenance cost? What would a junior developer think?",
     },
     {
         "name": "Failure Analyst",
         "lens": "What can go wrong? Edge cases, partial failures, error propagation",
-        "focus": ("error", "fail", "edge", "null", "empty", "timeout", "retry",
-                  "fallback", "partial", "inconsistent"),
+        "focus": ("error", "fail", "edge", "null", "empty", "timeout", "retry", "fallback", "partial", "inconsistent"),
         "question_template": "What is the single most likely failure mode? What happens on partial failure? What edge case is ignored?",
     },
     {
         "name": "Future Self",
         "lens": "6-month regret, assumption fragility, reversal cost, technical debt",
-        "focus": ("lock-in", "vendor", "irreversible", "assumption", "debt",
-                  "coupling", "deprecated", "migration", "legacy"),
+        "focus": (
+            "lock-in",
+            "vendor",
+            "irreversible",
+            "assumption",
+            "debt",
+            "coupling",
+            "deprecated",
+            "migration",
+            "legacy",
+        ),
         "question_template": "What will I regret in 6 months? What assumption could change? How hard is this to reverse?",
     },
 ]
@@ -128,13 +168,15 @@ def register(mcp, store: SingularityStore):
             flags = [f"{p['name']}: {f}" for f in matched_flags]
             all_flags.extend(flags)
 
-            challenges.append(Challenge(
-                perspective=p["name"],
-                lens=p["lens"],
-                question=p["question_template"],
-                risk_level=risk_level,
-                flags=flags,
-            ))
+            challenges.append(
+                Challenge(
+                    perspective=p["name"],
+                    lens=p["lens"],
+                    question=p["question_template"],
+                    risk_level=risk_level,
+                    flags=flags,
+                )
+            )
 
         # Overall risk score
         if challenges:
@@ -180,7 +222,9 @@ def register(mcp, store: SingularityStore):
 
         # Recommendation
         if overall_risk_score > 0.6:
-            recommendation = "HIGH RISK — Do NOT deliver without addressing flagged issues. Use reasoning_decompose to restructure."
+            recommendation = (
+                "HIGH RISK — Do NOT deliver without addressing flagged issues. Use reasoning_decompose to restructure."
+            )
         elif overall_risk_score > 0.35:
             recommendation = "MODERATE RISK — Address medium/high challenges before delivering. Consider adding fallback documentation."
         else:
@@ -192,7 +236,9 @@ def register(mcp, store: SingularityStore):
             if c.risk_level in ("high", "medium"):
                 improvement_actions.append(f"[{c.perspective}] Answer: {c.question}")
         if anti_pattern_warnings:
-            improvement_actions.append(f"Review {len(anti_pattern_warnings)} related past mistake(s) before delivering.")
+            improvement_actions.append(
+                f"Review {len(anti_pattern_warnings)} related past mistake(s) before delivering."
+            )
         if confidence_score < 0.6:
             improvement_actions.append("Confidence is low — use reasoning_decompose to restructure the approach.")
 
@@ -200,14 +246,18 @@ def register(mcp, store: SingularityStore):
         store.record_quality_score(
             score=int(confidence_score * 100),
             dimension="amplification",
-            notes=f"Risk: {overall_risk} | Challenges: {len(challenges)} | Flags: {len(all_flags)}"
+            notes=f"Risk: {overall_risk} | Challenges: {len(challenges)} | Flags: {len(all_flags)}",
         )
 
         # Log metrics
         duration_ms = int((time.time() - start) * 1000)
-        store.log_tool_usage("reasoning_amplify", answer[:200],
-                              json.dumps({"risk": overall_risk, "challenges": len(challenges)}),
-                              "", duration_ms)
+        store.log_tool_usage(
+            "reasoning_amplify",
+            answer[:200],
+            json.dumps({"risk": overall_risk, "challenges": len(challenges)}),
+            "",
+            duration_ms,
+        )
         store.record_metric("amplify_risk_score", overall_risk_score)
 
         return AmplifyResult(
@@ -225,25 +275,47 @@ def register(mcp, store: SingularityStore):
 def _count_specifics(text: str) -> float:
     """Count specificity signals: numbers, code refs, specific terms."""
     import re
-    numbers = len(re.findall(r'\b\d+\.?\d*\b', text))
-    code_refs = len(re.findall(r'`[^`]+`', text))
-    specifics = sum(1 for term in ("specifically", "for example", "such as", "in particular",
-                                     "concretely", "namely", "i.e.", "e.g.")
-                    if term in text.lower())
+
+    numbers = len(re.findall(r"\b\d+\.?\d*\b", text))
+    code_refs = len(re.findall(r"`[^`]+`", text))
+    specifics = sum(
+        1
+        for term in ("specifically", "for example", "such as", "in particular", "concretely", "namely", "i.e.", "e.g.")
+        if term in text.lower()
+    )
     return min(1.0, (numbers * 0.1 + code_refs * 0.15 + specifics * 0.2))
 
 
 def _count_alternatives(text: str) -> int:
     """Count how many alternatives were considered."""
     lower = text.lower()
-    signals = ["alternative", "another approach", "instead of", "could also",
-                "option", "however", "on the other hand", "trade-off", "whereas"]
+    signals = [
+        "alternative",
+        "another approach",
+        "instead of",
+        "could also",
+        "option",
+        "however",
+        "on the other hand",
+        "trade-off",
+        "whereas",
+    ]
     return sum(1 for s in signals if s in lower)
 
 
 def _count_evidence(text: str) -> int:
     """Count evidence/citation signals."""
     lower = text.lower()
-    signals = ["according to", "research shows", "benchmark", "documentation",
-                "source:", "reference", "paper", "study", "data shows", "evidence"]
+    signals = [
+        "according to",
+        "research shows",
+        "benchmark",
+        "documentation",
+        "source:",
+        "reference",
+        "paper",
+        "study",
+        "data shows",
+        "evidence",
+    ]
     return sum(1 for s in signals if s in lower)

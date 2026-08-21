@@ -37,9 +37,7 @@ _SCORE_RE = re.compile(r"(?:SCORE|score)[:\s]*([0-9]*\.?[0-9]+)")
 _REASON_RE = re.compile(r"(?:REASON|reason)[:\s]*(.+)", re.IGNORECASE)
 
 # Step-splitting: numbered lists ("1.", "1)", "1:"), bullets, or sentences.
-_STEP_SPLIT_RE = re.compile(
-    r"\n\s*(?:\d+[.)]\s+|\d+:\s+|[-*•]\s+)|\n(?=[A-Z][a-z]+[^.!?]{20,}[.!?])"
-)
+_STEP_SPLIT_RE = re.compile(r"\n\s*(?:\d+[.)]\s+|\d+:\s+|[-*•]\s+)|\n(?=[A-Z][a-z]+[^.!?]{20,}[.!?])")
 
 
 def _default_llm_call(prompt: str, temperature: float = 0.2) -> tuple[str, str]:
@@ -52,9 +50,7 @@ def _default_llm_call(prompt: str, temperature: float = 0.2) -> tuple[str, str]:
             "max_tokens": 512,
         }
     ).encode()
-    req = urllib.request.Request(
-        _LLM_PROXY_URL, data=body, headers={"Content-Type": "application/json"}
-    )
+    req = urllib.request.Request(_LLM_PROXY_URL, data=body, headers={"Content-Type": "application/json"})
     last_err: Exception | None = None
     for _ in range(2):
         try:
@@ -82,9 +78,7 @@ def split_steps(answer: str, max_steps: int = 3) -> list[str]:
     """
     if not answer:
         return []
-    lines = [
-        ln.strip() for ln in _STEP_SPLIT_RE.split(answer) if ln.strip()
-    ]
+    lines = [ln.strip() for ln in _STEP_SPLIT_RE.split(answer) if ln.strip()]
     if len(lines) >= 2:
         steps = lines
     else:
@@ -137,15 +131,16 @@ def verify_steps(
     steps = split_steps(answer, max_steps=max_steps)
     if not steps:
         return {
-            "steps": [], "verification_score": None, "verified": None,
-            "model": "", "duration_ms": 0,
+            "steps": [],
+            "verification_score": None,
+            "verified": None,
+            "model": "",
+            "duration_ms": 0,
         }
     call = llm_call or _default_llm_call
     sub_ctx = ""
     if subproblems:
-        names = "; ".join(
-            s.get("name", "") or s.get("index", "") for s in subproblems
-        ) or "none"
+        names = "; ".join(s.get("name", "") or s.get("index", "") for s in subproblems) or "none"
         sub_ctx = f"\nTask decomposition: {names}."
 
     t0 = time.monotonic()
@@ -183,8 +178,11 @@ def verify_steps(
 
     if llm_failed or any(v is None for v in step_verdicts):
         return {
-            "steps": [], "verification_score": None, "verified": None,
-            "model": "", "duration_ms": int((time.monotonic() - t0) * 1000),
+            "steps": [],
+            "verification_score": None,
+            "verified": None,
+            "model": "",
+            "duration_ms": int((time.monotonic() - t0) * 1000),
         }
     score = sum(v["score"] for v in step_verdicts) / len(step_verdicts)
     return {

@@ -13,7 +13,7 @@ class TemporalGraphStore:
         self._init_db()
 
     def _get_conn(self):
-        cached = getattr(self._local, 'conn', None)
+        cached = getattr(self._local, "conn", None)
         if cached is not None:
             try:
                 cached.execute("SELECT 1")
@@ -26,7 +26,7 @@ class TemporalGraphStore:
         return conn
 
     def _close(self, conn):
-        if getattr(self._local, 'in_transaction', False):
+        if getattr(self._local, "in_transaction", False):
             return
         conn.commit()
         conn.close()
@@ -36,16 +36,16 @@ class TemporalGraphStore:
         conn = self._get_conn()
         try:
             # Nodes table
-            conn.execute('''
+            conn.execute("""
                 CREATE TABLE IF NOT EXISTS graph_nodes (
                     id TEXT PRIMARY KEY,
                     label TEXT NOT NULL,
                     properties TEXT,
                     created_at TEXT NOT NULL
                 )
-            ''')
+            """)
             # Edges table
-            conn.execute('''
+            conn.execute("""
                 CREATE TABLE IF NOT EXISTS graph_edges (
                     id TEXT PRIMARY KEY,
                     source_id TEXT NOT NULL,
@@ -57,11 +57,11 @@ class TemporalGraphStore:
                     FOREIGN KEY (source_id) REFERENCES graph_nodes(id),
                     FOREIGN KEY (target_id) REFERENCES graph_nodes(id)
                 )
-            ''')
+            """)
             # Indexes for faster traversal
-            conn.execute('CREATE INDEX IF NOT EXISTS idx_edge_source ON graph_edges(source_id)')
-            conn.execute('CREATE INDEX IF NOT EXISTS idx_edge_target ON graph_edges(target_id)')
-            conn.execute('CREATE INDEX IF NOT EXISTS idx_node_label ON graph_nodes(label)')
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_edge_source ON graph_edges(source_id)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_edge_target ON graph_edges(target_id)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_node_label ON graph_nodes(label)")
         finally:
             self._close(conn)
 
@@ -75,7 +75,7 @@ class TemporalGraphStore:
         try:
             conn.execute(
                 "INSERT OR REPLACE INTO graph_nodes (id, label, properties, created_at) VALUES (?, ?, ?, ?)",
-                (nid, label, props_str, created_at)
+                (nid, label, props_str, created_at),
             )
         finally:
             self._close(conn)
@@ -91,14 +91,22 @@ class TemporalGraphStore:
                     "id": row["id"],
                     "label": row["label"],
                     "properties": json.loads(row["properties"]),
-                    "created_at": row["created_at"]
+                    "created_at": row["created_at"],
                 }
             return None
         finally:
-            if not getattr(self._local, 'in_transaction', False):
+            if not getattr(self._local, "in_transaction", False):
                 conn.close()
 
-    def add_edge(self, source_id: str, target_id: str, relation: str, properties: Dict[str, Any] = None, valid_from: str = None, valid_to: str = None) -> str:
+    def add_edge(
+        self,
+        source_id: str,
+        target_id: str,
+        relation: str,
+        properties: Dict[str, Any] = None,
+        valid_from: str = None,
+        valid_to: str = None,
+    ) -> str:
         """Add a temporal edge between two nodes."""
         eid = str(uuid.uuid4())
         props_str = json.dumps(properties) if properties else "{}"
@@ -108,7 +116,7 @@ class TemporalGraphStore:
         try:
             conn.execute(
                 "INSERT INTO graph_edges (id, source_id, target_id, relation, valid_from, valid_to, properties) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                (eid, source_id, target_id, relation, v_from, valid_to, props_str)
+                (eid, source_id, target_id, relation, v_from, valid_to, props_str),
             )
         finally:
             self._close(conn)
@@ -118,11 +126,7 @@ class TemporalGraphStore:
         """
         Create a new Hypothesis node in PENDING state.
         """
-        properties = {
-            "hypothesis": hypothesis,
-            "prediction": prediction,
-            "state": "PENDING"
-        }
+        properties = {"hypothesis": hypothesis, "prediction": prediction, "state": "PENDING"}
         return self.add_node("Hypothesis", properties)
 
     def resolve_hypothesis(self, node_id: str, outcome: str, evidence: str) -> None:
@@ -144,10 +148,7 @@ class TemporalGraphStore:
         props_str = json.dumps(properties)
         conn = self._get_conn()
         try:
-            conn.execute(
-                "UPDATE graph_nodes SET properties = ? WHERE id = ?",
-                (props_str, node_id)
-            )
+            conn.execute("UPDATE graph_nodes SET properties = ? WHERE id = ?", (props_str, node_id))
         finally:
             self._close(conn)
 
@@ -159,7 +160,7 @@ class TemporalGraphStore:
             "action": action,
             "predicted_failure": predicted_failure,
             "trigger_condition": trigger_condition,
-            "state": "UNRESOLVED"
+            "state": "UNRESOLVED",
         }
         return self.add_node("Prospective_Failure", properties)
 
@@ -172,16 +173,13 @@ class TemporalGraphStore:
         try:
             cursor = conn.execute("SELECT * FROM graph_nodes WHERE label = 'Prospective_Failure'")
             for row in cursor.fetchall():
-                props = json.loads(row['properties'])
-                if props.get('state') == 'UNRESOLVED':
-                    nodes.append({
-                        "id": row['id'],
-                        "label": row['label'],
-                        "created_at": row['created_at'],
-                        "properties": props
-                    })
+                props = json.loads(row["properties"])
+                if props.get("state") == "UNRESOLVED":
+                    nodes.append(
+                        {"id": row["id"], "label": row["label"], "created_at": row["created_at"], "properties": props}
+                    )
         finally:
-            if not getattr(self._local, 'in_transaction', False):
+            if not getattr(self._local, "in_transaction", False):
                 conn.close()
         return nodes
 
@@ -200,10 +198,7 @@ class TemporalGraphStore:
         props_str = json.dumps(properties)
         conn = self._get_conn()
         try:
-            conn.execute(
-                "UPDATE graph_nodes SET properties = ? WHERE id = ?",
-                (props_str, node_id)
-            )
+            conn.execute("UPDATE graph_nodes SET properties = ? WHERE id = ?", (props_str, node_id))
         finally:
             self._close(conn)
 
@@ -229,28 +224,33 @@ class TemporalGraphStore:
                     "id": node["id"],
                     "label": node["label"],
                     "properties": json.loads(node["properties"]),
-                    "edges": []
+                    "edges": [],
                 }
 
                 # Fetch valid edges
-                edges = conn.execute('''
+                edges = conn.execute(
+                    """
                     SELECT * FROM graph_edges 
                     WHERE source_id = ? 
                     AND (valid_from IS NULL OR valid_from <= ?)
                     AND (valid_to IS NULL OR valid_to > ?)
-                ''', (node["id"], query_time, query_time)).fetchall()
+                """,
+                    (node["id"], query_time, query_time),
+                ).fetchall()
 
                 for edge in edges:
-                    node_data["edges"].append({
-                        "id": edge["id"],
-                        "target_id": edge["target_id"],
-                        "relation": edge["relation"],
-                        "properties": json.loads(edge["properties"])
-                    })
+                    node_data["edges"].append(
+                        {
+                            "id": edge["id"],
+                            "target_id": edge["target_id"],
+                            "relation": edge["relation"],
+                            "properties": json.loads(edge["properties"]),
+                        }
+                    )
 
                 result.append(node_data)
         finally:
-            if not getattr(self._local, 'in_transaction', False):
+            if not getattr(self._local, "in_transaction", False):
                 conn.close()
 
         return result

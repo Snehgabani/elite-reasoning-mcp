@@ -45,6 +45,9 @@ def ensure_visual_watcher_open():
     return
 
 
+_TASK_CACHE: Dict[str, Dict[str, Any]] = {}
+
+
 class TaskTracker:
     """Zero-overhead in-process task state and heartbeat logger."""
 
@@ -59,62 +62,50 @@ class TaskTracker:
             "status": "RUNNING",
             "progress_pct": 10,
             "prm_score": 1.0,
-            "details": f"Started on node: {node}"
+            "details": f"Started on node: {node}",
         }
         TaskTracker._save_task(task_id, task_data)
         return task_data
 
     @staticmethod
     def heartbeat(task_id: str, node: str, progress_pct: int = 50, prm_score: float = 1.0, details: str = ""):
-        task_file = os.path.join(TASKS_DIR, f"{task_id}.json")
-        data = {}
-        if os.path.exists(task_file):
-            try:
-                with open(task_file, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-            except Exception as exc:
-                # Explicit non-fatal exception suppression
-                _ = str(exc)
-        data.update({
-            "task_id": task_id,
-            "last_heartbeat": time.time(),
-            "current_node": node,
-            "progress_pct": min(95, max(10, progress_pct)),
-            "prm_score": prm_score,
-            "details": details or f"Active in {node}"
-        })
+        data = _TASK_CACHE.get(task_id, {})
+        data.update(
+            {
+                "task_id": task_id,
+                "last_heartbeat": time.time(),
+                "current_node": node,
+                "progress_pct": min(95, max(10, progress_pct)),
+                "prm_score": prm_score,
+                "details": details or f"Active in {node}",
+            }
+        )
         TaskTracker._save_task(task_id, data)
 
     @staticmethod
     def finish_task(task_id: str, status: str = "COMPLETED", result_summary: str = "", quality_score: float = 1.0):
-        task_file = os.path.join(TASKS_DIR, f"{task_id}.json")
-        data = {}
-        started_at = time.time()
-        if os.path.exists(task_file):
-            try:
-                with open(task_file, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                    started_at = data.get("started_at", started_at)
-            except Exception as exc:
-                # Explicit non-fatal exception suppression
-                _ = str(exc)
+        data = _TASK_CACHE.get(task_id, {})
+        started_at = data.get("started_at", time.time())
         now = time.time()
         elapsed = round(now - started_at, 1)
 
-        data.update({
-            "task_id": task_id,
-            "last_heartbeat": now,
-            "finished_at": now,
-            "elapsed_seconds": elapsed,
-            "status": status,
-            "progress_pct": 100,
-            "quality_score": quality_score,
-            "details": result_summary or f"Finished with status: {status}"
-        })
+        data.update(
+            {
+                "task_id": task_id,
+                "last_heartbeat": now,
+                "finished_at": now,
+                "elapsed_seconds": elapsed,
+                "status": status,
+                "progress_pct": 100,
+                "quality_score": quality_score,
+                "details": result_summary or f"Finished with status: {status}",
+            }
+        )
         TaskTracker._save_task(task_id, data)
 
     @staticmethod
     def _save_task(task_id: str, data: Dict[str, Any]):
+        _TASK_CACHE[task_id] = data
         task_file = os.path.join(TASKS_DIR, f"{task_id}.json")
         try:
             with open(task_file, "w", encoding="utf-8") as f:
@@ -154,13 +145,19 @@ class TaskWatchdog:
             # Auto-Rescue stuck tasks
             if status == "RUNNING" and elapsed_hb > self.timeout_sec:
                 t["status"] = "STUCK_RESCUED"
-                t["details"] = f"Watchdog auto-rescued: No heartbeat for {elapsed_hb:.1f}s (Node: {t.get('current_node')})"
+                t["details"] = (
+                    f"Watchdog auto-rescued: No heartbeat for {elapsed_hb:.1f}s (Node: {t.get('current_node')})"
+                )
                 t["finished_at"] = now
                 with open(fpath, "w", encoding="utf-8") as f:
                     json.dump(t, f, indent=2)
                 rescued_count += 1
                 status = "STUCK_RESCUED"
-                notify_user("⚠️ MIX MCP Watchdog", f"Auto-rescued stuck task: {t.get('task_name', '')[:30]}", subtitle="Fail-Safe Activated")
+                notify_user(
+                    "⚠️ MIX MCP Watchdog",
+                    f"Auto-rescued stuck task: {t.get('task_name', '')[:30]}",
+                    subtitle="Fail-Safe Activated",
+                )
 
             # Retain recent tasks
             if status == "RUNNING":
@@ -178,7 +175,7 @@ class TaskWatchdog:
             "recent_completed_count": len(recent_completed),
             "recent_completed": recent_completed[-5:],
             "auto_rescued_count": rescued_count,
-            "system_health": "OPTIMAL" if len(active) < 10 else "BUSY"
+            "system_health": "OPTIMAL" if len(active) < 10 else "BUSY",
         }
 
         try:
@@ -223,13 +220,17 @@ def render_cli_dashboard():
     print("\033[2J\033[H", end="")  # Clear screen
     print("=" * 75)
     print(f"⚡ MIX COGNITIVE WATCHDOG & LIVE TELEMETRY DASHBOARD  [{now_str}]")
-    print(f"   Status: {status.get('system_health', 'OPTIMAL')}  |  Active: {status.get('active_tasks_count', 0)}  |  Rescued: {status.get('auto_rescued_count', 0)}")
+    print(
+        f"   Status: {status.get('system_health', 'OPTIMAL')}  |  Active: {status.get('active_tasks_count', 0)}  |  Rescued: {status.get('auto_rescued_count', 0)}"
+    )
     print("=" * 75)
 
     active = status.get("active_tasks", [])
     if active:
         print("\n🔄 ACTIVE COGNITIVE GRAPH TASKS:")
-        print(f"{'Task ID':<18} | {'Current Node':<16} | {'PRM':<6} | {'Prog':<5} | {'Elapsed':<8} | {'Task Description'}")
+        print(
+            f"{'Task ID':<18} | {'Current Node':<16} | {'PRM':<6} | {'Prog':<5} | {'Elapsed':<8} | {'Task Description'}"
+        )
         print("-" * 75)
         for t in active:
             tid = t.get("task_id", "")[:16]

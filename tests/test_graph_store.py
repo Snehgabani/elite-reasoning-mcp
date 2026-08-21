@@ -23,6 +23,7 @@ from core.memory.graph_store import TemporalGraphStore
 # Fixtures
 # ──────────────────────────────────────────────
 
+
 @pytest.fixture()
 def db_path():
     d = tempfile.mkdtemp(prefix="graph_test_")
@@ -38,6 +39,7 @@ def graph(db_path):
 # 1. Initialization
 # ──────────────────────────────────────────────
 
+
 class TestInitialization:
     def test_creates_db_file(self, db_path):
         TemporalGraphStore(db_path)
@@ -46,9 +48,7 @@ class TestInitialization:
     def test_expected_tables_exist(self, db_path):
         TemporalGraphStore(db_path)
         conn = sqlite3.connect(db_path)
-        cursor = conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
-        )
+        cursor = conn.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
         tables = {row[0] for row in cursor.fetchall()}
         conn.close()
         assert "graph_nodes" in tables
@@ -57,9 +57,7 @@ class TestInitialization:
     def test_indexes_created(self, db_path):
         TemporalGraphStore(db_path)
         conn = sqlite3.connect(db_path)
-        cursor = conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='index'"
-        )
+        cursor = conn.execute("SELECT name FROM sqlite_master WHERE type='index'")
         indexes = {row[0] for row in cursor.fetchall()}
         conn.close()
         assert "idx_edge_source" in indexes
@@ -73,6 +71,7 @@ class TestInitialization:
 # ──────────────────────────────────────────────
 # 2. add_node + query_nodes
 # ──────────────────────────────────────────────
+
 
 class TestNodes:
     def test_add_node_returns_id(self, graph):
@@ -141,6 +140,7 @@ class TestNodes:
 # 3. add_edge + get_edges
 # ──────────────────────────────────────────────
 
+
 class TestEdges:
     def test_add_edge_returns_id(self, graph):
         graph.add_node("A", node_id="a")
@@ -191,6 +191,7 @@ class TestEdges:
 # ──────────────────────────────────────────────
 # 4. query_subgraph — temporal edge validity
 # ──────────────────────────────────────────────
+
 
 class TestTemporalEdges:
     def test_edge_valid_at_query_time(self, graph):
@@ -244,13 +245,17 @@ class TestTemporalEdges:
         now = datetime.now(timezone.utc)
         # Active edge
         graph.add_edge(
-            "a", "b", "ACTIVE",
+            "a",
+            "b",
+            "ACTIVE",
             valid_from=(now - timedelta(days=1)).isoformat(),
             valid_to=(now + timedelta(days=1)).isoformat(),
         )
         # Expired edge
         graph.add_edge(
-            "a", "c", "EXPIRED",
+            "a",
+            "c",
+            "EXPIRED",
             valid_from=(now - timedelta(days=10)).isoformat(),
             valid_to=(now - timedelta(days=5)).isoformat(),
         )
@@ -263,6 +268,7 @@ class TestTemporalEdges:
 # ──────────────────────────────────────────────
 # 5. Hypothesis & Prospective Failure helpers
 # ──────────────────────────────────────────────
+
 
 class TestHypothesisAndPrediction:
     def test_add_hypothesis(self, graph):
@@ -321,6 +327,7 @@ class TestHypothesisAndPrediction:
 # ──────────────────────────────────────────────
 # 6. Connection caching
 # ──────────────────────────────────────────────
+
 
 class TestConnectionCaching:
     def test_same_thread_reuses_connection(self, graph):

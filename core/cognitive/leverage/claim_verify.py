@@ -62,8 +62,10 @@ async def _llm(messages):
 
 async def extract_claims(draft: str, max_claims: int = 8) -> List[str]:
     resp = await _llm(
-        [SystemMessage("You extract atomic factual claims. Output ONLY valid JSON."),
-         HumanMessage(CLAIM_EXTRACT_PROMPT.format(draft=draft[:6000]))]
+        [
+            SystemMessage("You extract atomic factual claims. Output ONLY valid JSON."),
+            HumanMessage(CLAIM_EXTRACT_PROMPT.format(draft=draft[:6000])),
+        ]
     )
     if resp is None:
         return []
@@ -96,13 +98,18 @@ def _verdict_for(tri: Dict[str, Any]) -> Dict[str, Any]:
     provider_names = _provs(tri)
     multi = len(provider_names) >= 2
     if num >= 3 and multi:
-        return {"verdict": "verified", "consensus_score": round(tri["consensus_score"], 2),
-                "note": "multi-engine consensus"}
+        return {
+            "verdict": "verified",
+            "consensus_score": round(tri["consensus_score"], 2),
+            "note": "multi-engine consensus",
+        }
     if num >= 1:
-        return {"verdict": "disputed", "consensus_score": round(tri["consensus_score"], 2),
-                "note": "sources found but no multi-engine consensus"}
-    return {"verdict": "unverified", "consensus_score": 0.0,
-            "note": "no independent sources found"}
+        return {
+            "verdict": "disputed",
+            "consensus_score": round(tri["consensus_score"], 2),
+            "note": "sources found but no multi-engine consensus",
+        }
+    return {"verdict": "unverified", "consensus_score": 0.0, "note": "no independent sources found"}
 
 
 async def verify_one_claim(claim: str) -> Dict[str, Any]:
@@ -127,7 +134,7 @@ async def verify_claims(draft: str, max_claims: int = 6, parallel: int = 3) -> D
     results: List[Dict[str, Any]] = []
     if claims:
         for i in range(0, len(claims), parallel):
-            batch = claims[i:i + parallel]
+            batch = claims[i : i + parallel]
             results.extend(await asyncio.gather(*[verify_one_claim(c) for c in batch]))
     counts = {"verified": 0, "disputed": 0, "unverified": 0}
     for r in results:
@@ -148,7 +155,7 @@ def annotate(draft: str, claims_res: Dict[str, Any]) -> str:
         if idx != -1:
             end = annotated.find(".", idx)
             if end != -1:
-                hit = annotated[idx:end + 1]
+                hit = annotated[idx : end + 1]
                 annotated = annotated.replace(hit, hit + " " + tag, 1)
     lines = [f"## Claim-level verification ({claims_res['claims_checked']} claims)"]
     for i, v in enumerate(claims_res["verifications"], 1):

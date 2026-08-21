@@ -6,22 +6,49 @@ Three-signal inference:
 3. Blast radius: how many sessions affected
 
 Requires >=2 signals agreeing for P0 classification."""
+
 import logging
 from statistics import mean
 
 logger = logging.getLogger(__name__)
 
 HIGH_KEYWORDS = [
-    "security", "auth", "credential", "data loss", "corruption",
-    "exploit", "injection", "leak", "production", "user data",
-    "password", "token", "secret", "vulnerability", "breach",
-    "privilege", "escalation", "xss", "csrf", "sqli",
+    "security",
+    "auth",
+    "credential",
+    "data loss",
+    "corruption",
+    "exploit",
+    "injection",
+    "leak",
+    "production",
+    "user data",
+    "password",
+    "token",
+    "secret",
+    "vulnerability",
+    "breach",
+    "privilege",
+    "escalation",
+    "xss",
+    "csrf",
+    "sqli",
 ]
 
 MEDIUM_KEYWORDS = [
-    "performance", "timeout", "memory", "crash", "deadlock",
-    "race condition", "data integrity", "consistency", "regression",
-    "breaking change", "api", "backward", "migration",
+    "performance",
+    "timeout",
+    "memory",
+    "crash",
+    "deadlock",
+    "race condition",
+    "data integrity",
+    "consistency",
+    "regression",
+    "breaking change",
+    "api",
+    "backward",
+    "migration",
 ]
 
 
@@ -39,14 +66,11 @@ def infer_severity(detection_type: str, what_was_missed: str, store=None) -> dic
     medium_matches = [kw for kw in MEDIUM_KEYWORDS if kw in text]
 
     if high_matches:
-        signals.append({"source": "lexical", "severity": 0,
-                        "detail": f"High keywords: {high_matches[:3]}"})
+        signals.append({"source": "lexical", "severity": 0, "detail": f"High keywords: {high_matches[:3]}"})
     elif medium_matches:
-        signals.append({"source": "lexical", "severity": 1,
-                        "detail": f"Medium keywords: {medium_matches[:3]}"})
+        signals.append({"source": "lexical", "severity": 1, "detail": f"Medium keywords: {medium_matches[:3]}"})
     else:
-        signals.append({"source": "lexical", "severity": 2,
-                        "detail": "No severity keywords found"})
+        signals.append({"source": "lexical", "severity": 2, "detail": "No severity keywords found"})
 
     # Signal 2: Historical quality impact
     if store:
@@ -55,14 +79,25 @@ def infer_severity(detection_type: str, what_was_missed: str, store=None) -> dic
             if similar:
                 quality_data = _get_linked_quality_drops(store, similar)
                 if quality_data["avg_drop"] > 20:
-                    signals.append({"source": "historical", "severity": 0,
-                                    "detail": f"Similar patterns caused {quality_data['avg_drop']:.0f}pt drop"})
+                    signals.append(
+                        {
+                            "source": "historical",
+                            "severity": 0,
+                            "detail": f"Similar patterns caused {quality_data['avg_drop']:.0f}pt drop",
+                        }
+                    )
                 elif quality_data["avg_drop"] > 10:
-                    signals.append({"source": "historical", "severity": 1,
-                                    "detail": f"Similar patterns caused {quality_data['avg_drop']:.0f}pt drop"})
+                    signals.append(
+                        {
+                            "source": "historical",
+                            "severity": 1,
+                            "detail": f"Similar patterns caused {quality_data['avg_drop']:.0f}pt drop",
+                        }
+                    )
                 else:
-                    signals.append({"source": "historical", "severity": 2,
-                                    "detail": "Similar patterns had minimal impact"})
+                    signals.append(
+                        {"source": "historical", "severity": 2, "detail": "Similar patterns had minimal impact"}
+                    )
         except Exception as e:
             logger.debug(f"Historical signal failed: {e}")
 
@@ -71,14 +106,17 @@ def infer_severity(detection_type: str, what_was_missed: str, store=None) -> dic
         try:
             blast = _estimate_blast_radius(store, detection_type)
             if blast["sessions"] > 10:
-                signals.append({"source": "blast_radius", "severity": 0,
-                                "detail": f"Affects {blast['sessions']} sessions"})
+                signals.append(
+                    {"source": "blast_radius", "severity": 0, "detail": f"Affects {blast['sessions']} sessions"}
+                )
             elif blast["sessions"] > 3:
-                signals.append({"source": "blast_radius", "severity": 1,
-                                "detail": f"Affects {blast['sessions']} sessions"})
+                signals.append(
+                    {"source": "blast_radius", "severity": 1, "detail": f"Affects {blast['sessions']} sessions"}
+                )
             else:
-                signals.append({"source": "blast_radius", "severity": 2,
-                                "detail": f"Affects {blast['sessions']} sessions"})
+                signals.append(
+                    {"source": "blast_radius", "severity": 2, "detail": f"Affects {blast['sessions']} sessions"}
+                )
         except Exception as e:
             logger.debug(f"Blast radius signal failed: {e}")
 

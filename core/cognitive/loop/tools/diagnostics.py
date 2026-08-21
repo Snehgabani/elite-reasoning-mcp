@@ -48,46 +48,66 @@ def register(mcp, store: SingularityStore):
             checks = []
             try:
                 import mcp as _mcp  # noqa
+
                 checks.append({"component": "mcp", "status": "ok", "detail": "MCP SDK available"})
             except ImportError:
                 checks.append({"component": "mcp", "status": "error", "detail": "Not found"})
             try:
                 import sqlite_vec  # noqa
+
                 checks.append({"component": "sqlite_vec", "status": "ok", "detail": "Vector search available"})
             except ImportError:
                 checks.append({"component": "sqlite_vec", "status": "degraded", "detail": "FTS fallback"})
             try:
                 summary = store.get_operational_summary(1)
-                checks.append({"component": "database", "status": "ok",
-                    "detail": f"{summary['memory_items']} memory, {summary['anti_patterns']} anti-patterns"})
+                checks.append(
+                    {
+                        "component": "database",
+                        "status": "ok",
+                        "detail": f"{summary['memory_items']} memory, {summary['anti_patterns']} anti-patterns",
+                    }
+                )
             except Exception as e:
                 checks.append({"component": "database", "status": "error", "detail": str(e)})
             overall = "healthy" if all(c["status"] == "ok" for c in checks) else "degraded"
-            return DiagnosticsResult(action="health",
+            return DiagnosticsResult(
+                action="health",
                 data={"status": overall, "checks": checks},
-                interpretation=f"Status: {overall}. {len([c for c in checks if c['status'] == 'ok'])}/{len(checks)} healthy.")
+                interpretation=f"Status: {overall}. {len([c for c in checks if c['status'] == 'ok'])}/{len(checks)} healthy.",
+            )
 
         elif action == "quality":
             trend = store.get_quality_trend(dimension=dimension, days=days)
             if trend.get("trend") == "no_data":
-                return DiagnosticsResult(action="quality", data=trend,
-                    interpretation="No quality data yet. Use reasoning_run to generate scores.")
-            return DiagnosticsResult(action="quality", data=trend,
-                interpretation=f"Trend: {trend['trend']}. Avg: {trend['average']}/100 over {trend['count']} measurements.")
+                return DiagnosticsResult(
+                    action="quality",
+                    data=trend,
+                    interpretation="No quality data yet. Use reasoning_run to generate scores.",
+                )
+            return DiagnosticsResult(
+                action="quality",
+                data=trend,
+                interpretation=f"Trend: {trend['trend']}. Avg: {trend['average']}/100 over {trend['count']} measurements.",
+            )
 
         elif action == "usage":
             stats = store.get_tool_usage_stats(days=days)
-            return DiagnosticsResult(action="usage", data=stats,
-                interpretation=f"{stats['total_calls']} calls over {days}d. Total: {stats['total_ms']}ms.")
+            return DiagnosticsResult(
+                action="usage",
+                data=stats,
+                interpretation=f"{stats['total_calls']} calls over {days}d. Total: {stats['total_ms']}ms.",
+            )
 
         elif action == "summary":
             summary = store.get_operational_summary(days=days)
             quality = store.get_quality_trend(days=days)
             calibration = store.get_calibration_score(days=days)
-            return DiagnosticsResult(action="summary",
+            return DiagnosticsResult(
+                action="summary",
                 data={"operational": summary, "quality": quality, "calibration": calibration},
                 interpretation=f"{days}d: {summary['sessions']['count']} sessions, {summary['tool_calls']['count']} calls, "
-                               f"{summary['memory_items']} memory, {summary['anti_patterns']} anti-patterns.")
+                f"{summary['memory_items']} memory, {summary['anti_patterns']} anti-patterns.",
+            )
 
         elif action == "variance":
             # v15 P0 #4: variance-aware diagnostics — dispersion of quality
@@ -97,18 +117,27 @@ def register(mcp, store: SingularityStore):
             # variance). Read-only, deterministic.
             var = store.get_quality_variance(dimension=dimension, days=days)
             if var.get("count", 0) == 0:
-                return DiagnosticsResult(action="variance", data=var,
-                    interpretation="No quality data in window. Run reasoning_run to seed the variance analysis.")
-            return DiagnosticsResult(action="variance", data=var,
-                interpretation=var["interpretation"])
+                return DiagnosticsResult(
+                    action="variance",
+                    data=var,
+                    interpretation="No quality data in window. Run reasoning_run to seed the variance analysis.",
+                )
+            return DiagnosticsResult(action="variance", data=var, interpretation=var["interpretation"])
 
         elif action == "scorecard":
-            return DiagnosticsResult(action="scorecard",
-                data={n: {"weight": c["weight"], "description": c["description"], "benchmarks": c["benchmarks"]}
-                      for n, c in SCORECARD_DIMENSIONS.items()},
-                interpretation="7-dimension scorecard. task_success (30%) dominates. Total weight = 1.0.")
+            return DiagnosticsResult(
+                action="scorecard",
+                data={
+                    n: {"weight": c["weight"], "description": c["description"], "benchmarks": c["benchmarks"]}
+                    for n, c in SCORECARD_DIMENSIONS.items()
+                },
+                interpretation="7-dimension scorecard. task_success (30%) dominates. Total weight = 1.0.",
+            )
 
-        return DiagnosticsResult(action=action, interpretation=f"Unknown: {action}. Use health, quality, usage, summary, variance, or scorecard.")
+        return DiagnosticsResult(
+            action=action,
+            interpretation=f"Unknown: {action}. Use health, quality, usage, summary, variance, or scorecard.",
+        )
 
     @mcp.tool(name="metric_track", annotations=_METRIC_ANNOTATIONS)
     def metric_track(
@@ -125,13 +154,17 @@ def register(mcp, store: SingularityStore):
         # value. Make value optional — None = view trend only, no recording.
         if value is None:
             trend = store.get_metric_trend(name, days=days)
-            return DiagnosticsResult(action="metric_track",
+            return DiagnosticsResult(
+                action="metric_track",
                 data={"recorded": None, "trend": trend},
                 interpretation=f"Trend for {name}: {trend.get('trend', 'N/A')} "
-                               f"(latest={trend.get('latest', 'N/A')}, avg={trend.get('average', 'N/A')}, n={trend.get('count', 'N/A')}).")
+                f"(latest={trend.get('latest', 'N/A')}, avg={trend.get('average', 'N/A')}, n={trend.get('count', 'N/A')}).",
+            )
         store.record_metric(name, value, unit)
         trend = store.get_metric_trend(name, days=days)
-        return DiagnosticsResult(action="metric_track",
+        return DiagnosticsResult(
+            action="metric_track",
             data={"recorded": {"name": name, "value": value, "unit": unit}, "trend": trend},
             interpretation=f"Recorded {name}={value} {unit}. Trend: {trend.get('trend', 'N/A')} "
-                           f"(latest={trend.get('latest', 'N/A')}, avg={trend.get('average', 'N/A')}).")
+            f"(latest={trend.get('latest', 'N/A')}, avg={trend.get('average', 'N/A')}).",
+        )

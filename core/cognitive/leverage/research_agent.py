@@ -123,8 +123,10 @@ class AutonomousResearcher:
 
     async def _decompose(self, question: str) -> List[str]:
         resp = await _llm(
-            [SystemMessage("You break research questions into searchable sub-questions."),
-             HumanMessage(DECOMPOSE_PROMPT.format(question=question, max_sub=self.max_subquestions))]
+            [
+                SystemMessage("You break research questions into searchable sub-questions."),
+                HumanMessage(DECOMPOSE_PROMPT.format(question=question, max_sub=self.max_subquestions)),
+            ]
         )
         if resp is None:
             return [question]  # honest fallback: single direct pass
@@ -152,8 +154,9 @@ class AutonomousResearcher:
         parts: List[str] = []
         for r, s in zip(reads, sources):
             ok = bool(r and r.get("extracted") and r.get("text"))
-            read_urls.append({"url": s["url"], "title": s.get("title", ""),
-                              "provider": s.get("provider", ""), "read": str(ok)})
+            read_urls.append(
+                {"url": s["url"], "title": s.get("title", ""), "provider": s.get("provider", ""), "read": str(ok)}
+            )
             if ok:
                 parts.append(f"URL {s['url']}\n{(r.get('text') or '')[:2000]}")
         return {
@@ -172,9 +175,10 @@ class AutonomousResearcher:
         if not chunks:
             return "[NO EVIDENCE CAPTURED — nothing found for any subquestion]"
         resp = await _llm(
-            [SystemMessage("You are a rigorous research synthesizer."),
-             HumanMessage(SYNTHESIZE_PROMPT.format(
-                 question=question, evidence="\n\n".join(chunks)[:24000]))]
+            [
+                SystemMessage("You are a rigorous research synthesizer."),
+                HumanMessage(SYNTHESIZE_PROMPT.format(question=question, evidence="\n\n".join(chunks)[:24000])),
+            ]
         )
         if resp is None:
             return "[MODEL UNAVAILABLE — evidence-only synthesis, unverified by LLM]\n\n" + "\n\n".join(chunks)[:3000]
@@ -182,8 +186,10 @@ class AutonomousResearcher:
 
     async def _gaps(self, question: str, synthesis: str) -> List[str]:
         resp = await _llm(
-            [SystemMessage("You only return JSON gap lists."),
-             HumanMessage(GAPS_PROMPT.format(question=question, synthesis=synthesis[:5000]))]
+            [
+                SystemMessage("You only return JSON gap lists."),
+                HumanMessage(GAPS_PROMPT.format(question=question, synthesis=synthesis[:5000])),
+            ]
         )
         if resp is None:
             return []  # stop iterating when the LLM is down — honest pass count
@@ -200,14 +206,19 @@ class AutonomousResearcher:
                 break
         return out
 
-    async def _write_report(self, question: str, synthesis: str,
-                            findings: Dict[str, List[Dict[str, str]]]) -> str:
+    async def _write_report(self, question: str, synthesis: str, findings: Dict[str, List[Dict[str, str]]]) -> str:
         all_urls = sorted({u["url"] for vs in findings.values() for u in vs if u.get("url")})
         resp = await _llm(
-            [SystemMessage("You are a research analyst writing a final cited report."),
-             HumanMessage(REPORT_PROMPT.format(
-                 question=question, synthesis=synthesis[:8000],
-                 sources="\n".join(f"- {u}" for u in all_urls) or "(no sources this run)"))]
+            [
+                SystemMessage("You are a research analyst writing a final cited report."),
+                HumanMessage(
+                    REPORT_PROMPT.format(
+                        question=question,
+                        synthesis=synthesis[:8000],
+                        sources="\n".join(f"- {u}" for u in all_urls) or "(no sources this run)",
+                    )
+                ),
+            ]
         )
         if resp is None:
             return f"[MODEL UNAVAILABLE — raw evidence dump]\n\n{synthesis}\n\nSOURCE URLS:\n" + "\n".join(all_urls)

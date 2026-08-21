@@ -69,20 +69,28 @@ def register(mcp, store: SingularityStore):
             items = store.search_memory(search_query, scope=scope, limit=10, min_trust=0.3)
             return MemoryResult(
                 action="search",
-                items=[{"id": m["id"], "type": m["memory_type"], "content": m["content"][:500],
-                         "trust": m["trust_score"]} for m in items],
+                items=[
+                    {"id": m["id"], "type": m["memory_type"], "content": m["content"][:500], "trust": m["trust_score"]}
+                    for m in items
+                ],
                 warnings=[f"Found {len(items)} items."] if items else ["No matches."],
             )
 
         elif act in ("list", "recent", "get"):
-            items = store.search_memory("", scope=scope, limit=15, min_trust=0.0) if hasattr(store, "search_memory") else []
+            items = (
+                store.search_memory("", scope=scope, limit=15, min_trust=0.0) if hasattr(store, "search_memory") else []
+            )
             stats = store.get_memory_stats()
             return MemoryResult(
                 action="list",
-                items=[{"id": m["id"], "type": m["memory_type"], "content": m["content"][:300],
-                         "trust": m["trust_score"]} for m in items] if items else [],
+                items=[
+                    {"id": m["id"], "type": m["memory_type"], "content": m["content"][:300], "trust": m["trust_score"]}
+                    for m in items
+                ]
+                if items
+                else [],
                 stats=stats,
-                warnings=[f"Retrieved {len(items)} recent memory records."]
+                warnings=[f"Retrieved {len(items)} recent memory records."],
             )
 
         elif act in ("remember", "save", "store"):
@@ -104,19 +112,23 @@ def register(mcp, store: SingularityStore):
             if not effective_content:
                 effective_content = root_cause or fix or "Identified systemic anti-pattern"
             item_id = store.record_anti_pattern(effective_content, root_cause, fix, "medium", "")
-            return MemoryResult(action="mistake", id=item_id,
-                                 warnings=["Recorded. Will surface when similar tasks appear."])
+            return MemoryResult(
+                action="mistake", id=item_id, warnings=["Recorded. Will surface when similar tasks appear."]
+            )
 
         elif act in ("decision", "record_decision"):
             if not effective_content:
-                return MemoryResult(action="decision", warnings=["Decision description required in 'content' or 'decision'."])
+                return MemoryResult(
+                    action="decision", warnings=["Decision description required in 'content' or 'decision'."]
+                )
             item_id = store.record_decision(effective_content, effective_rationale, effective_alternatives, "")
-            return MemoryResult(action="decision", id=item_id,
-                                 warnings=[f"Decision #{item_id} recorded."])
+            return MemoryResult(action="decision", id=item_id, warnings=[f"Decision #{item_id} recorded."])
 
         elif act in ("stats", "summary", "count"):
             stats = store.get_memory_stats()
             return MemoryResult(action="stats", stats=stats)
 
-        return MemoryResult(action=action, warnings=[f"Unknown action: {action}. Valid: search, remember, forget, mistake, decision, stats, list."])
-
+        return MemoryResult(
+            action=action,
+            warnings=[f"Unknown action: {action}. Valid: search, remember, forget, mistake, decision, stats, list."],
+        )

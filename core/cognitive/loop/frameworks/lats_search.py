@@ -54,9 +54,7 @@ def _ucb1(node: _Node, parent_visits: int, exploration: float) -> float:
     LATS/tree-search selection criterion (Kocsis & Szepesvári UCT lineage)."""
     if node.visits == 0:
         return float("inf")
-    return node.score + exploration * math.sqrt(
-        math.log(max(parent_visits, 1)) / node.visits
-    )
+    return node.score + exploration * math.sqrt(math.log(max(parent_visits, 1)) / node.visits)
 
 
 def lats_search(
@@ -137,9 +135,7 @@ def lats_search(
                 anc = _by_id(nodes, anc.parent_id)
         # Replace parent with its children in the frontier (depth-first bias).
         frontier.remove(parent)
-        frontier.extend(
-            c for c in parent.children if c.depth < max_depth
-        )
+        frontier.extend(c for c in parent.children if c.depth < max_depth)
         if best is None or parent.score > best["score"]:
             best = _to_dict(parent)
 
@@ -148,11 +144,7 @@ def lats_search(
         key=lambda n: n.score,
         default=None,
     )
-    chosen_node = (
-        _to_dict(best_leaf)
-        if best_leaf is not None
-        else (best_from_nodes(nodes) or _to_dict(root))
-    )
+    chosen_node = _to_dict(best_leaf) if best_leaf is not None else (best_from_nodes(nodes) or _to_dict(root))
     chosen = dict(chosen_node)
     if best_leaf is None and warnings:
         chosen["warnings"] = warnings
@@ -168,9 +160,7 @@ def lats_search(
 
 def best_from_nodes(nodes: list[_Node]) -> dict[str, Any] | None:
     """Highest-scored non-root node dict (used when no leaf is reachable)."""
-    scored = [
-        _to_dict(n) for n in nodes if n.summary
-    ]
+    scored = [_to_dict(n) for n in nodes if n.summary]
     return max(scored, key=lambda d: d["score"], default=None)
 
 

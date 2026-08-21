@@ -22,7 +22,7 @@ STANDARD_PERSONAS = {
     "systems architect": "Analyze from a systems architecture perspective: modularity, invariant boundaries, concurrency, fault-isolation, scaling dynamics.",
     "security auditor": "Analyze from a security perspective: attack vectors, principle of least privilege, boundary validation, threat surface minimization.",
     "reliability engineer": "Analyze from a site reliability perspective: MTTR/MTBF, circuit breakers, telemetry, degradation modes, failover automation.",
-    "value strategist": "Analyze from a maximum leverage & value creation perspective: 80/20 asymmetric multipliers, bottleneck exploitation, ROI compounding."
+    "value strategist": "Analyze from a maximum leverage & value creation perspective: 80/20 asymmetric multipliers, bottleneck exploitation, ROI compounding.",
 }
 
 SYNTH_PROMPT = """Synthesize these expert perspectives into a unified answer.
@@ -39,7 +39,11 @@ Produce:
 
 def _txt(resp) -> str:
     c = getattr(resp, "content", None)
-    return c if c else ((getattr(resp, "additional_kwargs", None) or {}).get("reasoning_content") or "[empty model response]")
+    return (
+        c
+        if c
+        else ((getattr(resp, "additional_kwargs", None) or {}).get("reasoning_content") or "[empty model response]")
+    )
 
 
 def _get_persona_directive(name: str) -> str:
@@ -80,13 +84,15 @@ async def expert_panel(question: str, personas: Optional[List[str]] = None) -> D
         resp = await _panel_llm(
             [
                 SystemMessage(directive),
-                HumanMessage(f"Topic/Question: {question}\n\nProvide a sharp, high-leverage domain analysis (~150-250 words) with verifiable assertions and edge-case boundaries.")
+                HumanMessage(
+                    f"Topic/Question: {question}\n\nProvide a sharp, high-leverage domain analysis (~150-250 words) with verifiable assertions and edge-case boundaries."
+                ),
             ],
-            timeout_seconds=2.0
+            timeout_seconds=2.0,
         )
         if resp:
             return name, _txt(resp)
-        
+
         # Deep heuristic fallback when local LLM proxy is offline
         return name, (
             f"[{name} Perspective]: Analysis grounded in directive '{directive}'. "
@@ -96,23 +102,28 @@ async def expert_panel(question: str, personas: Optional[List[str]] = None) -> D
 
     # Parallel execution
     results = dict(await asyncio.gather(*[analyze(p) for p in clean_personas]))
-    
-    synth_prompt = SYNTH_PROMPT.format(
-        analyses="\n\n".join(f"## {p}\n{results[p]}" for p in clean_personas)
-    )
+
+    synth_prompt = SYNTH_PROMPT.format(analyses="\n\n".join(f"## {p}\n{results[p]}" for p in clean_personas))
     synth_resp = await _panel_llm(
-        [SystemMessage("You are an expert panel facilitator. Output a clear structured synthesis."), HumanMessage(synth_prompt)],
-        timeout_seconds=2.0
+        [
+            SystemMessage("You are an expert panel facilitator. Output a clear structured synthesis."),
+            HumanMessage(synth_prompt),
+        ],
+        timeout_seconds=2.0,
     )
 
-    synthesis_text = _txt(synth_resp) if synth_resp else (
-        "## Expert Panel Synthesis\n\n"
-        "### Areas of Consensus\n"
-        "- All expert perspectives converge on rigorous root-invariant verification, defensive fault-isolation, and elimination of hidden coupling.\n\n"
-        "### Key Perspectives Summary\n" +
-        "\n".join(f"- **{p}**: {results[p][:180]}..." for p in clean_personas) +
-        "\n\n### Asymmetric Leverage Recommendation\n"
-        "- Prioritize boundary invariant enforcement and automated fuzzing over localized symptom patches."
+    synthesis_text = (
+        _txt(synth_resp)
+        if synth_resp
+        else (
+            "## Expert Panel Synthesis\n\n"
+            "### Areas of Consensus\n"
+            "- All expert perspectives converge on rigorous root-invariant verification, defensive fault-isolation, and elimination of hidden coupling.\n\n"
+            "### Key Perspectives Summary\n"
+            + "\n".join(f"- **{p}**: {results[p][:180]}..." for p in clean_personas)
+            + "\n\n### Asymmetric Leverage Recommendation\n"
+            "- Prioritize boundary invariant enforcement and automated fuzzing over localized symptom patches."
+        )
     )
 
     return {

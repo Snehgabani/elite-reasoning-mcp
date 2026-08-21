@@ -9,6 +9,7 @@ Runs benchmark queries against the store, measures:
 4. Prevention rule fire rate
 5. Cost per query
 """
+
 import logging
 import time
 from dataclasses import dataclass, field
@@ -52,10 +53,7 @@ class EvalReport:
             "latency_p50_ms": round(self.latency_p50, 1),
             "latency_p95_ms": round(self.latency_p95, 1),
             "latency_p99_ms": round(self.latency_p99, 1),
-            "failures": [
-                {"name": r.name, "error": r.error}
-                for r in self.results if not r.passed
-            ],
+            "failures": [{"name": r.name, "error": r.error} for r in self.results if not r.passed],
         }
 
 
@@ -99,12 +97,14 @@ class EvalHarness:
                 result.latency_ms = (time.perf_counter() - start) * 1000
                 report.results.append(result)
             except Exception as e:
-                report.results.append(BenchmarkResult(
-                    name=bench_fn.__name__,
-                    passed=False,
-                    latency_ms=0,
-                    error=str(e)[:200],
-                ))
+                report.results.append(
+                    BenchmarkResult(
+                        name=bench_fn.__name__,
+                        passed=False,
+                        latency_ms=0,
+                        error=str(e)[:200],
+                    )
+                )
 
         report.total = len(report.results)
         report.passed = sum(1 for r in report.results if r.passed)
@@ -136,9 +136,7 @@ class EvalHarness:
         )
         # Read back
         conn = self.store._connect()
-        row = conn.execute(
-            "SELECT mistake FROM anti_patterns WHERE id = ?", (row_id,)
-        ).fetchone()
+        row = conn.execute("SELECT mistake FROM anti_patterns WHERE id = ?", (row_id,)).fetchone()
         self.store._close(conn)
         # Cleanup
         conn2 = self.store._connect()
@@ -172,9 +170,7 @@ class EvalHarness:
     def _bench_prevention_rules_fire(self) -> BenchmarkResult:
         """Check that prevention rules can be queried without error."""
         conn = self.store._connect()
-        rules = conn.execute(
-            "SELECT COUNT(*) FROM prevention_rules WHERE enabled = 1"
-        ).fetchone()
+        rules = conn.execute("SELECT COUNT(*) FROM prevention_rules WHERE enabled = 1").fetchone()
         total = conn.execute("SELECT COUNT(*) FROM prevention_rules").fetchone()
         self.store._close(conn)
         return BenchmarkResult(
@@ -264,8 +260,7 @@ class EvalHarness:
             score = self.store.get_calibration_score(domain="eval")
             # Cleanup
             conn = self.store._connect()
-            conn.execute("DELETE FROM calibration_log WHERE prediction_id = ?",
-                        ("eval_bench_test",))
+            conn.execute("DELETE FROM calibration_log WHERE prediction_id = ?", ("eval_bench_test",))
             self.store._close(conn)
             return BenchmarkResult(
                 name="calibration_roundtrip",
@@ -333,8 +328,7 @@ class EvalHarness:
         try:
             # Seed data
             self.store.record_mistake(
-                "eval_hybrid_security_test", "SQL injection vulnerability",
-                "Use parameterized queries", "P0"
+                "eval_hybrid_security_test", "SQL injection vulnerability", "Use parameterized queries", "P0"
             )
             # Search via the HybridSearch-wired method
             results = self.store.check_anti_patterns("SQL injection security", limit=3)
@@ -351,13 +345,16 @@ class EvalHarness:
         except Exception as e:
             return BenchmarkResult(
                 name="hybrid_search_fusion",
-                passed=False, latency_ms=0, error=str(e)[:200],
+                passed=False,
+                latency_ms=0,
+                error=str(e)[:200],
             )
 
     def _bench_injection_optimizer_lifecycle(self) -> BenchmarkResult:
         """InjectionOptimizer can compute stats and adjust pool (Tier 2)."""
         try:
             from core.learning.injection_optimizer import InjectionOptimizer
+
             optimizer = InjectionOptimizer(self.store)
             stats = optimizer.compute_injection_stats()
             result = optimizer.adjust_injection_pool()
@@ -370,13 +367,16 @@ class EvalHarness:
         except Exception as e:
             return BenchmarkResult(
                 name="injection_optimizer_lifecycle",
-                passed=False, latency_ms=0, error=str(e)[:200],
+                passed=False,
+                latency_ms=0,
+                error=str(e)[:200],
             )
 
     def _bench_rule_lifecycle_transitions(self) -> BenchmarkResult:
         """RuleLifecycle daemon can load rules and compute transitions (Tier 2)."""
         try:
             from core.learning.rule_lifecycle import RuleLifecycle
+
             lifecycle = RuleLifecycle(self.store)
             result = lifecycle.tick()
             return BenchmarkResult(
@@ -388,13 +388,16 @@ class EvalHarness:
         except Exception as e:
             return BenchmarkResult(
                 name="rule_lifecycle_transitions",
-                passed=False, latency_ms=0, error=str(e)[:200],
+                passed=False,
+                latency_ms=0,
+                error=str(e)[:200],
             )
 
     def _bench_trigger_effectiveness_learning(self) -> BenchmarkResult:
         """TriggerLearner can load data and suggest triggers (Tier 2)."""
         try:
             from core.learning.trigger_learner import TriggerLearner
+
             learner = TriggerLearner(self.store)
             result = learner.learn()
             suggestion = learner.suggest_trigger("security")
@@ -407,13 +410,16 @@ class EvalHarness:
         except Exception as e:
             return BenchmarkResult(
                 name="trigger_effectiveness_learning",
-                passed=False, latency_ms=0, error=str(e)[:200],
+                passed=False,
+                latency_ms=0,
+                error=str(e)[:200],
             )
 
     def _bench_severity_inference_signals(self) -> BenchmarkResult:
         """SeverityInference produces 3-signal severity (Tier 2)."""
         try:
             from core.learning.severity_inference import infer_severity
+
             result = infer_severity("security", "SQL injection vulnerability in auth module", self.store)
             return BenchmarkResult(
                 name="severity_inference_signals",
@@ -429,29 +435,30 @@ class EvalHarness:
         except Exception as e:
             return BenchmarkResult(
                 name="severity_inference_signals",
-                passed=False, latency_ms=0, error=str(e)[:200],
+                passed=False,
+                latency_ms=0,
+                error=str(e)[:200],
             )
 
     def _bench_optimization_loop_trigger(self) -> BenchmarkResult:
         """OptimizationLoop can evaluate triggers and report status (Tier 2)."""
         try:
             from core.scheduler.optimizer import OptimizationLoop
+
             loop = OptimizationLoop(self.store)
             status = loop.get_status()
             # Test tick (should not fire without data)
             events = loop.tick()
             return BenchmarkResult(
                 name="optimization_loop_trigger",
-                passed=(
-                    isinstance(status, dict)
-                    and len(status.get("triggers", [])) == 5
-                    and isinstance(events, list)
-                ),
+                passed=(isinstance(status, dict) and len(status.get("triggers", [])) == 5 and isinstance(events, list)),
                 latency_ms=0,
                 details=f"triggers={len(status.get('triggers', []))}, events_fired={len(events)}",
             )
         except Exception as e:
             return BenchmarkResult(
                 name="optimization_loop_trigger",
-                passed=False, latency_ms=0, error=str(e)[:200],
+                passed=False,
+                latency_ms=0,
+                error=str(e)[:200],
             )

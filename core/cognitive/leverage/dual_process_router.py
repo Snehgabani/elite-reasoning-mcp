@@ -22,7 +22,7 @@ class DualProcessRouter:
                 "system": "SYSTEM_1",
                 "reason": "Simple query / greeting — fast pre-attentive System 1 retrieval",
                 "estimated_latency_ms": 50,
-                "deep_dag_required": False
+                "deep_dag_required": False,
             }
 
         # Multi-file, strategic, research, refactor, or complex task -> System 2
@@ -30,8 +30,9 @@ class DualProcessRouter:
             "system": "SYSTEM_2",
             "reason": "Complex cognitive task — requires deliberate System 2 DAG reasoning, PRMs, and web research",
             "estimated_latency_ms": 1500,
-            "deep_dag_required": True
+            "deep_dag_required": True,
         }
+
 
 async def dual_process_route(task: str) -> str:
     router = DualProcessRouter()

@@ -3,6 +3,7 @@ Cognitive Tools Registration Module for Elite Reasoning MCP.
 Registers all 42 unified tools (MIX Supreme God-Tools, Invariant Gates, PRMs, Dialectical Debate Panels,
 AST Code Property Graphs, Stanford STORM Research, and Longitudinal Calibration).
 """
+
 import json
 from typing import List, Optional
 
@@ -30,7 +31,10 @@ from core.cognitive.leverage.skeleton_of_thought import skeleton_of_thought_gene
 from core.cognitive.leverage.storm_research import deep_research_report as _run_deep_research_report
 from core.cognitive.leverage.task_watcher import get_live_status as _get_live_status
 from core.cognitive.leverage.temporal_check import temporal_verify as _run_temporal_verify
+from core.cognitive.leverage.skill_distiller import SkillDistiller
+from core.cognitive.leverage.storm_engine import StormResearchEngine
 from core.cognitive.leverage.think_on_graph import ThinkOnGraphEngine
+from core.cognitive.leverage.tot_engine import TreeOfThoughtsEngine
 from core.cognitive.leverage.verifier import verify_code_candidate, verify_non_code_candidate
 from core.cognitive.leverage.web_research import LiveWebResearcher as _Triangulator
 from core.cognitive.leverage.web_research import live_web_search as _run_live_web_search
@@ -49,17 +53,13 @@ def register(mcp, store=None, profile=None) -> None:
         task_id: Optional[str] = None,
         task_type: str = "hard_problem",
         enable_prm: bool = True,
-        enable_bias_scan: bool = True
+        enable_bias_scan: bool = True,
     ) -> str:
         """
         Execute the Supreme MIX Cognitive Pipeline (Loop Meta-Routing + 18-Layer Singularity DAG + PRM + PoW).
         """
         res = await _COGNITIVE_ENGINE.execute_mix(
-            task=task,
-            task_id=task_id,
-            task_type=task_type,
-            enable_prm=enable_prm,
-            enable_bias_scan=enable_bias_scan
+            task=task, task_id=task_id, task_type=task_type, enable_prm=enable_prm, enable_bias_scan=enable_bias_scan
         )
         return json.dumps(res, indent=2)
 
@@ -70,10 +70,7 @@ def register(mcp, store=None, profile=None) -> None:
 
     @mcp.tool()
     async def execute_singularity(
-        task: str,
-        task_id: Optional[str] = None,
-        task_type: str = "hard_problem",
-        max_iterations: int = 3
+        task: str, task_id: Optional[str] = None, task_type: str = "hard_problem", max_iterations: int = 3
     ) -> str:
         """Backward-compatible entry point for execute_mix."""
         return await execute_mix(task=task, task_id=task_id, task_type=task_type)
@@ -150,11 +147,7 @@ def register(mcp, store=None, profile=None) -> None:
         return json.dumps(res, default=str, indent=2)
 
     @mcp.tool()
-    def apply_reasoning_diff(
-        file_path: str,
-        diff_content: str,
-        task_id: Optional[str] = None
-    ) -> str:
+    def apply_reasoning_diff(file_path: str, diff_content: str, task_id: Optional[str] = None) -> str:
         """
         Apply code modification gated by mandatory Proof-of-Work and prior PRM verification.
         """
@@ -172,8 +165,8 @@ def register(mcp, store=None, profile=None) -> None:
     @mcp.tool()
     async def god_tier_reasoning(task: str, candidates: int = 5, task_id: str = "default") -> str:
         """
-        Generates N distinct reasoning paths in parallel, judges them against the 
-        Constitutional Rubric (.ai/system/constitution.xml), and performs Rejection 
+        Generates N distinct reasoning paths in parallel, judges them against the
+        Constitutional Rubric (.ai/system/constitution.xml), and performs Rejection
         Sampling to return only the mathematically verified, highest-scoring answer.
         """
         res = await _run_god_tier_judge(task, n_candidates=candidates)
@@ -191,7 +184,9 @@ def register(mcp, store=None, profile=None) -> None:
         return json.dumps(res, indent=2)
 
     @mcp.tool()
-    async def self_rag_evaluate(query: str, retrieved_context: str, generated_response: str, task_id: str = "default") -> str:
+    async def self_rag_evaluate(
+        query: str, retrieved_context: str, generated_response: str, task_id: str = "default"
+    ) -> str:
         """Evaluates retrieval relevance, support, and utility via Self-RAG reflection tokens."""
         res = await _run_self_rag_evaluate(query, retrieved_context, generated_response)
         return json.dumps(res, indent=2)
@@ -270,7 +265,9 @@ def register(mcp, store=None, profile=None) -> None:
         return json.dumps(res, indent=2)
 
     @mcp.tool()
-    async def candidate_search(task: str, mode: str = "deep", test_command: Optional[str] = None, task_id: str = "default") -> str:
+    async def candidate_search(
+        task: str, mode: str = "deep", test_command: Optional[str] = None, task_id: str = "default"
+    ) -> str:
         """Generates multiple solution candidates, verifies them, and selects the best one."""
         n = 3 if mode == "deep" else 1
         candidates = await generate_candidates(task=task, n=n)
@@ -282,12 +279,14 @@ def register(mcp, store=None, profile=None) -> None:
             "score": best.score,
             "verification_passed": best.verification.passed,
             "verification_output": best.verification.output[:300],
-            "content": best.content
+            "content": best.content,
         }
         return json.dumps(out, indent=2)
 
     @mcp.tool()
-    async def verify_candidate(task: str, candidate: str, test_command: Optional[str] = None, task_id: str = "default") -> str:
+    async def verify_candidate(
+        task: str, candidate: str, test_command: Optional[str] = None, task_id: str = "default"
+    ) -> str:
         """Verifies a candidate solution using sandbox execution or rubric."""
         if "def " in candidate:
             v_res = await verify_code_candidate(task=task, candidate_code=candidate, test_command=test_command)
@@ -296,9 +295,13 @@ def register(mcp, store=None, profile=None) -> None:
         return json.dumps(v_res.to_dict(), indent=2)
 
     @mcp.tool()
-    async def reflexion_fix(task: str, candidate: str, error_output: str, max_attempts: int = 2, task_id: str = "default") -> str:
+    async def reflexion_fix(
+        task: str, candidate: str, error_output: str, max_attempts: int = 2, task_id: str = "default"
+    ) -> str:
         """Analyzes a failure and produces a minimal repair plan, saving the lesson to memory."""
-        res = await reflexion_repair(task=task, candidate_content=candidate, verifier_output=error_output, max_attempts=max_attempts)
+        res = await reflexion_repair(
+            task=task, candidate_content=candidate, verifier_output=error_output, max_attempts=max_attempts
+        )
         return json.dumps(res, indent=2)
 
     @mcp.tool()
@@ -313,3 +316,41 @@ def register(mcp, store=None, profile=None) -> None:
         """Reads a specific file from the user's workspace to feed into the [FACT] node."""
         with open(file_path, "r", encoding="utf-8") as f:
             return f.read()
+
+    @mcp.tool()
+    async def storm_research(topic: str, depth: str = "deep") -> str:
+        """
+        Executes Stanford STORM Multi-Perspective Research Dialogue Synthesis.
+        Generates domain-tailored expert personas, explores hidden failure modes,
+        maps consensus vs divergence points, and synthesizes technical reports.
+        """
+        engine = StormResearchEngine()
+        res = await engine.conduct_storm_research(topic=topic, depth=depth)
+        return json.dumps(res, indent=2)
+
+    @mcp.tool()
+    async def tree_of_thoughts_search(
+        problem: str, branching_factor: int = 3, max_depth: int = 3, min_prm_threshold: float = 0.70
+    ) -> str:
+        """
+        Executes Tree-of-Thoughts (ToT) / MCTS step lookahead with Process Reward Model (PRM) value pruning.
+        Explores multiple branching paths, prunes suboptimal nodes, and identifies optimal reasoning paths.
+        """
+        engine = TreeOfThoughtsEngine()
+        res = await engine.search(
+            problem=problem, branching_factor=branching_factor, max_depth=max_depth, min_prm_threshold=min_prm_threshold
+        )
+        return json.dumps(res, indent=2)
+
+    @mcp.tool()
+    async def distill_skill(task: str, solution_summary: str, task_id: str = "auto", quality_score: float = 1.0) -> str:
+        """
+        Autonomous Self-Evolving Skill Distillation.
+        Extracts generalized code patterns, security invariants, and domain rules from completed task traces
+        into permanent, reusable skills indexed in persistent memory.
+        """
+        distiller = SkillDistiller()
+        card = distiller.distill_from_trace(
+            task=task, solution_summary=solution_summary, task_id=task_id, quality_score=quality_score
+        )
+        return json.dumps(card.to_dict(), indent=2)

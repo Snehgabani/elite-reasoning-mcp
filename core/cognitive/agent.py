@@ -60,65 +60,56 @@ def build_reasoning_graph():
     graph = StateGraph(ReasoningState)
 
     # ── Register All Nodes ──────────────────────────────────────────
-    graph.add_node("cognitive_router",       cognitive_router_node)
-    graph.add_node("self_discover",          self_discover_node)
-    graph.add_node("plan",                   planner_node)
-    graph.add_node("think_on_graph",         think_on_graph_node)
-    graph.add_node("research",               research_node)
-    graph.add_node("fact",                   fact_node)
-    graph.add_node("epistemic_verifier",     epistemic_verifier_node)
-    graph.add_node("self_rag",               self_rag_node)
-    graph.add_node("reason",                 reason_node)
-    graph.add_node("prm_gate",               prm_gate_node)
-    graph.add_node("reflexion",              reflexion_node)
+    graph.add_node("cognitive_router", cognitive_router_node)
+    graph.add_node("self_discover", self_discover_node)
+    graph.add_node("plan", planner_node)
+    graph.add_node("think_on_graph", think_on_graph_node)
+    graph.add_node("research", research_node)
+    graph.add_node("fact", fact_node)
+    graph.add_node("epistemic_verifier", epistemic_verifier_node)
+    graph.add_node("self_rag", self_rag_node)
+    graph.add_node("reason", reason_node)
+    graph.add_node("prm_gate", prm_gate_node)
+    graph.add_node("reflexion", reflexion_node)
     graph.add_node("deterministic_executor", deterministic_executor_node)
-    graph.add_node("escalation",             escalation_node)
-    graph.add_node("red_team",               red_team_node)
-    graph.add_node("reflect",                reflect_node)
-    graph.add_node("conclude",               conclude_node)
+    graph.add_node("escalation", escalation_node)
+    graph.add_node("red_team", red_team_node)
+    graph.add_node("reflect", reflect_node)
+    graph.add_node("conclude", conclude_node)
 
     # ── Pipeline Routing ────────────────────────────────────────────
     graph.add_edge(START, "cognitive_router")
-    
+
     # System 1 / System 2 dynamic routing
     graph.add_conditional_edges(
-        "cognitive_router",
-        route_after_router,
-        {
-            "conclude": "conclude",
-            "self_discover": "self_discover"
-        }
+        "cognitive_router", route_after_router, {"conclude": "conclude", "self_discover": "self_discover"}
     )
 
-    graph.add_edge("self_discover",      "plan")
-    graph.add_edge("plan",               "think_on_graph")
-    graph.add_edge("think_on_graph",     "research")
-    graph.add_edge("research",           "fact")
-    graph.add_edge("fact",               "epistemic_verifier")
+    graph.add_edge("self_discover", "plan")
+    graph.add_edge("plan", "think_on_graph")
+    graph.add_edge("think_on_graph", "research")
+    graph.add_edge("research", "fact")
+    graph.add_edge("fact", "epistemic_verifier")
     graph.add_edge("epistemic_verifier", "self_rag")
-    graph.add_edge("self_rag",           "reason")
-    graph.add_edge("reason",             "prm_gate")
+    graph.add_edge("self_rag", "reason")
+    graph.add_edge("reason", "prm_gate")
 
     # The Zero-Escape Invariant Gate Edge
     graph.add_conditional_edges(
         "prm_gate",
         route_after_prm_gate,
-        {
-            "deterministic_executor": "deterministic_executor",
-            "reflexion":              "reflexion",
-            "escalation":             "escalation"
-        }
+        {"deterministic_executor": "deterministic_executor", "reflexion": "reflexion", "escalation": "escalation"},
     )
 
     # Closed-loop Reflexion cycle back to reasoner
-    graph.add_edge("reflexion",              "reason")
+    graph.add_edge("reflexion", "reason")
 
     # Post-execution dialectical stress testing & synthesis
     graph.add_edge("deterministic_executor", "red_team")
-    graph.add_edge("red_team",               "reflect")
-    graph.add_edge("reflect",                "conclude")
-    graph.add_edge("escalation",             "conclude")
-    graph.add_edge("conclude",               END)
+    graph.add_edge("red_team", "reflect")
+    graph.add_edge("reflect", "conclude")
+    graph.add_edge("escalation", "conclude")
+    graph.add_edge("conclude", END)
 
     checkpointer = MemorySaver()
     app = graph.compile(checkpointer=checkpointer)

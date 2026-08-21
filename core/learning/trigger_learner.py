@@ -2,6 +2,7 @@
 
 Analyzes trigger_effectiveness table to learn which triggers work best
 for which detection types. Uses Wilson score lower bound for small-sample confidence."""
+
 import logging
 import math
 
@@ -44,14 +45,17 @@ class TriggerLearner:
         conn = self.store._connect()
         try:
             c = conn.cursor()
-            c.execute("""
+            c.execute(
+                """
                 SELECT detection_type, trigger_event,
                        COALESCE(fired_count, 0),
                        COALESCE(quality_improved_count, 0),
                        COALESCE(quality_degraded_count, 0)
                 FROM trigger_effectiveness
                 WHERE COALESCE(fired_count, 0) >= ?
-            """, (self.MIN_SAMPLES,))
+            """,
+                (self.MIN_SAMPLES,),
+            )
             rows = c.fetchall()
         except Exception as e:
             logger.error(f"Failed to load trigger effectiveness: {e}")
@@ -61,13 +65,15 @@ class TriggerLearner:
 
         by_type: dict[str, list] = {}
         for r in rows:
-            by_type.setdefault(r[0], []).append({
-                "trigger": r[1],
-                "fired": r[2],
-                "improved": r[3],
-                "degraded": r[4],
-                "wilson": wilson_lower_bound(r[3], r[2]),
-            })
+            by_type.setdefault(r[0], []).append(
+                {
+                    "trigger": r[1],
+                    "fired": r[2],
+                    "improved": r[3],
+                    "degraded": r[4],
+                    "wilson": wilson_lower_bound(r[3], r[2]),
+                }
+            )
 
         best_triggers = {}
         for det_type, candidates in by_type.items():
@@ -100,11 +106,14 @@ class TriggerLearner:
         conn = self.store._connect()
         try:
             c = conn.cursor()
-            c.execute("""
+            c.execute(
+                """
                 SELECT trigger_event, fired_count, quality_improved_count
                 FROM trigger_effectiveness
                 WHERE detection_type = ? AND COALESCE(fired_count, 0) >= ?
-            """, (detection_type, self.MIN_SAMPLES))
+            """,
+                (detection_type, self.MIN_SAMPLES),
+            )
             candidates = c.fetchall()
             if not candidates:
                 return DEFAULT_TRIGGER_MAP.get(detection_type, "prompt.received")

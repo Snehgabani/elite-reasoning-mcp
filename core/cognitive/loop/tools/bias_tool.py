@@ -51,15 +51,25 @@ def register(mcp, store: SingularityStore):
         result = run_bias_scan(text, user_prompt, confidence)
 
         store.log_tool_usage(
-            "bias_scan", f"risk={result.overall_risk}", "",
-            getattr(mcp, "_session_id", ""), int((time.time() - start) * 1000)
+            "bias_scan",
+            f"risk={result.overall_risk}",
+            "",
+            getattr(mcp, "_session_id", ""),
+            int((time.time() - start) * 1000),
         )
-        store.record_metric("bias_scan_risk", {"low": 1, "medium": 2, "high": 3, "critical": 4}.get(result.overall_risk, 0))
+        store.record_metric(
+            "bias_scan_risk", {"low": 1, "medium": 2, "high": 3, "critical": 4}.get(result.overall_risk, 0)
+        )
 
         return BiasScanResult(
             red_flags=[
-                {"type": f.bias_type, "severity": f.severity, "description": f.description,
-                 "evidence": f.evidence, "fix": f.recommendation}
+                {
+                    "type": f.bias_type,
+                    "severity": f.severity,
+                    "description": f.description,
+                    "evidence": f.evidence,
+                    "fix": f.recommendation,
+                }
                 for f in result.red_flags
             ],
             sycophancy_score=result.sycophancy_score,

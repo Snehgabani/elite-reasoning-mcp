@@ -16,16 +16,18 @@ from dataclasses import dataclass
 @dataclass(frozen=True)
 class RubricCriterion:
     """One criterion in a scoring rubric."""
+
     name: str
     weight: float
     excellent: str  # Score 0.9-1.0
-    adequate: str   # Score 0.6-0.89
-    poor: str       # Score 0.0-0.59
+    adequate: str  # Score 0.6-0.89
+    poor: str  # Score 0.0-0.59
 
 
 @dataclass(frozen=True)
 class DomainRubric:
     """Complete scoring rubric for a domain."""
+
     domain: str
     description: str
     criteria: tuple[RubricCriterion, ...]
@@ -39,30 +41,48 @@ CODE_RUBRIC = DomainRubric(
     domain="code_implementation",
     description="Evaluate code implementation quality",
     criteria=(
-        RubricCriterion("correctness", 0.30,
+        RubricCriterion(
+            "correctness",
+            0.30,
             "All requirements met. Tests pass. Edge cases handled.",
             "Core requirements met. Most tests pass.",
-            "Missing requirements or failing tests."),
-        RubricCriterion("design", 0.20,
+            "Missing requirements or failing tests.",
+        ),
+        RubricCriterion(
+            "design",
+            0.20,
             "Clean abstractions. SOLID principles. Minimal coupling.",
             "Reasonable structure. Some coupling or duplication.",
-            "God objects, tight coupling, or no structure."),
-        RubricCriterion("error_handling", 0.15,
+            "God objects, tight coupling, or no structure.",
+        ),
+        RubricCriterion(
+            "error_handling",
+            0.15,
             "All error paths handled. Graceful degradation. Logging.",
             "Happy path + critical errors handled.",
-            "No error handling. Silent failures."),
-        RubricCriterion("testing", 0.15,
+            "No error handling. Silent failures.",
+        ),
+        RubricCriterion(
+            "testing",
+            0.15,
             "Unit + integration tests. Edge cases covered. >80% coverage.",
             "Unit tests for main paths. Some edge cases.",
-            "No tests or only smoke tests."),
-        RubricCriterion("documentation", 0.10,
+            "No tests or only smoke tests.",
+        ),
+        RubricCriterion(
+            "documentation",
+            0.10,
             "API docs, inline comments for non-obvious logic, README.",
             "Some inline comments. Function signatures clear.",
-            "No documentation. Magic numbers."),
-        RubricCriterion("performance", 0.10,
+            "No documentation. Magic numbers.",
+        ),
+        RubricCriterion(
+            "performance",
+            0.10,
             "Optimal complexity. No N+1 queries. Bounded resources.",
             "Acceptable performance. Minor inefficiencies.",
-            "O(n²) or unbounded resource usage."),
+            "O(n²) or unbounded resource usage.",
+        ),
     ),
     source="Google Engineering Practices, Clean Code (Martin, 2008)",
 )
@@ -74,26 +94,41 @@ DEBUG_RUBRIC = DomainRubric(
     domain="debugging",
     description="Evaluate debugging quality",
     criteria=(
-        RubricCriterion("root_cause", 0.30,
+        RubricCriterion(
+            "root_cause",
+            0.30,
             "True root cause identified with evidence chain. Five-whys applied.",
             "Probable cause identified with some evidence.",
-            "Symptom described as cause. Guessing."),
-        RubricCriterion("fix_quality", 0.25,
+            "Symptom described as cause. Guessing.",
+        ),
+        RubricCriterion(
+            "fix_quality",
+            0.25,
             "Minimal fix addressing root cause. No regressions. Tests added.",
             "Fix works but addresses symptom, not root cause.",
-            "Fix introduces new issues or doesn't resolve the problem."),
-        RubricCriterion("reproduction", 0.20,
+            "Fix introduces new issues or doesn't resolve the problem.",
+        ),
+        RubricCriterion(
+            "reproduction",
+            0.20,
             "Exact reproduction steps documented. Minimal repro case.",
             "Bug reproduced but steps not minimal.",
-            "Cannot reproduce. Working from description only."),
-        RubricCriterion("prevention", 0.15,
+            "Cannot reproduce. Working from description only.",
+        ),
+        RubricCriterion(
+            "prevention",
+            0.15,
             "Regression test added. Anti-pattern recorded. Systemic fix.",
             "Test added for this specific case.",
-            "No prevention measures. Will recur."),
-        RubricCriterion("communication", 0.10,
+            "No prevention measures. Will recur.",
+        ),
+        RubricCriterion(
+            "communication",
+            0.10,
             "Clear explanation of what, why, and how fixed. Impact assessed.",
             "Basic explanation of the fix.",
-            "No explanation. 'Fixed it.'"),
+            "No explanation. 'Fixed it.'",
+        ),
     ),
     source="Debugging: The 9 Indispensable Rules (Butcher, 2008)",
 )
@@ -105,26 +140,41 @@ ARCHITECTURE_RUBRIC = DomainRubric(
     domain="architecture_decision",
     description="Evaluate architectural decision quality",
     criteria=(
-        RubricCriterion("alternatives", 0.25,
+        RubricCriterion(
+            "alternatives",
+            0.25,
             "3+ alternatives enumerated with specific pros/cons each.",
             "2 alternatives with basic comparison.",
-            "No alternatives considered. First idea adopted."),
-        RubricCriterion("trade_offs", 0.25,
+            "No alternatives considered. First idea adopted.",
+        ),
+        RubricCriterion(
+            "trade_offs",
+            0.25,
             "Explicit trade-off analysis. Costs quantified where possible.",
             "Trade-offs mentioned but not analyzed.",
-            "No trade-off discussion. Only benefits listed."),
-        RubricCriterion("rationale", 0.20,
+            "No trade-off discussion. Only benefits listed.",
+        ),
+        RubricCriterion(
+            "rationale",
+            0.20,
             "Decision rationale is self-contained and future-proof.",
             "Rationale present but requires external context.",
-            "No rationale. 'Because we decided.'"),
-        RubricCriterion("risk_assessment", 0.15,
+            "No rationale. 'Because we decided.'",
+        ),
+        RubricCriterion(
+            "risk_assessment",
+            0.15,
             "Risks enumerated with mitigation plans. Reversibility assessed.",
             "Some risks mentioned.",
-            "No risk assessment."),
-        RubricCriterion("constraints", 0.15,
+            "No risk assessment.",
+        ),
+        RubricCriterion(
+            "constraints",
+            0.15,
             "All constraints (time, budget, team, tech) explicitly addressed.",
             "Key constraints mentioned.",
-            "Constraints ignored."),
+            "Constraints ignored.",
+        ),
     ),
     source="Architecture Decision Records (Nygard, 2011)",
 )
@@ -136,26 +186,41 @@ RESEARCH_RUBRIC = DomainRubric(
     domain="research_analysis",
     description="Evaluate research and analysis quality",
     criteria=(
-        RubricCriterion("evidence", 0.30,
+        RubricCriterion(
+            "evidence",
+            0.30,
             "5+ quality sources cited. Recency verified. Primary sources preferred.",
             "2-4 sources cited. Some secondary sources.",
-            "No sources. Opinions presented as facts."),
-        RubricCriterion("synthesis", 0.25,
+            "No sources. Opinions presented as facts.",
+        ),
+        RubricCriterion(
+            "synthesis",
+            0.25,
             "Evidence mapped to specific claims. Confidence levels assigned.",
             "General synthesis without claim-evidence mapping.",
-            "List of sources without synthesis."),
-        RubricCriterion("contradictions", 0.20,
+            "List of sources without synthesis.",
+        ),
+        RubricCriterion(
+            "contradictions",
+            0.20,
             "Conflicting evidence explicitly identified and resolved.",
             "Contradictions noted but not resolved.",
-            "Contradictions ignored or not detected."),
-        RubricCriterion("uncertainty", 0.15,
+            "Contradictions ignored or not detected.",
+        ),
+        RubricCriterion(
+            "uncertainty",
+            0.15,
             "Uncertainty quantified. Assumptions explicit. Confidence intervals.",
             "Some uncertainty acknowledged.",
-            "False certainty. No hedging."),
-        RubricCriterion("actionability", 0.10,
+            "False certainty. No hedging.",
+        ),
+        RubricCriterion(
+            "actionability",
+            0.10,
             "Clear recommendations with implementation guidance.",
             "General recommendations.",
-            "No actionable conclusions."),
+            "No actionable conclusions.",
+        ),
     ),
     source="Systematic Literature Review (Kitchenham, 2004)",
 )
@@ -167,26 +232,41 @@ DEPLOY_RUBRIC = DomainRubric(
     domain="deployment",
     description="Evaluate deployment quality",
     criteria=(
-        RubricCriterion("pre_checks", 0.25,
+        RubricCriterion(
+            "pre_checks",
+            0.25,
             "Before-state captured. Smoke tests pass. Rollback plan tested.",
             "Basic pre-checks done. Rollback documented.",
-            "No pre-checks. Deploying blind."),
-        RubricCriterion("monitoring", 0.25,
+            "No pre-checks. Deploying blind.",
+        ),
+        RubricCriterion(
+            "monitoring",
+            0.25,
             "Key metrics monitored. Alerts configured. Dashboard available.",
             "Basic monitoring in place.",
-            "No monitoring. Finding out from users."),
-        RubricCriterion("rollback", 0.20,
+            "No monitoring. Finding out from users.",
+        ),
+        RubricCriterion(
+            "rollback",
+            0.20,
             "Tested rollback procedure. Data migration reversible. Time-to-rollback < 5 min.",
             "Rollback procedure documented but untested.",
-            "No rollback plan."),
-        RubricCriterion("verification", 0.20,
+            "No rollback plan.",
+        ),
+        RubricCriterion(
+            "verification",
+            0.20,
             "Post-deploy smoke tests. Metrics comparison. Health checks automated.",
             "Manual verification after deploy.",
-            "No verification. Assuming it works."),
-        RubricCriterion("communication", 0.10,
+            "No verification. Assuming it works.",
+        ),
+        RubricCriterion(
+            "communication",
+            0.10,
             "Stakeholders notified. Change log updated. Incident channel ready.",
             "Team notified.",
-            "No communication."),
+            "No communication.",
+        ),
     ),
     source="Site Reliability Engineering (Beyer et al., 2016)",
 )
@@ -225,25 +305,22 @@ def get_rubric_for_intent(intent: str) -> DomainRubric:
 
 def score_with_rubric(rubric: DomainRubric, output: str, signals: dict[str, float] | None = None) -> dict:
     """Score an output against a domain rubric.
-    
+
     Uses text signals to estimate criterion scores when no explicit
     signals are provided. Returns weighted total and per-criterion scores.
     """
     lower = output.lower()
     criterion_scores = {}
-    
+
     for criterion in rubric.criteria:
         if signals and criterion.name in signals:
             criterion_scores[criterion.name] = signals[criterion.name]
         else:
             criterion_scores[criterion.name] = _estimate_criterion_score(criterion, lower)
-    
+
     # Weighted total
-    total = sum(
-        criterion_scores[c.name] * c.weight
-        for c in rubric.criteria
-    )
-    
+    total = sum(criterion_scores[c.name] * c.weight for c in rubric.criteria)
+
     # Grade
     if total >= 0.9:
         grade = "excellent"
@@ -253,7 +330,7 @@ def score_with_rubric(rubric: DomainRubric, output: str, signals: dict[str, floa
         grade = "needs_improvement"
     else:
         grade = "poor"
-    
+
     return {
         "domain": rubric.domain,
         "total_score": round(total, 4),
@@ -267,7 +344,7 @@ def score_with_rubric(rubric: DomainRubric, output: str, signals: dict[str, floa
 def _estimate_criterion_score(criterion: RubricCriterion, text: str) -> float:
     """Estimate a criterion score from text signals."""
     name = criterion.name.lower()
-    
+
     # Domain-specific signal dictionaries
     signals = {
         "correctness": (
@@ -343,12 +420,12 @@ def _estimate_criterion_score(criterion: RubricCriterion, text: str) -> float:
             ("backup", "fallback"),
         ),
     }
-    
+
     excellent_signals = signals.get(name, ((), ()))
-    
+
     excellent_count = sum(1 for s in excellent_signals[0] if s in text)
     adequate_count = sum(1 for s in excellent_signals[1] if s in text)
-    
+
     if excellent_count >= 3:
         return min(1.0, 0.85 + excellent_count * 0.05)
     elif excellent_count >= 1:

@@ -4,6 +4,7 @@ Elite System — MCP Server Entry Point.
 Boots the Elite Reasoning Framework as a lightweight MCP server.
 No API keys. No LLM clients. No UI. Just data, memory, and reasoning frameworks.
 """
+
 import argparse
 import os
 
@@ -16,7 +17,7 @@ def main():
         "--brain-dir",
         type=str,
         default=os.path.expanduser("~/.gemini/antigravity/scratch/elite-system/brain"),
-        help="Path to the persistent brain directory (stores memory, decisions, anti-patterns)"
+        help="Path to the persistent brain directory (stores memory, decisions, anti-patterns)",
     )
     args = parser.parse_args()
 

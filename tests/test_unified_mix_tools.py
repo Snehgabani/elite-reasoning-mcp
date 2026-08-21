@@ -17,6 +17,7 @@ def test_prm_verification_math():
     assert res["passed"] is False
     assert any("division by zero" in issue.lower() for issue in res["issues"])
 
+
 def test_deterministic_gates_ast_python():
     valid_code = "def add(a, b):\n    return a + b\n"
     res = validate_syntax(valid_code, "python")
@@ -27,11 +28,13 @@ def test_deterministic_gates_ast_python():
     res2 = validate_syntax(invalid_code, "python")
     assert res2.passed is False
 
+
 def test_deterministic_gates_security_owasp():
-    bad_code = "import os\nos.system(\"rm -rf /\")\n"
+    bad_code = 'import os\nos.system("rm -rf /")\n'
     res = validate_security_invariants(bad_code)
     assert res.passed is False
     assert any("Fatal Security Violation" in issue for issue in res.issues)
+
 
 @pytest.mark.asyncio
 async def test_execute_mix_pipeline():
@@ -40,6 +43,7 @@ async def test_execute_mix_pipeline():
     assert len(res["proof_of_work"]["verification_hash"]) == 64
     assert len(res["layers_executed"]) == 9
     assert res["prm_passed"] is True
+
 
 def test_unified_mcp_server_registration():
     server = create_mcp_server("/tmp/test_brain_pytest", tool_profile="legacy")

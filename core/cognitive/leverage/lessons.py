@@ -22,8 +22,8 @@ MEMORY_DIR = ROOT / ".ai" / "memory"
 
 LESSONS_FILE = MEMORY_DIR / "lessons.jsonl"
 DIGEST_FILE = MEMORY_DIR / "lessons.md"
-MAX_DETAIL = 700          # per-lesson root-cause text cap
-DEDUP_WINDOW_DAYS = 7    # same fingerprint within a week = already learned
+MAX_DETAIL = 700  # per-lesson root-cause text cap
+DEDUP_WINDOW_DAYS = 7  # same fingerprint within a week = already learned
 
 
 def _now_iso() -> str:
@@ -38,10 +38,18 @@ def fingerprint(tool: str, detail: str) -> str:
 class LessonStore:
     def __init__(self, path=None):
         self.path = Path(path) if path else LESSONS_FILE
+        self._cached_mtime: float = 0.0
+        self._cache: list = []
 
     def _load(self) -> list:
         if not self.path.exists():
             return []
+        try:
+            mtime = self.path.stat().st_mtime
+            if mtime == self._cached_mtime and self._cache:
+                return self._cache
+        except OSError:
+            return self._cache
         rows = []
         try:
             for line in self.path.read_text(encoding="utf-8").splitlines():
@@ -56,6 +64,8 @@ class LessonStore:
         except OSError as exc:
             # Memory lessons file may not exist yet on initial run
             _ = str(exc)
+        self._cached_mtime = mtime
+        self._cache = rows
         return rows
 
     def record(self, tool: str, task: str, detail: str, fp: str | None = None) -> bool:
@@ -89,7 +99,7 @@ class LessonStore:
         rows = self._load()
         if not rows:
             return []
-        
+
         query_tokens = set(re.findall(r"\w+", (query or "").lower()))
         if not query_tokens:
             return self.recent(n)
@@ -104,18 +114,12 @@ class LessonStore:
             scored_rows.append((score, r))
 
         scored_rows.sort(key=lambda x: x[0], reverse=True)
-        return [
-            {"tool": r.get("tool", "?"), "detail": (r.get("detail") or "")[:260]}
-            for score, r in scored_rows[:n]
-        ]
+        return [{"tool": r.get("tool", "?"), "detail": (r.get("detail") or "")[:260]} for score, r in scored_rows[:n]]
 
     def recent(self, n: int = 5) -> list[dict]:
         """Newest n lessons, newest first — injected verbatim into new runs."""
         rows = self._load()
-        return [
-            {"tool": r.get("tool", "?"), "detail": (r.get("detail") or "")[:260]}
-            for r in rows[-n:][::-1]
-        ]
+        return [{"tool": r.get("tool", "?"), "detail": (r.get("detail") or "")[:260]} for r in rows[-n:][::-1]]
 
     def digest(self, save: bool = True) -> str:
         """Markdown digest for the nightly lessons.md (deterministic, stdlib-only)."""
@@ -131,7 +135,7 @@ class LessonStore:
         lines += [f"- {t}: {c}" for t, c in per_tool.most_common()] or ["- (none yet)"]
         lines += ["", "## Latest failures (deduplicated, newest first)"]
         for r in rows[-8:][::-1]:
-            lines.append(f"- [{r.get('ts','')}] {r.get('tool')}: {(r.get('detail') or '')[:220]}")
+            lines.append(f"- [{r.get('ts', '')}] {r.get('tool')}: {(r.get('detail') or '')[:220]}")
         text = "\n".join(lines) + "\n"
         if save:
             self.path.parent.mkdir(parents=True, exist_ok=True)

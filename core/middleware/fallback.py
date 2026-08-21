@@ -6,6 +6,7 @@ Implements:
 1. RetryMiddleware — retries transient errors with exponential backoff
 2. FallbackMiddleware — tries alternative tool when primary fails
 """
+
 import logging
 from typing import Optional
 
@@ -14,13 +15,15 @@ from core.tools.errors import EliteToolError, is_transient_error
 
 logger = logging.getLogger(__name__)
 
+
 class RetryMiddleware(Middleware):
     """Retries tool calls on transient errors with exponential backoff.
-    
+
     Default: 2 retries, 0.5s initial delay, 2x backoff.
     Only retries transient errors. The chain owns re-execution so a retry is a
     real second call, not a successful placeholder response.
     """
+
     name = "retry"
     applies_to = "*"
 
@@ -39,7 +42,7 @@ class RetryMiddleware(Middleware):
 
     def delay_for(self, attempt: int) -> float:
         """Calculate exponential backoff for the next retry attempt."""
-        return self.initial_delay * (self.backoff_factor ** attempt)
+        return self.initial_delay * (self.backoff_factor**attempt)
 
     async def on_error(self, ctx: CallContext, exc: Exception) -> CallResult | None:
         """Retry execution is owned by ``MiddlewareChain``."""
@@ -62,10 +65,11 @@ FALLBACK_REGISTRY: dict[str, list[str]] = {
 
 class FallbackMiddleware(Middleware):
     """When a tool fails, suggests alternative tools from the fallback registry.
-    
+
     Does NOT auto-execute fallbacks (that would be dangerous).
     Instead, adds a suggestion to the error result so the LLM can decide.
     """
+
     name = "fallback"
     applies_to = "*"
 

@@ -94,9 +94,7 @@ def _synthesize_answer(prompt: str, result) -> tuple[str, str]:
     try:
         template = getattr(result, "reasoning_template", "") or ""
         if not template:
-            subs = "; ".join(
-                s.get("name", "") for s in (getattr(result, "subproblems", None) or [])
-            ) or "none"
+            subs = "; ".join(s.get("name", "") for s in (getattr(result, "subproblems", None) or [])) or "none"
             template = f"Framework: {result.selected_framework}. Subproblems: {subs}."
         llm_prompt = (
             "You are a reasoning executor. A structured reasoning pipeline "
@@ -105,15 +103,15 @@ def _synthesize_answer(prompt: str, result) -> tuple[str, str]:
             "answer. Do not describe the structure — produce the answer.\n\n"
             f"TASK: {prompt}\n\nREASONING STRUCTURE:\n{template}\n\nFINAL ANSWER:"
         )
-        body = json.dumps({
-            "model": _LLM_MODEL,
-            "messages": [{"role": "user", "content": llm_prompt}],
-            "max_tokens": 1024,
-            "temperature": 0.3,
-        }).encode()
-        req = urllib.request.Request(
-            _LLM_PROXY_URL, data=body, headers={"Content-Type": "application/json"}
-        )
+        body = json.dumps(
+            {
+                "model": _LLM_MODEL,
+                "messages": [{"role": "user", "content": llm_prompt}],
+                "max_tokens": 1024,
+                "temperature": 0.3,
+            }
+        ).encode()
+        req = urllib.request.Request(_LLM_PROXY_URL, data=body, headers={"Content-Type": "application/json"})
         # Self-diagnosis fix (2026-08-12): one retry on transient failure —
         # local proxy is the synthesis single point of failure.
         last_err: Exception | None = None
@@ -159,9 +157,7 @@ def register(mcp, store: SingularityStore):
 
         # BUGFIX: quality score was computed but never written to the scorecard
         # table — diagnostics quality trend stayed no_data forever. Record it now.
-        store.record_quality_score(
-            result.quality_score, "task_success", notes=f"reasoning_run:{result.session_id}"
-        )
+        store.record_quality_score(result.quality_score, "task_success", notes=f"reasoning_run:{result.session_id}")
 
         # UPGRADE: execute the generated reasoning structure through the local
         # LLM proxy so the tool returns an actual answer, not just scaffolding.
@@ -174,9 +170,7 @@ def register(mcp, store: SingularityStore):
         if synthesize:
             template = getattr(result, "reasoning_template", "") or ""
             if not template:
-                subs = "; ".join(
-                    s.get("name", "") for s in (getattr(result, "subproblems", None) or [])
-                ) or "none"
+                subs = "; ".join(s.get("name", "") for s in (getattr(result, "subproblems", None) or [])) or "none"
                 template = f"Framework: {result.selected_framework}. Subproblems: {subs}."
             # v15 P0 #1: RASC-style adaptive self-consistency (arXiv:2408.17017).
             # Samples up to 5 temperature-jittered executions of the reasoning
@@ -229,9 +223,7 @@ def register(mcp, store: SingularityStore):
                     "model": _LLM_MODEL,
                     "duration_ms": lats["search_duration_ms"],
                 }
-                store.record_metric(
-                    "lats_nodes", float(lats["nodes_explored"]), "nodes"
-                )
+                store.record_metric("lats_nodes", float(lats["nodes_explored"]), "nodes")
             else:
                 consensus = run_adaptive_consensus(prompt, template)
             answer, synthesis_model = consensus["answer"], consensus["model"]
@@ -248,16 +240,10 @@ def register(mcp, store: SingularityStore):
                     "returned reasoning structure only."
                 )
             else:
-                store.record_metric(
-                    "reasoning_synthesis_ms", float(synthesis_duration_ms), "ms"
-                )
+                store.record_metric("reasoning_synthesis_ms", float(synthesis_duration_ms), "ms")
                 # v15 telemetry: consensus quality signals for longitudinal tracking.
-                store.record_metric(
-                    "consensus_samples", float(consensus["samples_used"]), "samples"
-                )
-                store.record_metric(
-                    "consensus_agreement", float(consensus["agreement"]), "frac"
-                )
+                store.record_metric("consensus_samples", float(consensus["samples_used"]), "samples")
+                store.record_metric("consensus_agreement", float(consensus["agreement"]), "frac")
                 store.record_metric(
                     "consensus_faithfulness_mean",
                     float(consensus["faithfulness_mean"]),
@@ -289,16 +275,12 @@ def register(mcp, store: SingularityStore):
                         f"{verification['duration_ms']}ms)."
                     )
                 else:
-                    warnings.append(
-                        "Step verification unavailable (LLM down) — answer unverified."
-                    )
+                    warnings.append("Step verification unavailable (LLM down) — answer unverified.")
 
         # Quality gate: pipeline quality AND (step verification, when available).
         verification_passed = result.quality_passed
         if verification is not None and verification["verified"] is not None:
-            verification_passed = bool(
-                result.quality_passed and verification["verified"]
-            )
+            verification_passed = bool(result.quality_passed and verification["verified"])
 
         # v15 P1: calibration auto-accumulator — every answered run auto-logs
         # one resolved calibration datapoint (confidence vs gate-pass outcome)
@@ -325,10 +307,7 @@ def register(mcp, store: SingularityStore):
         abstention_reason = ""
         if answer:
             abstention = calibrated_abstention(
-                verification_score=(
-                    verification["verification_score"]
-                    if verification is not None else None
-                ),
+                verification_score=(verification["verification_score"] if verification is not None else None),
                 consensus_agreement=consensus.get("agreement", 0.0),
                 confidence=result.framework_confidence,
                 quality_score=result.quality_score,
@@ -344,25 +323,32 @@ def register(mcp, store: SingularityStore):
             session_id=result.session_id,
             mode=mode,
             route=mode,
-            route_reason=(f"Smart framework selection: {result.selected_framework} "
-                          f"(confidence {result.framework_confidence:.2f})"),
+            route_reason=(
+                f"Smart framework selection: {result.selected_framework} (confidence {result.framework_confidence:.2f})"
+            ),
             intent=result.intent,
             complexity=result.complexity,
             techniques_applied=result.techniques_applied,
             subproblems=[
-                {"index": sp.get("index", i), "name": sp.get("name", ""),
-                 "description": sp.get("description", ""),
-                 "validation": sp.get("validation", ""),
-                 "anti_patterns": sp.get("anti_patterns", []),
-                 "solution_guidance": sp.get("solution_guidance", "")}
+                {
+                    "index": sp.get("index", i),
+                    "name": sp.get("name", ""),
+                    "description": sp.get("description", ""),
+                    "validation": sp.get("validation", ""),
+                    "anti_patterns": sp.get("anti_patterns", []),
+                    "solution_guidance": sp.get("solution_guidance", ""),
+                }
                 for i, sp in enumerate(result.subproblems)
             ],
             candidate_paths=[],
             best_path_score=0.0,
             refinement_rounds=result.retry_count,
             critique_results=[
-                {"dimension": c.get("dimension", ""), "question": c.get("question", ""),
-                 "resolution": c.get("resolution", "")}
+                {
+                    "dimension": c.get("dimension", ""),
+                    "question": c.get("question", ""),
+                    "resolution": c.get("resolution", ""),
+                }
                 for c in result.critique_dimensions
             ],
             adversarial_challenges=result.adversarial_challenges,
@@ -371,9 +357,11 @@ def register(mcp, store: SingularityStore):
             abstained=abstained,
             abstention_reason=abstention_reason,
             confidence=result.framework_confidence,
-            quality_score={"total_score": result.quality_score,
-                           "adherence": result.adherence_score,
-                           "readability": result.readability_score},
+            quality_score={
+                "total_score": result.quality_score,
+                "adherence": result.adherence_score,
+                "readability": result.readability_score,
+            },
             rubric_score={},
             bias_scan={"flags": result.bias_flags},
             answer=answer,

@@ -4,6 +4,8 @@ Fuses Loop MCP (Meta-Cognitive Routing, Calibration, Bias Scan, Benchmarking)
 with Elite Singularity MCP (Closed-Loop StateGraph, AST Gating, Cryptographic Diffs).
 Includes Real-Time Task Tracker & Watchdog Telemetry.
 """
+
+import asyncio
 import hashlib
 import json
 import os
@@ -52,7 +54,7 @@ class EliteCognitiveEngine:
         task_type: str = "hard_problem",
         max_iterations: int = 3,
         enable_prm: bool = True,
-        enable_bias_scan: bool = True
+        enable_bias_scan: bool = True,
     ) -> Dict[str, Any]:
         """
         Supreme Unified Execution:
@@ -96,7 +98,7 @@ class EliteCognitiveEngine:
                     "sycophancy_score": res.sycophancy_score,
                     "confidence_evidence_gap": res.confidence_evidence_gap,
                     "overall_risk": res.overall_risk,
-                    "recommendations": res.recommendations
+                    "recommendations": res.recommendations,
                 }
             except Exception as e:
                 bias_report = {"warning": f"Bias scan fallback: {e}"}
@@ -104,9 +106,12 @@ class EliteCognitiveEngine:
         # Phase 3: Singularity Relevant Lessons
         relevant_lessons = self.lessons.search_relevant(task, n=5)
 
-        # Phase 4: Self-Discover Dynamic Topology
+        # Phase 4 & 6: Self-Discover Dynamic Topology & Logic Verification in Parallel
         TaskTracker.heartbeat(task_id, node="self_discover_topology", progress_pct=50)
-        topology_res = await _compose_topology(task)
+        topology_res, logic_check = await asyncio.gather(
+            _compose_topology(task), self.logic.verify_argument(task), return_exceptions=False
+        )
+
         if isinstance(topology_res, str):
             try:
                 topology = json.loads(topology_res)
@@ -121,8 +126,6 @@ class EliteCognitiveEngine:
         prm_passed = prm_check.get("passed", True)
         prm_score = prm_check.get("prm_score", 0.95)
 
-        # Phase 6: Logic Verification
-        logic_check = await self.logic.verify_argument(task)
         logic_valid = logic_check.get("valid", True)
 
         # Phase 7: Compute Execution Layers
@@ -135,7 +138,7 @@ class EliteCognitiveEngine:
             "6. LogicVerifier",
             "7. ExpertPanelDebate",
             "8. CryptographicPoWGenerator",
-            "9. CalibrationTracker"
+            "9. CalibrationTracker",
         ]
 
         # Phase 8: Cryptographic Proof of Work
@@ -146,7 +149,13 @@ class EliteCognitiveEngine:
         duration_ms = (time.perf_counter() - start_time) * 1000
 
         # Phase 9: Benchmark Quality Score
-        quality_score = min(1.0, 0.70 + (0.15 if prm_passed else -0.20) + (0.10 if logic_valid else 0.0) + (0.05 if len(relevant_lessons) >= 0 else 0))
+        quality_score = min(
+            1.0,
+            0.70
+            + (0.15 if prm_passed else -0.20)
+            + (0.10 if logic_valid else 0.0)
+            + (0.05 if len(relevant_lessons) >= 0 else 0),
+        )
         selected_mods = topology.get("selected_atomic_modules") or topology.get("selected_modules") or []
 
         result = {
@@ -171,8 +180,8 @@ class EliteCognitiveEngine:
                 "verification_hash": verification_hash,
                 "algorithm": "SHA-256",
                 "valid": (len(verification_hash) == 64),
-                "timestamp_unix": int(time.time())
-            }
+                "timestamp_unix": int(time.time()),
+            },
         }
 
         # Telemetry: Finish task
@@ -180,26 +189,20 @@ class EliteCognitiveEngine:
             task_id=task_id,
             status="SUCCESS",
             result_summary=f"Quality: {quality_score:.2f}, Latency: {duration_ms:.1f}ms",
-            quality_score=quality_score
+            quality_score=quality_score,
         )
 
         # Phase 10: Record into SQLite store for longitudinal calibration & metrics
         try:
-            self.store.log_calibration(
+            self.store.batch_log_mix(
                 prediction_id=task_id,
                 claim=f"Task: {task[:150]}",
                 confidence=float(quality_score),
-                domain=intent
-            )
-            self.store.resolve_calibration(
-                prediction_id=task_id,
+                domain=intent,
                 outcome="Step PRM & AST Verification Verified",
-                correct=(quality_score >= 0.70)
-            )
-            self.store.record_metric(
-                name="mix_execution_quality",
-                value=float(quality_score),
-                unit="score"
+                correct=(quality_score >= 0.70),
+                metric_name="mix_execution_quality",
+                metric_value=float(quality_score),
             )
         except Exception as exc:
             # Explicit non-fatal exception suppression

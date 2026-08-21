@@ -37,16 +37,15 @@ class SelfRAGEngine:
 
         return {
             "original_claim": claim,
-            "reflection_tokens": {
-                "IsRel": is_rel,
-                "IsSup": is_sup,
-                "IsUse": is_use
-            },
+            "reflection_tokens": {"IsRel": is_rel, "IsSup": is_sup, "IsUse": is_use},
             "crag_triggered": crag_triggered,
-            "corrected_claim": corrected_claim
+            "corrected_claim": corrected_claim,
         }
 
-async def self_rag_evaluate(query: str = "", retrieved_context: str = "", generated_response: str = "", claim: str = "") -> str:
+
+async def self_rag_evaluate(
+    query: str = "", retrieved_context: str = "", generated_response: str = "", claim: str = ""
+) -> str:
     target = query or claim or generated_response or "default claim"
     engine = SelfRAGEngine()
     res = await engine.evaluate_and_correct(target, [])

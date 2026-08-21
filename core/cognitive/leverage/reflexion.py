@@ -4,7 +4,14 @@ from typing import Any, Dict
 
 
 class ReflexionReport:
-    def __init__(self, failure_summary: str, root_cause_hypothesis: str, minimal_patch_plan: str, next_verification_command: str, lesson: str):
+    def __init__(
+        self,
+        failure_summary: str,
+        root_cause_hypothesis: str,
+        minimal_patch_plan: str,
+        next_verification_command: str,
+        lesson: str,
+    ):
         self.failure_summary = failure_summary
         self.root_cause_hypothesis = root_cause_hypothesis
         self.minimal_patch_plan = minimal_patch_plan
@@ -28,6 +35,7 @@ NEXT TEST:
 LESSON:
 {self.lesson}
 """
+
 
 async def analyze_failure(task: str, candidate_content: str, verifier_output: str) -> ReflexionReport:
     f_sum = verifier_output.strip().split("\n")[0] if verifier_output else "Unknown execution failure"
@@ -53,12 +61,15 @@ async def analyze_failure(task: str, candidate_content: str, verifier_output: st
         root_cause_hypothesis=rc,
         minimal_patch_plan=patch,
         next_verification_command="pytest tests/golden -q",
-        lesson=lesson
+        lesson=lesson,
     )
 
-async def reflexion_repair(task: str, candidate_content: str, verifier_output: str, max_attempts: int = 2) -> Dict[str, Any]:
+
+async def reflexion_repair(
+    task: str, candidate_content: str, verifier_output: str, max_attempts: int = 2
+) -> Dict[str, Any]:
     report = await analyze_failure(task, candidate_content, verifier_output)
-    
+
     # Save lesson to memory file
     base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
     lesson_path = os.path.join(base_dir, ".ai", "memory", "lessons.md")
@@ -75,5 +86,5 @@ async def reflexion_repair(task: str, candidate_content: str, verifier_output: s
         "report": report.to_markdown(),
         "patch_plan": report.minimal_patch_plan,
         "lesson": report.lesson,
-        "attempts": 1
+        "attempts": 1,
     }

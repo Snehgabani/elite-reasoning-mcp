@@ -1,4 +1,5 @@
 """Telemetry middleware: usage logging, latency budgets, periodic scans, cost tracking."""
+
 import logging
 
 from core.middleware.base import CallContext, CallResult, Middleware
@@ -7,18 +8,25 @@ from core.privacy import telemetry_mode, telemetry_summary
 logger = logging.getLogger(__name__)
 
 # Tools that trigger embedding computations (cost ~$0.0001 per call locally)
-EMBEDDING_TOOLS = frozenset({
-    'record_mistake', 'record_decision', 'check_anti_patterns',
-    'search_decisions', 'remember', 'learn',
-})
+EMBEDDING_TOOLS = frozenset(
+    {
+        "record_mistake",
+        "record_decision",
+        "check_anti_patterns",
+        "search_decisions",
+        "remember",
+        "learn",
+    }
+)
 
 
 class UsageLogMiddleware(Middleware):
     """Logs every tool call for adaptive learning."""
+
     name = "usage_log"
     applies_to = "*"
 
-    def __init__(self, store, session_id: str = 'default'):
+    def __init__(self, store, session_id: str = "default"):
         self.store = store
         self.session_id = session_id
 
@@ -28,19 +36,19 @@ class UsageLogMiddleware(Middleware):
         try:
             # Metadata-only telemetry is the default. Raw values require an
             # explicit local opt-in and are still passed through redaction.
-            args_summary = telemetry_summary(ctx.args) if ctx.args else ''
+            args_summary = telemetry_summary(ctx.args) if ctx.args else ""
             result_text = telemetry_summary(result.value)
             self.store.log_tool_usage(
-                ctx.tool_name, args_summary, result_text,
-                self.session_id, int(result.duration_ms)
+                ctx.tool_name, args_summary, result_text, self.session_id, int(result.duration_ms)
             )
         except Exception as e:
-            logger.debug(f'Usage logging failed for {ctx.tool_name}: {e}')
+            logger.debug(f"Usage logging failed for {ctx.tool_name}: {e}")
         return result
 
 
 class LatencyBudgetMiddleware(Middleware):
     """Warns when tool calls exceed latency budget."""
+
     name = "latency_budget"
     applies_to = "*"
 
@@ -50,19 +58,19 @@ class LatencyBudgetMiddleware(Middleware):
     async def after(self, ctx: CallContext, result: CallResult) -> CallResult:
         if result.duration_ms > self.p99_ms:
             result.augmentations.append(
-                f"⏱️ LATENCY WARNING: {ctx.tool_name} took {result.duration_ms:.0f}ms "
-                f"(budget: {self.p99_ms}ms)"
+                f"⏱️ LATENCY WARNING: {ctx.tool_name} took {result.duration_ms:.0f}ms (budget: {self.p99_ms}ms)"
             )
         return result
 
 
 class PeriodicScanMiddleware(Middleware):
     """Runs autonomous scan every N tool calls.
-    
+
     Optionally ticks the OptimizationLoop, which cascading-fires all
     learning modules: injection_optimizer, rule_lifecycle, severity_inference,
     trigger_learner.
     """
+
     name = "periodic_scan"
     applies_to = "*"
 
@@ -77,10 +85,10 @@ class PeriodicScanMiddleware(Middleware):
         if self._counter % self.interval == 0:
             try:
                 scan = self.store.autonomous_scan()
-                if scan.get('p0_count', 0) > 0:
+                if scan.get("p0_count", 0) > 0:
                     scan_text = f"⚡ AUTONOMOUS SCAN: {scan['p0_count']} P0 gaps detected!\n"
-                    for gap in scan.get('gaps', []):
-                        if gap['severity'] == 'P0':
+                    for gap in scan.get("gaps", []):
+                        if gap["severity"] == "P0":
                             scan_text += f"  - {gap['detail']}\n"
                     result.augmentations.insert(0, scan_text)
             except Exception as e:
@@ -90,8 +98,10 @@ class PeriodicScanMiddleware(Middleware):
                 try:
                     if self._optimizer.should_check():
                         opt_result = self._optimizer.tick()
-                        logger.info("OptimizationLoop ticked",
-                                   extra={"actions": len(opt_result) if isinstance(opt_result, list) else 0})
+                        logger.info(
+                            "OptimizationLoop ticked",
+                            extra={"actions": len(opt_result) if isinstance(opt_result, list) else 0},
+                        )
                 except Exception as e:
                     logger.debug(f"PeriodicScan: optimizer.tick error: {e}")
         return result
@@ -99,22 +109,23 @@ class PeriodicScanMiddleware(Middleware):
 
 class CostTrackingMiddleware(Middleware):
     """Auto-logs cost for tools that trigger embeddings or expensive operations.
-    
+
     Opus R2 Q13b: "Every embedding call, every FTS query, every vec search
     should have a cost entry so the system can self-optimize."
     """
+
     name = "cost_tracking"
     applies_to = "*"
 
     # Estimated costs per operation type (USD)
     COST_ESTIMATES = {
-        'embedding_local': 0.0001,     # local SentenceTransformer
-        'embedding_api': 0.0002,       # if using external API
-        'fts_search': 0.00001,         # FTS5 is essentially free
-        'vec_search': 0.00005,         # vec search with distance calc
+        "embedding_local": 0.0001,  # local SentenceTransformer
+        "embedding_api": 0.0002,  # if using external API
+        "fts_search": 0.00001,  # FTS5 is essentially free
+        "vec_search": 0.00005,  # vec search with distance calc
     }
 
-    def __init__(self, store, session_id: str = 'default'):
+    def __init__(self, store, session_id: str = "default"):
         self.store = store
         self.session_id = session_id
 
@@ -122,13 +133,13 @@ class CostTrackingMiddleware(Middleware):
         try:
             if ctx.tool_name in EMBEDDING_TOOLS:
                 self.store.log_cost(
-                    cost_type='embedding_local',
+                    cost_type="embedding_local",
                     units=1.0,
-                    estimated_usd=self.COST_ESTIMATES['embedding_local'],
-                    provider='local',
+                    estimated_usd=self.COST_ESTIMATES["embedding_local"],
+                    provider="local",
                     tool_name=ctx.tool_name,
                     session_id=self.session_id,
                 )
         except Exception as e:
-            logger.debug(f'Cost tracking failed for {ctx.tool_name}: {e}')
+            logger.debug(f"Cost tracking failed for {ctx.tool_name}: {e}")
         return result

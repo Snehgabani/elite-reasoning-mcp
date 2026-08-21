@@ -9,6 +9,7 @@ Tests cover:
 - Goal Engine
 - Self-Diagnostics
 """
+
 import json
 import tempfile
 
@@ -34,7 +35,7 @@ class TestPromptIntelligence:
             session_id="test-session",
             prompt_text="debug the authentication module",
             intent_category="debug",
-            reasoning_type="substantive"
+            reasoning_type="substantive",
         )
         assert pid > 0
 
@@ -46,7 +47,7 @@ class TestPromptIntelligence:
             intent_category="audit",
             reasoning_type="repetition_frustration",
             implicit_expectation="System should have resolved its own findings",
-            failure_detected="DETECTION_FAILURE: unresolved findings not caught"
+            failure_detected="DETECTION_FAILURE: unresolved findings not caught",
         )
         assert pid > 0
 
@@ -60,8 +61,7 @@ class TestPromptIntelligence:
         """A session with all substantive prompts is healthy."""
         for i in range(10):
             store.record_prompt_intent(
-                session_id="s1", prompt_text=f"build feature {i}",
-                intent_category="build", reasoning_type="substantive"
+                session_id="s1", prompt_text=f"build feature {i}", intent_category="build", reasoning_type="substantive"
             )
         result = store.analyze_prompt_sequence(session_id="s1")
         assert result["total_prompts"] == 10
@@ -74,13 +74,11 @@ class TestPromptIntelligence:
         # 7 loop kicks, 3 substantive — mimics THIS conversation
         for i in range(7):
             store.record_prompt_intent(
-                session_id="s1", prompt_text="go",
-                intent_category="continuation", reasoning_type="loop_kick"
+                session_id="s1", prompt_text="go", intent_category="continuation", reasoning_type="loop_kick"
             )
         for i in range(3):
             store.record_prompt_intent(
-                session_id="s1", prompt_text=f"build feature {i}",
-                intent_category="build", reasoning_type="substantive"
+                session_id="s1", prompt_text=f"build feature {i}", intent_category="build", reasoning_type="substantive"
             )
         result = store.analyze_prompt_sequence(session_id="s1")
         assert result["total_prompts"] == 10
@@ -96,13 +94,14 @@ class TestPromptIntelligence:
         """Detects anticipation failures (gap injections)."""
         for i in range(5):
             store.record_prompt_intent(
-                session_id="s1", prompt_text=f"we also need feature {i}",
-                intent_category="build", reasoning_type="gap_injection"
+                session_id="s1",
+                prompt_text=f"we also need feature {i}",
+                intent_category="build",
+                reasoning_type="gap_injection",
             )
         for i in range(5):
             store.record_prompt_intent(
-                session_id="s1", prompt_text=f"do thing {i}",
-                intent_category="build", reasoning_type="substantive"
+                session_id="s1", prompt_text=f"do thing {i}", intent_category="build", reasoning_type="substantive"
             )
         result = store.analyze_prompt_sequence(session_id="s1")
         anticipation = [p for p in result["patterns"] if p["type"] == "ANTICIPATION_FAILURE"]
@@ -111,10 +110,12 @@ class TestPromptIntelligence:
 
     def test_analyze_prompt_sequence_session_filter(self, store):
         """Analysis filters by session_id."""
-        store.record_prompt_intent(session_id="s1", prompt_text="a",
-                                    intent_category="build", reasoning_type="substantive")
-        store.record_prompt_intent(session_id="s2", prompt_text="b",
-                                    intent_category="debug", reasoning_type="substantive")
+        store.record_prompt_intent(
+            session_id="s1", prompt_text="a", intent_category="build", reasoning_type="substantive"
+        )
+        store.record_prompt_intent(
+            session_id="s2", prompt_text="b", intent_category="debug", reasoning_type="substantive"
+        )
         result = store.analyze_prompt_sequence(session_id="s1")
         assert result["total_prompts"] == 1
 
@@ -132,7 +133,7 @@ class TestUserThinkingModel:
         result = store.update_thinking_pattern(
             pattern_name="escalates_micro_to_macro",
             system_adaptation="Switch to architecture mode after 3 escalation prompts",
-            example_prompt="now think like elite from end to end"
+            example_prompt="now think like elite from end to end",
         )
         assert "Created" in result
         model = store.get_user_thinking_model()
@@ -142,21 +143,9 @@ class TestUserThinkingModel:
 
     def test_update_pattern_increases_confidence(self, store):
         """Repeated observations increase confidence."""
-        store.update_thinking_pattern(
-            "expects_continuous_loops",
-            "Never stop without a blocking reason",
-            "go"
-        )
-        store.update_thinking_pattern(
-            "expects_continuous_loops",
-            "Never stop without a blocking reason",
-            "continue"
-        )
-        store.update_thinking_pattern(
-            "expects_continuous_loops",
-            "Never stop without a blocking reason",
-            "proceed"
-        )
+        store.update_thinking_pattern("expects_continuous_loops", "Never stop without a blocking reason", "go")
+        store.update_thinking_pattern("expects_continuous_loops", "Never stop without a blocking reason", "continue")
+        store.update_thinking_pattern("expects_continuous_loops", "Never stop without a blocking reason", "proceed")
         model = store.get_user_thinking_model()
         assert len(model) == 1
         assert model[0]["evidence"] == 3
@@ -193,7 +182,7 @@ class TestToolUsageTracking:
             tool_name="orchestrate_request_tool",
             args_summary='{"user_prompt": "build a dashboard"}',
             result_summary="Plan generated",
-            duration_ms=150
+            duration_ms=150,
         )
         assert tid > 0
 
@@ -226,7 +215,7 @@ class TestMissedDetections:
             detection_type="ANTICIPATION_FAILURE",
             what_was_missed="System didn't suggest crash recovery",
             root_cause="No architecture checklist running internally",
-            prevention_rule="Run checklist before presenting designs"
+            prevention_rule="Run checklist before presenting designs",
         )
         assert did > 0
 
@@ -255,7 +244,7 @@ class TestPreventionRules:
             trigger_event="after_tool_call",
             check_query="Check if multi-step task is in progress",
             action_on_match="Continue execution",
-            severity="P0"
+            severity="P0",
         )
         assert "registered" in result
 
@@ -301,8 +290,7 @@ class TestPreventionRules:
         assert len(unresolved) == 1
 
         # Register prevention rule with source detection
-        store.register_prevention_rule("fix_loop", "after_tool", "check", "act", "P0",
-                                        source_detection_id=did)
+        store.register_prevention_rule("fix_loop", "after_tool", "check", "act", "P0", source_detection_id=did)
 
         # After: detection is automated
         unresolved = store.get_unautomated_detections()

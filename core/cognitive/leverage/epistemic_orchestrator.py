@@ -82,15 +82,19 @@ async def epistemic_research(
     extra_parts = []
     for r in reads:
         if r.get("extracted"):
-            extra_parts.append(f"SITE {r['url']}\n{r.get('text','')[:2000]}")
+            extra_parts.append(f"SITE {r['url']}\n{r.get('text', '')[:2000]}")
     extra = "\n\n".join(extra_parts) or "(no full text captured; evidence truncated)"
 
     draft_resp = await _llm(
-        [SystemMessage("You are a rigorous research synthesizer."),
-         HumanMessage(SYNTHESIS_PROMPT.format(question=question, evidence=extra))]
+        [
+            SystemMessage("You are a rigorous research synthesizer."),
+            HumanMessage(SYNTHESIS_PROMPT.format(question=question, evidence=extra)),
+        ]
     )
-    draft = _txt(draft_resp) if draft_resp else (
-        "[MODEL LAYER UNAVAILABLE - answer below is raw evidence, unverified by synthesis]\n" + extra[:3000]
+    draft = (
+        _txt(draft_resp)
+        if draft_resp
+        else ("[MODEL LAYER UNAVAILABLE - answer below is raw evidence, unverified by synthesis]\n" + extra[:3000])
     )
 
     try:
@@ -104,7 +108,7 @@ async def epistemic_research(
     panel = None
     if depth == "deep" and perspectives is None:
         try:
-            panel = await expert_panel(question)   # economist/scientist/historian
+            panel = await expert_panel(question)  # economist/scientist/historian
         except Exception as e:
             panel = {"error": str(e)}
 
@@ -129,7 +133,9 @@ async def epistemic_research(
             "providers_queried": tri["providers_queried"],
             "sources": tri["sources"],
         },
-        "deep_reads": [{k: r.get(k) for k in ("url", "provider", "title", "full_text_length", "extracted")} for r in reads],
+        "deep_reads": [
+            {k: r.get(k) for k in ("url", "provider", "title", "full_text_length", "extracted")} for r in reads
+        ],
         "draft": draft,
         "revision": rev,
         "temporal": temp,
@@ -141,18 +147,20 @@ async def epistemic_research(
 
     cv: Optional[Dict[str, Any]] = claims_stage.get("claim_verification") if isinstance(claims_stage, dict) else None
     cv_counts: Any = cv.get("counts") if isinstance(cv, dict) else {}
-    _log_epistemic({
-        "ts": time.strftime("%Y-%m-%dT%H:%M:%S"),
-        "question": question,
-        "num_sources": tri["num_sources"],
-        "triangulated": tri["triangulated"],
-        "consensus_score": tri["consensus_score"],
-        "providers_queried": tri["providers_queried"],
-        "temporal_verdict": temp["verdict"],
-        "devils_rounds": rev["rounds"],
-        "critiques_found": sum(len(h.get("critiques") or []) for h in rev["history"]),
-        "claims_checked": (cv or {}).get("claims_checked", 0),
-        "claims_verified": cv_counts.get("verified", 0),
-        "duration_seconds": result["duration_seconds"],
-    })
+    _log_epistemic(
+        {
+            "ts": time.strftime("%Y-%m-%dT%H:%M:%S"),
+            "question": question,
+            "num_sources": tri["num_sources"],
+            "triangulated": tri["triangulated"],
+            "consensus_score": tri["consensus_score"],
+            "providers_queried": tri["providers_queried"],
+            "temporal_verdict": temp["verdict"],
+            "devils_rounds": rev["rounds"],
+            "critiques_found": sum(len(h.get("critiques") or []) for h in rev["history"]),
+            "claims_checked": (cv or {}).get("claims_checked", 0),
+            "claims_verified": cv_counts.get("verified", 0),
+            "duration_seconds": result["duration_seconds"],
+        }
+    )
     return result

@@ -41,9 +41,7 @@ def accumulate_calibration(
     prediction_id is derived from prompt + a nanosecond timestamp, so every
     run yields a fresh datapoint (each run is a new sample of the system).
     """
-    pred_id = hashlib.sha256(
-        f"auto:{prompt}:{time.time_ns()}".encode()
-    ).hexdigest()[:16]
+    pred_id = hashlib.sha256(f"auto:{prompt}:{time.time_ns()}".encode()).hexdigest()[:16]
     try:
         store.log_calibration(pred_id, prompt[:2000], float(confidence), domain)
         store.resolve_calibration(pred_id, "auto", bool(correct))

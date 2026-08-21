@@ -27,7 +27,7 @@ class GatedEnforcer:
         diff_content: str,
         original_content: Optional[str] = None,
         token: Optional[str] = None,
-        task_id: Optional[str] = None
+        task_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Validates the HMAC token and AST invariants before applying diff to disk.
@@ -66,14 +66,14 @@ class GatedEnforcer:
             replacement=diff_content,
             token=auth_token,
             secret_key=_HMAC_SECRET,
-            verify_spliced_ast=True
+            verify_spliced_ast=True,
         )
 
         if not val_res.passed:
             return {
                 "status": "REJECTED",
                 "issues": val_res.issues,
-                "error": "Diff violates AST or security invariants (Execution Blocked)."
+                "error": "Diff violates AST or security invariants (Execution Blocked).",
             }
 
         # 5. Apply verified diff atomically
@@ -81,23 +81,16 @@ class GatedEnforcer:
         if not ok:
             return {"status": "REJECTED", "error": msg}
 
-        return {
-            "status": "APPROVED",
-            "file_path": norm_path,
-            "proof_of_work_valid": True,
-            "message": msg
-        }
+        return {"status": "APPROVED", "file_path": norm_path, "proof_of_work_valid": True, "message": msg}
 
 
-def enforce_diff_application(task_id: str, task_type: str, file_path: str, original: str, new: str, token: Optional[str] = None) -> str:
+def enforce_diff_application(
+    task_id: str, task_type: str, file_path: str, original: str, new: str, token: Optional[str] = None
+) -> str:
     """Wrapper function for tool-level diff enforcement."""
     enforcer = GatedEnforcer()
     res = enforcer.apply_diff(
-        file_path=file_path,
-        diff_content=new,
-        original_content=original,
-        token=token,
-        task_id=task_id
+        file_path=file_path, diff_content=new, original_content=original, token=token, task_id=task_id
     )
     if res.get("status") == "APPROVED":
         return f"✅ {res.get('message')}"

@@ -48,32 +48,50 @@ from core.cognitive.loop.pipeline.nodes_v4 import (
 
 class ReasoningPipelineV4:
     """v4 pipeline with Round 3 upgrades.
-    
+
     Modes:
     - direct: Classify only (baseline for A/B)
     - standard: Classify → Decompose → SelfConsistency → Synthesis → Prompt → Score
     - amplified: Full pipeline with all v4 nodes + adaptive refinement
-    
+
     Key improvement over v3: Generates GUIDED REASONING PROMPT
     """
-    
+
     MODES = {
         "direct": ["classify_route"],
         "standard": [
-            "classify_route", "decompose", "self_consistency",
-            "synthesis", "reasoning_prompt_generator", "verification",
-            "calibrate", "quality_score",
+            "classify_route",
+            "decompose",
+            "self_consistency",
+            "synthesis",
+            "reasoning_prompt_generator",
+            "verification",
+            "calibrate",
+            "quality_score",
         ],
         "amplified": [
-            "classify_route", "task_adaptive_selector", "meta_reasoning",
-            "step_back", "decompose", "self_consistency", "path_ensemble",
-            "self_refine_critique", "self_refine_resolve", "adversarial_verify",
-            "adversarial_self_play", "synthesis", "output_structuring",
-            "reasoning_prompt_generator", "outcome_predictor", "verification",
-            "calibrate", "quality_score", "progressive_complexity",
+            "classify_route",
+            "task_adaptive_selector",
+            "meta_reasoning",
+            "step_back",
+            "decompose",
+            "self_consistency",
+            "path_ensemble",
+            "self_refine_critique",
+            "self_refine_resolve",
+            "adversarial_verify",
+            "adversarial_self_play",
+            "synthesis",
+            "output_structuring",
+            "reasoning_prompt_generator",
+            "outcome_predictor",
+            "verification",
+            "calibrate",
+            "quality_score",
+            "progressive_complexity",
         ],
     }
-    
+
     NODE_REGISTRY = {
         # v2 nodes
         "classify_route": ClassifyAndRouteNode,
@@ -98,11 +116,11 @@ class ReasoningPipelineV4:
         "outcome_predictor": OutcomePredictorNode,
         "task_adaptive_selector": TaskAdaptiveTechniqueSelector,
     }
-    
+
     def __init__(self, store: SingularityStore, mode: str = "amplified"):
         self.store = store
         self.mode = mode
-    
+
     def _build_nodes(self, mode: str) -> list:
         node_names = self.MODES.get(mode, self.MODES["standard"])
         nodes = []
@@ -114,23 +132,23 @@ class ReasoningPipelineV4:
                 else:
                     nodes.append(factory())
         return nodes
-    
+
     def run(self, prompt: str, mode: str | None = None) -> PipelineStateV4:
         """Execute the v4 pipeline with adaptive refinement."""
         start = time.time()
         session_id = f"rs_{uuid.uuid4().hex[:12]}"
         effective_mode = mode or self.mode
-        
+
         # Initialize v4 state
         state = PipelineStateV4(
             prompt=prompt,
             session_id=session_id,
         )
-        
+
         # Phase 1: Classify and route
         classify_node = ClassifyAndRouteNode()
         state = classify_node.execute(state, self.store)
-        
+
         # Override mode based on route if not explicitly specified
         if mode is None:
             if state.route == "direct":
@@ -139,10 +157,10 @@ class ReasoningPipelineV4:
                 effective_mode = "standard"
             else:
                 effective_mode = "amplified"
-        
+
         # Build node list
         nodes = self._build_nodes(effective_mode)
-        
+
         # Phase 2: Execute pipeline nodes
         for node in nodes:
             if node.name == "classify_route":
@@ -151,13 +169,13 @@ class ReasoningPipelineV4:
                 state = node.execute(state, self.store)
             except Exception as e:
                 state.warnings.append(f"Node '{node.name}' failed: {str(e)[:200]}")
-        
+
         # Phase 3: Adaptive refinement loop (amplified mode only)
         if effective_mode == "amplified":
             state = self._adaptive_refinement_loop(state)
-        
+
         state.pipeline_duration_ms = int((time.time() - start) * 1000)
-        
+
         # Record session
         try:
             self.store.create_session(
@@ -189,67 +207,67 @@ class ReasoningPipelineV4:
                 },
                 duration_ms=state.pipeline_duration_ms,
             )
-            self.store.record_metric("pipeline_v4_duration_ms", state.pipeline_duration_ms, "ms",
-                                      {"mode": effective_mode})
+            self.store.record_metric(
+                "pipeline_v4_duration_ms", state.pipeline_duration_ms, "ms", {"mode": effective_mode}
+            )
             self.store.record_metric("pipeline_v4_quality", state.quality_score.get("total_score", 0))
             self.store.record_metric("pipeline_v4_predicted_quality", state.predicted_quality)
         except Exception as exc:
             # Explicit non-fatal exception suppression
             _ = str(exc)
-        
+
         return state
-    
+
     def _adaptive_refinement_loop(self, state: PipelineStateV4) -> PipelineStateV4:
         """Adaptive refinement with early stopping."""
         refine_critique = SelfRefineCritiqueNode()
         refine_resolve = SelfRefineResolutionNode()
         quality_node = QualityScoreNode()
         calibrate_node = CalibrationNode()
-        
+
         # Record initial quality
         initial_quality = state.quality_score.get("total_score", 0)
         state.refinement_quality_history.append(initial_quality)
-        
+
         prev_quality = initial_quality
-        
+
         for refine_round in range(state.max_refinement_rounds - 1):
             # Run refinement
             state = refine_critique.execute(state, self.store)
             state = refine_resolve.execute(state, self.store)
             state = calibrate_node.execute(state, self.store)
             state = quality_node.execute(state, self.store)
-            
+
             current_quality = state.quality_score.get("total_score", 0)
             state.refinement_quality_history.append(current_quality)
-            
+
             # Calculate improvement
             improvement = current_quality - prev_quality
-            
+
             state.warnings.append(
-                f"Refinement round {state.refinement_round + 1}: "
-                f"quality={current_quality:.3f} (Δ={improvement:+.3f})"
+                f"Refinement round {state.refinement_round + 1}: quality={current_quality:.3f} (Δ={improvement:+.3f})"
             )
-            
+
             # Early stopping conditions
             if current_quality >= state.quality_threshold:
                 state.warnings.append(f"Early stop: quality meets threshold ({state.quality_threshold})")
                 state.early_stopped = True
                 break
-            
+
             if improvement < 0.05 and refine_round > 0:
                 state.warnings.append(f"Early stop: diminishing returns (Δ={improvement:.3f} < 0.05)")
                 state.early_stopped = True
                 break
-            
+
             if improvement < 0:
                 state.warnings.append(f"Early stop: quality decreased (Δ={improvement:.3f})")
                 state.early_stopped = True
                 break
-            
+
             prev_quality = current_quality
-        
+
         return state
-    
+
     def get_pipeline_info(self) -> dict[str, Any]:
         """Get pipeline configuration and technique details."""
         node_names = self.MODES.get(self.mode, [])

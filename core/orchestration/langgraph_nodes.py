@@ -9,6 +9,7 @@ class ContextState(TypedDict):
     graph_edges_to_create: List[Dict[str, Any]]
     synthesis_message: str
 
+
 def extract_entities(state: ContextState) -> Dict[str, Any]:
     """
     Extract concepts from raw text.
@@ -29,19 +30,23 @@ def extract_entities(state: ContextState) -> Dict[str, Any]:
 
     return {"extracted_entities": entities}
 
+
 def traverse_and_link(state: ContextState) -> Dict[str, Any]:
     """
     Look up existing nodes in the GraphStore and propose edges.
     """
     edges = []
     for entity in state.get("extracted_entities", []):
-        edges.append({
-            "source_label": "ContextSession",
-            "target_label": entity["label"],
-            "relation": "DISCOVERED_IN",
-            "properties": {}
-        })
+        edges.append(
+            {
+                "source_label": "ContextSession",
+                "target_label": entity["label"],
+                "relation": "DISCOVERED_IN",
+                "properties": {},
+            }
+        )
     return {"graph_edges_to_create": edges}
+
 
 def synthesize(state: ContextState) -> Dict[str, Any]:
     """
@@ -50,6 +55,7 @@ def synthesize(state: ContextState) -> Dict[str, Any]:
     count = len(state.get("extracted_entities", []))
     msg = f"Successfully extracted {count} entities and linked them via LangGraph background process."
     return {"synthesis_message": msg}
+
 
 def build_ingestion_graph() -> StateGraph:
     """Compiles and returns the LangGraph application."""

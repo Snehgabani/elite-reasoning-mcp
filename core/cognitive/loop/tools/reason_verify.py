@@ -93,51 +93,83 @@ def register(mcp, store: SingularityStore):
             confidence=confidence,
         )
         if quality["passed"]:
-            gates.append(GateCheck(name="quality_score", status="passed",
-                                   detail=f"Score: {quality['total_score']:.3f} (threshold: 0.70)"))
+            gates.append(
+                GateCheck(
+                    name="quality_score",
+                    status="passed",
+                    detail=f"Score: {quality['total_score']:.3f} (threshold: 0.70)",
+                )
+            )
         else:
-            gates.append(GateCheck(name="quality_score", status="failed",
-                                   detail=f"Score: {quality['total_score']:.3f} below threshold 0.70"))
+            gates.append(
+                GateCheck(
+                    name="quality_score",
+                    status="failed",
+                    detail=f"Score: {quality['total_score']:.3f} below threshold 0.70",
+                )
+            )
 
         # Gate 2: Task success dimension
         task_score = quality["raw_dimensions"].get("task_success", 0)
         if task_score >= 0.65:
-            gates.append(GateCheck(name="task_success", status="passed",
-                                   detail=f"Task success: {task_score:.3f} (threshold: 0.65)"))
+            gates.append(
+                GateCheck(
+                    name="task_success", status="passed", detail=f"Task success: {task_score:.3f} (threshold: 0.65)"
+                )
+            )
         else:
-            gates.append(GateCheck(name="task_success", status="failed",
-                                   detail=f"Task success: {task_score:.3f} below threshold 0.65"))
+            gates.append(
+                GateCheck(
+                    name="task_success", status="failed", detail=f"Task success: {task_score:.3f} below threshold 0.65"
+                )
+            )
 
         # Gate 3: Validation status
         if validation_passed is True:
-            gates.append(GateCheck(name="validation", status="passed",
-                                   detail="Executable validation passed."))
+            gates.append(GateCheck(name="validation", status="passed", detail="Executable validation passed."))
         elif validation_passed is False:
-            gates.append(GateCheck(name="validation", status="failed",
-                                   detail="Executable validation FAILED."))
+            gates.append(GateCheck(name="validation", status="failed", detail="Executable validation FAILED."))
         else:
-            gates.append(GateCheck(name="validation", status="warning",
-                                   detail="Validation not run — manual verification needed."))
+            gates.append(
+                GateCheck(
+                    name="validation", status="warning", detail="Validation not run — manual verification needed."
+                )
+            )
 
         # Gate 4: Evidence grounding
         if evidence_sources >= 2:
-            gates.append(GateCheck(name="evidence", status="passed",
-                                   detail=f"{evidence_sources} evidence sources cited."))
+            gates.append(
+                GateCheck(name="evidence", status="passed", detail=f"{evidence_sources} evidence sources cited.")
+            )
         elif evidence_sources >= 1:
-            gates.append(GateCheck(name="evidence", status="warning",
-                                   detail=f"Only {evidence_sources} evidence source(s) — consider more."))
+            gates.append(
+                GateCheck(
+                    name="evidence",
+                    status="warning",
+                    detail=f"Only {evidence_sources} evidence source(s) — consider more.",
+                )
+            )
         else:
-            gates.append(GateCheck(name="evidence", status="warning",
-                                   detail="No evidence sources cited."))
+            gates.append(GateCheck(name="evidence", status="warning", detail="No evidence sources cited."))
 
         # Gate 5: Tool efficiency
         tool_score = quality["raw_dimensions"].get("tool_efficiency", 0)
         if tool_score >= 0.6:
-            gates.append(GateCheck(name="tool_efficiency", status="passed",
-                                   detail=f"Tool efficiency: {tool_score:.3f} ({tool_calls} calls)"))
+            gates.append(
+                GateCheck(
+                    name="tool_efficiency",
+                    status="passed",
+                    detail=f"Tool efficiency: {tool_score:.3f} ({tool_calls} calls)",
+                )
+            )
         else:
-            gates.append(GateCheck(name="tool_efficiency", status="warning",
-                                   detail=f"Tool efficiency low: {tool_score:.3f} ({tool_calls} calls — consider fewer)"))
+            gates.append(
+                GateCheck(
+                    name="tool_efficiency",
+                    status="warning",
+                    detail=f"Tool efficiency low: {tool_score:.3f} ({tool_calls} calls — consider fewer)",
+                )
+            )
 
         # Check anti-patterns
         anti_patterns = store.check_anti_patterns(output[:500], limit=3)
@@ -187,7 +219,7 @@ def register(mcp, store: SingularityStore):
             store.record_quality_score(
                 score=int(quality["total_score"] * 100),
                 dimension="verification",
-                notes=f"Status: {overall_status} | Gates: {len(gates)} | Session: {session_id}"
+                notes=f"Status: {overall_status} | Gates: {len(gates)} | Session: {session_id}",
             )
 
             # Record metric snapshots
@@ -200,9 +232,13 @@ def register(mcp, store: SingularityStore):
             # Explicit non-fatal exception suppression
             _ = str(exc)
 
-        store.log_tool_usage("reasoning_verify", session_id[:50],
-                              json.dumps({"status": overall_status, "score": quality["total_score"]}),
-                              session_id, duration_ms)
+        store.log_tool_usage(
+            "reasoning_verify",
+            session_id[:50],
+            json.dumps({"status": overall_status, "score": quality["total_score"]}),
+            session_id,
+            duration_ms,
+        )
 
         return VerifyResult(
             session_id=session_id,

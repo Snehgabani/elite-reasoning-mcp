@@ -15,6 +15,7 @@ Usage:
   result = polisher.polish("fix the login bug")
   # result.polished_prompt, result.original_score, result.polished_score, result.goals_aligned
 """
+
 import re
 from dataclasses import dataclass, field
 
@@ -22,6 +23,7 @@ from dataclasses import dataclass, field
 @dataclass
 class PolishResult:
     """Result of a prompt polishing operation."""
+
     original_prompt: str
     polished_prompt: str
     original_score: int
@@ -42,59 +44,64 @@ class GoalPromptPolisher:
 
     # ── Quality signals that boost prompt score ──────────────
     QUALITY_SIGNALS = [
-        (r'\b(specific|exactly|precise)\b', 5, "specificity"),
-        (r'\b(verify|validate|test|check)\b', 5, "verification"),
-        (r'\b(step.by.step|phase|stage)\b', 5, "structured_approach"),
-        (r'\b(constraint|requirement|must|shall)\b', 4, "constraints"),
-        (r'\b(edge.case|corner.case|error.handling)\b', 6, "edge_cases"),
-        (r'\b(metric|measure|benchmark|score)\b', 5, "measurability"),
-        (r'\b(why|because|reason|rationale)\b', 4, "reasoning"),
-        (r'\b(trade.?off|alternative|option)\b', 4, "trade_off_awareness"),
-        (r'\b(security|vulnerability|injection|xss|csrf)\b', 5, "security"),
-        (r'\b(performance|latency|throughput|scale)\b', 4, "performance"),
-        (r'\b(rollback|revert|undo|backup)\b', 4, "safety_net"),
-        (r'\b(document|explain|comment)\b', 3, "documentation"),
+        (r"\b(specific|exactly|precise)\b", 5, "specificity"),
+        (r"\b(verify|validate|test|check)\b", 5, "verification"),
+        (r"\b(step.by.step|phase|stage)\b", 5, "structured_approach"),
+        (r"\b(constraint|requirement|must|shall)\b", 4, "constraints"),
+        (r"\b(edge.case|corner.case|error.handling)\b", 6, "edge_cases"),
+        (r"\b(metric|measure|benchmark|score)\b", 5, "measurability"),
+        (r"\b(why|because|reason|rationale)\b", 4, "reasoning"),
+        (r"\b(trade.?off|alternative|option)\b", 4, "trade_off_awareness"),
+        (r"\b(security|vulnerability|injection|xss|csrf)\b", 5, "security"),
+        (r"\b(performance|latency|throughput|scale)\b", 4, "performance"),
+        (r"\b(rollback|revert|undo|backup)\b", 4, "safety_net"),
+        (r"\b(document|explain|comment)\b", 3, "documentation"),
     ]
 
     # ── Enhancement rules: what to add based on what's missing ──
     ENHANCEMENT_RULES = [
         {
-            "check": lambda p: not re.search(r'\b(verify|validate|test|check|ensure)\b', p, re.I),
+            "check": lambda p: not re.search(r"\b(verify|validate|test|check|ensure)\b", p, re.I),
             "inject": "Verify the solution works correctly before finalizing.",
             "tag": "verification_gate",
         },
         {
-            "check": lambda p: not re.search(r'\b(edge.case|corner.case|error|fail|exception)\b', p, re.I),
+            "check": lambda p: not re.search(r"\b(edge.case|corner.case|error|fail|exception)\b", p, re.I),
             "inject": "Handle edge cases and error scenarios explicitly.",
             "tag": "edge_case_coverage",
         },
         {
-            "check": lambda p: not re.search(r'\b(why|because|reason|trade.?off)\b', p, re.I)
-                              and len(p.split()) > 10,
+            "check": lambda p: not re.search(r"\b(why|because|reason|trade.?off)\b", p, re.I) and len(p.split()) > 10,
             "inject": "Explain the reasoning behind key decisions.",
             "tag": "reasoning_depth",
         },
         {
-            "check": lambda p: not re.search(r'\b(metric|measure|benchmark|quality)\b', p, re.I)
-                              and len(p.split()) > 15,
+            "check": lambda p: (
+                not re.search(r"\b(metric|measure|benchmark|quality)\b", p, re.I) and len(p.split()) > 15
+            ),
             "inject": "Define measurable success criteria.",
             "tag": "measurability",
         },
         {
-            "check": lambda p: not re.search(r'\b(step|phase|first|then|next|finally)\b', p, re.I)
-                              and len(p.split()) > 20,
+            "check": lambda p: (
+                not re.search(r"\b(step|phase|first|then|next|finally)\b", p, re.I) and len(p.split()) > 20
+            ),
             "inject": "Break the approach into clear phases.",
             "tag": "structured_approach",
         },
         {
-            "check": lambda p: not re.search(r'\b(security|auth|permission|sanitize)\b', p, re.I)
-                              and re.search(r'\b(api|endpoint|user|input|form|database)\b', p, re.I),
+            "check": lambda p: (
+                not re.search(r"\b(security|auth|permission|sanitize)\b", p, re.I)
+                and re.search(r"\b(api|endpoint|user|input|form|database)\b", p, re.I)
+            ),
             "inject": "Consider security implications (input validation, auth, injection prevention).",
             "tag": "security_awareness",
         },
         {
-            "check": lambda p: not re.search(r'\b(performance|scale|optimize|cache|lazy)\b', p, re.I)
-                              and re.search(r'\b(database|query|api|load|list|fetch|render)\b', p, re.I),
+            "check": lambda p: (
+                not re.search(r"\b(performance|scale|optimize|cache|lazy)\b", p, re.I)
+                and re.search(r"\b(database|query|api|load|list|fetch|render)\b", p, re.I)
+            ),
             "inject": "Consider performance implications for the chosen approach.",
             "tag": "performance_awareness",
         },
@@ -149,9 +156,7 @@ class GoalPromptPolisher:
         try:
             active_goals = self.store.get_active_goals()
             if active_goals:
-                goal_context, goals_aligned = self._build_goal_context(
-                    active_goals, prompt, intent
-                )
+                goal_context, goals_aligned = self._build_goal_context(active_goals, prompt, intent)
         except Exception as exc:
             # Explicit non-fatal exception suppression
             _ = str(exc)  # Goals are optional — don't break on DB errors
@@ -212,7 +217,7 @@ class GoalPromptPolisher:
             score += 4
 
         # Has numbered list or bullet points
-        if re.search(r'^\s*[\d\-\*]', prompt, re.MULTILINE):
+        if re.search(r"^\s*[\d\-\*]", prompt, re.MULTILINE):
             score += 5
 
         # Cap at 100
@@ -245,24 +250,24 @@ class GoalPromptPolisher:
             score += 1
 
         # Multi-part requests
-        if re.search(r'\b(and|also|plus|additionally|moreover)\b', prompt.lower()):
+        if re.search(r"\b(and|also|plus|additionally|moreover)\b", prompt.lower()):
             score += 1
 
         # Technical keywords add complexity
-        tech_words = len(re.findall(
-            r'\b(api|database|auth|deploy|kubernetes|docker|'
-            r'ci/cd|migration|security|architecture|distributed|'
-            r'concurrency|async|microservice|pipeline)\b',
-            prompt.lower()
-        ))
+        tech_words = len(
+            re.findall(
+                r"\b(api|database|auth|deploy|kubernetes|docker|"
+                r"ci/cd|migration|security|architecture|distributed|"
+                r"concurrency|async|microservice|pipeline)\b",
+                prompt.lower(),
+            )
+        )
         if tech_words >= 2:
             score += 1
 
         return min(score, 5)
 
-    def _build_goal_context(
-        self, goals: list[dict], prompt: str, intent: str
-    ) -> tuple[str, list[str]]:
+    def _build_goal_context(self, goals: list[dict], prompt: str, intent: str) -> tuple[str, list[str]]:
         """Build goal-alignment context from active goals.
 
         Returns (goal_context_text, list_of_aligned_goal_objectives).
@@ -292,22 +297,14 @@ class GoalPromptPolisher:
             if is_relevant:
                 aligned.append(objective)
                 progress_bar = f"{overall_pct}%"
-                kr_text = ", ".join(
-                    kr if isinstance(kr, str) else str(kr)
-                    for kr in key_results[:3]
-                )
-                context_parts.append(
-                    f"🎯 ACTIVE GOAL [{progress_bar}]: {objective}\n"
-                    f"   Key Results: {kr_text}"
-                )
+                kr_text = ", ".join(kr if isinstance(kr, str) else str(kr) for kr in key_results[:3])
+                context_parts.append(f"🎯 ACTIVE GOAL [{progress_bar}]: {objective}\n   Key Results: {kr_text}")
 
         if not aligned and goals:
             # If no specific goal matches, inject the most recent goal as general context
             latest = goals[0]
             aligned.append(latest.get("objective", ""))
-            context_parts.append(
-                f"📋 CURRENT FOCUS: {latest.get('objective', 'N/A')}"
-            )
+            context_parts.append(f"📋 CURRENT FOCUS: {latest.get('objective', 'N/A')}")
 
         goal_context = "\n".join(context_parts) if context_parts else ""
         return goal_context, aligned

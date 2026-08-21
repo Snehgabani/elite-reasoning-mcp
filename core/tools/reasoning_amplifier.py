@@ -8,6 +8,7 @@ these tools ACTIVELY improve reasoning quality in-flight:
 2. socratic_challenge: Generate adversarial counter-questions → force model to defend answer
 3. decompose_with_steps: Structured step-by-step decomposition (wraps sequential-thinking concepts)
 """
+
 import time
 
 from core.logging_config import get_logger
@@ -74,8 +75,17 @@ def register(mcp, store: EliteStore):
             score_components["alternatives"] = 25
 
         # 3. Domain specificity (0-25)
-        valid_domains = {"code", "architecture", "security", "performance", "general",
-                        "database", "api", "deployment", "testing"}
+        valid_domains = {
+            "code",
+            "architecture",
+            "security",
+            "performance",
+            "general",
+            "database",
+            "api",
+            "deployment",
+            "testing",
+        }
         if domain.lower() in valid_domains and domain.lower() != "general":
             score_components["domain_specificity"] = 25
         elif domain.lower() == "general":
@@ -105,9 +115,7 @@ def register(mcp, store: EliteStore):
             if relevant:
                 score_components["anti_pattern_check"] = -10
                 for m in relevant[:2]:
-                    flags.append(
-                        f"⚠️ RELATED PAST MISTAKE: {m['mistake'][:80]}… → Fix: {m['fix'][:80]}…"
-                    )
+                    flags.append(f"⚠️ RELATED PAST MISTAKE: {m['mistake'][:80]}… → Fix: {m['fix'][:80]}…")
         except Exception as exc:
             # Explicit non-fatal exception suppression
             _ = str(exc)  # Don't let anti-pattern check failure block scoring
@@ -121,7 +129,9 @@ def register(mcp, store: EliteStore):
             recommendation = "Deliver as-is. Consider recording the decision for audit trail."
         elif total >= 60:
             verdict = "🟡 MODERATE CONFIDENCE — Acceptable but verify"
-            recommendation = "Proceed but flag uncertainties to the user. Consider using `socratic_challenge` for stress-testing."
+            recommendation = (
+                "Proceed but flag uncertainties to the user. Consider using `socratic_challenge` for stress-testing."
+            )
         elif total >= 40:
             verdict = "🟠 LOW CONFIDENCE — Deeper analysis recommended"
             recommendation = "Use `socratic_challenge` to stress-test. Consider `sequentialthinking` for step-by-step decomposition before delivering."
@@ -134,7 +144,7 @@ def register(mcp, store: EliteStore):
             store.record_quality_score(
                 score=total,
                 dimension="confidence",
-                notes=f"Domain: {domain} | Flags: {len(flags)} | Claim: {claim_text[:100]}"
+                notes=f"Domain: {domain} | Flags: {len(flags)} | Claim: {claim_text[:100]}",
             )
         except Exception as exc:
             # Explicit non-fatal exception suppression
@@ -153,11 +163,11 @@ def register(mcp, store: EliteStore):
 
 | Component | Score |
 |---|---|
-| Evidence Quality | {score_components.get('evidence_quality', 0)}/25 |
-| Alternatives Considered | {score_components.get('alternatives', 0)}/25 |
-| Domain Specificity | {score_components.get('domain_specificity', 0)}/25 |
-| Claim Clarity | {score_components.get('claim_clarity', 0)}/25 |
-{f'| Anti-Pattern Penalty | {score_components.get("anti_pattern_check", 0)} |' if 'anti_pattern_check' in score_components else ''}
+| Evidence Quality | {score_components.get("evidence_quality", 0)}/25 |
+| Alternatives Considered | {score_components.get("alternatives", 0)}/25 |
+| Domain Specificity | {score_components.get("domain_specificity", 0)}/25 |
+| Claim Clarity | {score_components.get("claim_clarity", 0)}/25 |
+{f"| Anti-Pattern Penalty | {score_components.get('anti_pattern_check', 0)} |" if 'anti_pattern_check' in score_components else ""}
 
 ## **TOTAL: {total}/100**
 ## **{verdict}**
@@ -207,27 +217,27 @@ def register(mcp, store: EliteStore):
             {
                 "category": "🔴 Failure Mode",
                 "question": f"What is the SINGLE most likely way this fails catastrophically?\n\n   Proposed: {answer_text[:200]}…\n\n   Specifically: What assumption does this make that could be wrong? What happens when it IS wrong?",
-                "why": "Forces enumeration of failure modes BEFORE they happen (proactive FMEA)"
+                "why": "Forces enumeration of failure modes BEFORE they happen (proactive FMEA)",
             },
             {
                 "category": "🟠 Alternative",
                 "question": f"Why is this the BEST approach, not just A working approach?\n\n   Proposed: {answer_text[:200]}…\n\n   Name a specific alternative that was rejected and explain WHY this is strictly better.",
-                "why": "Guards against anchoring bias — the first solution isn't always the best"
+                "why": "Guards against anchoring bias — the first solution isn't always the best",
             },
             {
                 "category": "🟡 Hidden Dependency",
                 "question": f"What does this SILENTLY depend on that isn't explicitly stated?\n\n   Proposed: {answer_text[:200]}…\n\n   List every implicit assumption: environment, data, permissions, timing, state.",
-                "why": "Most production failures come from unstated dependencies, not bugs in stated logic"
+                "why": "Most production failures come from unstated dependencies, not bugs in stated logic",
             },
             {
                 "category": "🔵 Scale / Edge Case",
                 "question": f"Does this still work at 10x the current scale? What about edge cases?\n\n   Proposed: {answer_text[:200]}…\n\n   What happens with: empty input, huge input, concurrent access, network failure, partial failure?",
-                "why": "Demo-quality solutions often fail at production scale"
+                "why": "Demo-quality solutions often fail at production scale",
             },
             {
                 "category": "🟣 Second-Order Effects",
                 "question": f"What SECOND-ORDER consequences does this create?\n\n   Proposed: {answer_text[:200]}…\n\n   What does this make harder in the future? What doors does it close? What maintenance burden does it add?",
-                "why": "First-order benefits often hide second-order costs (technical debt, lock-in, complexity)"
+                "why": "First-order benefits often hide second-order costs (technical debt, lock-in, complexity)",
             },
         ]
 
@@ -256,7 +266,7 @@ def register(mcp, store: EliteStore):
 ╚══════════════════════════════════════════════╝
 
 **Proposed Answer**: {answer_text[:300]}…
-**Context**: {(context or 'None provided')[:200]}
+**Context**: {(context or "None provided")[:200]}
 **Timestamp**: {now}
 
 ---
@@ -265,11 +275,11 @@ def register(mcp, store: EliteStore):
 
 """
         for i, ch in enumerate(selected, 1):
-            out += f"""### Challenge {i}: {ch['category']}
+            out += f"""### Challenge {i}: {ch["category"]}
 
-**{ch['question']}**
+**{ch["question"]}**
 
-_Why this matters: {ch['why']}_
+_Why this matters: {ch["why"]}_
 
 **Your response**: _(fill this in before delivering)_
 
@@ -293,7 +303,7 @@ _Why this matters: {ch['why']}_
             store.record_quality_score(
                 score=50,  # Midpoint — will be updated by confidence scorer after revision
                 dimension="reasoning_depth",
-                notes=f"Socratic challenge initiated | Depth: {depth} | Answer: {answer_text[:100]}"
+                notes=f"Socratic challenge initiated | Depth: {depth} | Answer: {answer_text[:100]}",
             )
         except Exception as exc:
             # Explicit non-fatal exception suppression
@@ -373,9 +383,7 @@ _Why this matters: {ch['why']}_
         try:
             relevant = store.check_anti_patterns(desc[:200], limit=3)
             for m in relevant:
-                anti_pattern_warnings.append(
-                    f"⚠️ RELATED PAST MISTAKE: {m['mistake'][:80]}… → Fix: {m['fix'][:80]}"
-                )
+                anti_pattern_warnings.append(f"⚠️ RELATED PAST MISTAKE: {m['mistake'][:80]}… → Fix: {m['fix'][:80]}")
         except Exception as exc:
             # Explicit non-fatal exception suppression
             _ = str(exc)
@@ -394,8 +402,8 @@ _Why this matters: {ch['why']}_
 ╚══════════════════════════════════════════════╝
 
 **Task**: {desc[:300]}
-**Intent**: {intent or 'auto'}
-**Complexity**: {complexity}/5 — {complexity_labels.get(complexity, 'Unknown')}
+**Intent**: {intent or "auto"}
+**Complexity**: {complexity}/5 — {complexity_labels.get(complexity, "Unknown")}
 
 ## Pre-Flight Checklist
 
@@ -440,9 +448,8 @@ _Why this matters: {ch['why']}_
             domain: Domain category (code, architecture, security, performance, general)
         """
         import hashlib
-        pred_id = hashlib.sha256(
-            f"{claim}:{time.strftime('%Y-%m-%d %H:%M', time.gmtime())}".encode()
-        ).hexdigest()[:16]
+
+        pred_id = hashlib.sha256(f"{claim}:{time.strftime('%Y-%m-%d %H:%M', time.gmtime())}".encode()).hexdigest()[:16]
 
         store.log_calibration(pred_id, claim, confidence, domain)
 
@@ -450,7 +457,7 @@ _Why this matters: {ch['why']}_
             f"## 📊 Calibration Prediction Logged\n\n"
             f"**Prediction ID:** `{pred_id}`\n"
             f"**Claim:** {claim[:200]}\n"
-            f"**Confidence:** {confidence*100:.0f}%\n"
+            f"**Confidence:** {confidence * 100:.0f}%\n"
             f"**Domain:** {domain}\n\n"
             f"*Save this prediction ID. When the outcome is known, call "
             f"`calibration_resolve` with this ID to track accuracy.*"
@@ -500,10 +507,7 @@ _Why this matters: {ch['why']}_
             domain: Filter by domain (empty = all domains)
             days: Look back period in days
         """
-        result = store.get_calibration_score(
-            domain=domain if domain else None,
-            days=max(1, days)
-        )
+        result = store.get_calibration_score(domain=domain if domain else None, days=max(1, days))
 
         if result.get("total_predictions", 0) == 0:
             return (
@@ -518,18 +522,15 @@ _Why this matters: {ch['why']}_
             f"({'🟢 Good' if result['brier_score'] < 0.15 else '🟡 Fair' if result['brier_score'] < 0.25 else '🔴 Poor'})",
             f"**Status:** {result['calibration_status'].upper()}",
             f"**Total Predictions:** {result['total_predictions']}",
-            f"**Accuracy:** {result['accuracy']*100:.1f}%",
-            f"**Avg Confidence:** {result['avg_confidence']*100:.1f}%",
+            f"**Accuracy:** {result['accuracy'] * 100:.1f}%",
+            f"**Avg Confidence:** {result['avg_confidence'] * 100:.1f}%",
             "",
             "### Calibration Table",
             "| Bucket | Count | Expected | Actual | Gap |",
             "|--------|-------|----------|--------|-----|",
         ]
         for b in result.get("calibration_table", []):
-            lines.append(
-                f"| {b['bucket']} | {b['count']} | {b['expected']} | "
-                f"{b['actual']} | {b['gap']} |"
-            )
+            lines.append(f"| {b['bucket']} | {b['count']} | {b['expected']} | {b['actual']} | {b['gap']} |")
 
         return "\n".join(lines)
 
@@ -538,16 +539,31 @@ _Why this matters: {ch['why']}_
     # ══════════════════════════════════════════════════════════
 
     COUNCIL_PERSPECTIVES = [
-        {"name": "Security Adversary", "lens": "Attack vectors, data exposure, permission scope",
-         "focus": ["injection", "auth", "permission", "token", "secret", "credential", "bypass"]},
-        {"name": "Scalability Critic", "lens": "Bottlenecks at 10x/100x, O(n²) hiding, resource limits",
-         "focus": ["query", "loop", "memory", "connection", "lock", "timeout", "unbounded"]},
-        {"name": "Simplicity Advocate", "lens": "Over-engineering, maintenance cost, simpler alternatives",
-         "focus": ["abstraction", "pattern", "layer", "framework", "complex", "wrapper"]},
-        {"name": "User Impact Analyst", "lens": "Breaking changes, UX regression, migration path",
-         "focus": ["breaking", "migration", "backward", "deprecat", "rename", "remove"]},
-        {"name": "Future Self Reviewer", "lens": "6-month regret, assumption fragility, reversal cost",
-         "focus": ["lock-in", "vendor", "irreversible", "assumption", "debt", "coupling"]},
+        {
+            "name": "Security Adversary",
+            "lens": "Attack vectors, data exposure, permission scope",
+            "focus": ["injection", "auth", "permission", "token", "secret", "credential", "bypass"],
+        },
+        {
+            "name": "Scalability Critic",
+            "lens": "Bottlenecks at 10x/100x, O(n²) hiding, resource limits",
+            "focus": ["query", "loop", "memory", "connection", "lock", "timeout", "unbounded"],
+        },
+        {
+            "name": "Simplicity Advocate",
+            "lens": "Over-engineering, maintenance cost, simpler alternatives",
+            "focus": ["abstraction", "pattern", "layer", "framework", "complex", "wrapper"],
+        },
+        {
+            "name": "User Impact Analyst",
+            "lens": "Breaking changes, UX regression, migration path",
+            "focus": ["breaking", "migration", "backward", "deprecat", "rename", "remove"],
+        },
+        {
+            "name": "Future Self Reviewer",
+            "lens": "6-month regret, assumption fragility, reversal cost",
+            "focus": ["lock-in", "vendor", "irreversible", "assumption", "debt", "coupling"],
+        },
     ]
 
     @mcp.tool()
@@ -571,7 +587,7 @@ _Why this matters: {ch['why']}_
 
         reviews = []
         all_flags = []
-        decision_lower = (decision + ' ' + context).lower()
+        decision_lower = (decision + " " + context).lower()
         decision_id = store.record_decision(
             decision=decision[:1000],
             rationale="Decision council review initiated for adversarial multi-perspective audit.",
@@ -582,30 +598,28 @@ _Why this matters: {ch['why']}_
         for p in active:
             matches = [f for f in p["focus"] if f in decision_lower]
             if matches:
-                critique = (f"**{p['name']}** flags: {', '.join(matches)}. "
-                            f"Review: {p['lens']}")
+                critique = f"**{p['name']}** flags: {', '.join(matches)}. Review: {p['lens']}"
                 risk = min(1.0, 0.3 + len(matches) * 0.15)
             else:
-                critique = (f"**{p['name']}** — no immediate flags. "
-                            f"Still review: {p['lens']}")
+                critique = f"**{p['name']}** — no immediate flags. Still review: {p['lens']}"
                 risk = 0.2
 
             flags = [f"{p['name']}: {f}" for f in matches]
             all_flags.extend(flags)
 
             store.add_council_review(
-                decision_id=decision_id, decision_text=decision,
-                perspective=p["name"], critique=critique,
+                decision_id=decision_id,
+                decision_text=decision,
+                perspective=p["name"],
+                critique=critique,
                 risk_flags=flags,
                 recommendation="caution" if matches else "proceed",
-                confidence=1.0 - risk
+                confidence=1.0 - risk,
             )
-            reviews.append({"name": p["name"], "critique": critique,
-                            "flags": flags, "risk": risk})
+            reviews.append({"name": p["name"], "critique": critique, "flags": flags, "risk": risk})
 
         avg_risk = sum(r["risk"] for r in reviews) / len(reviews)
-        verdict = ("🔴 HIGH RISK" if avg_risk > 0.6 else
-                   "🟡 MODERATE RISK" if avg_risk > 0.35 else "🟢 LOW RISK")
+        verdict = "🔴 HIGH RISK" if avg_risk > 0.6 else "🟡 MODERATE RISK" if avg_risk > 0.35 else "🟢 LOW RISK"
 
         lines = [
             "## 🏛️ Decision Council Review\n",
@@ -629,11 +643,23 @@ _Why this matters: {ch['why']}_
 
         return "\n".join(lines)
 
-    logger.info("Reasoning amplification tools registered",
-                extra={"tools": ["assess_confidence", "socratic_challenge", "reasoning_preflight",
-                                  "record_missed_detection", "browse_tool_usage", "search_thinking_patterns",
-                                  "calibration_predict", "calibration_resolve", "calibration_score",
-                                  "decision_council_review"]})
+    logger.info(
+        "Reasoning amplification tools registered",
+        extra={
+            "tools": [
+                "assess_confidence",
+                "socratic_challenge",
+                "reasoning_preflight",
+                "record_missed_detection",
+                "browse_tool_usage",
+                "search_thinking_patterns",
+                "calibration_predict",
+                "calibration_resolve",
+                "calibration_score",
+                "decision_council_review",
+            ]
+        },
+    )
 
 
 def _compute_complexity(task: str, intent: str) -> int:
@@ -660,18 +686,41 @@ def _compute_complexity(task: str, intent: str) -> int:
 
     # Keyword escalation signals
     critical_kws = [
-        "production", "security", "authentication", "migration",
-        "database schema", "breaking change", "backwards compat",
-        "scale", "concurrent", "distributed", "microservice",
+        "production",
+        "security",
+        "authentication",
+        "migration",
+        "database schema",
+        "breaking change",
+        "backwards compat",
+        "scale",
+        "concurrent",
+        "distributed",
+        "microservice",
     ]
     moderate_kws = [
-        "refactor", "redesign", "architecture", "integrate",
-        "api design", "data model", "performance", "optimize",
-        "end to end", "full stack", "comprehensive",
+        "refactor",
+        "redesign",
+        "architecture",
+        "integrate",
+        "api design",
+        "data model",
+        "performance",
+        "optimize",
+        "end to end",
+        "full stack",
+        "comprehensive",
     ]
     trivial_kws = [
-        "typo", "rename", "comment", "format", "lint",
-        "simple", "quick", "minor", "small fix",
+        "typo",
+        "rename",
+        "comment",
+        "format",
+        "lint",
+        "simple",
+        "quick",
+        "minor",
+        "small fix",
     ]
 
     # Check critical keywords
@@ -697,24 +746,71 @@ def _compute_complexity(task: str, intent: str) -> int:
 
 # ── P1: Thinking Mode Classifier ──────────────────────────────
 
+
 def _classify_thinking_mode(prompt: str) -> str:
     """Classify the cognitive mode required for this task.
     Returns one of: convergent, divergent, analytical, critical, systems, creative."""
     p = prompt.lower()
 
     modes = {
-        'convergent': ['fix', 'choose', 'pick', 'select', 'decide between', 'which one',
-                        'solve', 'correct', 'resolve', 'answer'],
-        'divergent': ['brainstorm', 'explore', 'what if', 'ideas', 'possibilities',
-                       'imagine', 'alternatives', 'creative', 'innovate'],
-        'analytical': ['analyze', 'audit', 'benchmark', 'measure', 'statistics',
-                        'data', 'metrics', 'quantify', 'profile', 'diagnose'],
-        'critical': ['review', 'stress-test', 'verify', 'validate', 'challenge',
-                      'critique', 'weakness', 'flaw', 'risk', 'security'],
-        'systems': ['architecture', 'design system', 'scale', 'distributed',
-                     'end to end', 'pipeline', 'integration', 'infrastructure'],
-        'creative': ['design', 'ui', 'ux', 'visual', 'brand', 'aesthetic',
-                      'landing page', 'mockup', 'prototype'],
+        "convergent": [
+            "fix",
+            "choose",
+            "pick",
+            "select",
+            "decide between",
+            "which one",
+            "solve",
+            "correct",
+            "resolve",
+            "answer",
+        ],
+        "divergent": [
+            "brainstorm",
+            "explore",
+            "what if",
+            "ideas",
+            "possibilities",
+            "imagine",
+            "alternatives",
+            "creative",
+            "innovate",
+        ],
+        "analytical": [
+            "analyze",
+            "audit",
+            "benchmark",
+            "measure",
+            "statistics",
+            "data",
+            "metrics",
+            "quantify",
+            "profile",
+            "diagnose",
+        ],
+        "critical": [
+            "review",
+            "stress-test",
+            "verify",
+            "validate",
+            "challenge",
+            "critique",
+            "weakness",
+            "flaw",
+            "risk",
+            "security",
+        ],
+        "systems": [
+            "architecture",
+            "design system",
+            "scale",
+            "distributed",
+            "end to end",
+            "pipeline",
+            "integration",
+            "infrastructure",
+        ],
+        "creative": ["design", "ui", "ux", "visual", "brand", "aesthetic", "landing page", "mockup", "prototype"],
     }
 
     scores = {mode: 0 for mode in modes}
@@ -723,7 +819,7 @@ def _classify_thinking_mode(prompt: str) -> str:
             if kw in p:
                 scores[mode] += 1
     best = max(scores, key=scores.get)
-    return best if scores[best] > 0 else 'convergent'  # default
+    return best if scores[best] > 0 else "convergent"  # default
 
 
 def _classify_zoom_level(prompt: str) -> str:
@@ -732,27 +828,41 @@ def _classify_zoom_level(prompt: str) -> str:
     p = prompt.lower()
 
     levels = {
-        'satellite': ['overview', 'strategy', 'vision', 'roadmap', 'big picture',
-                        'high level', 'macro', 'direction', 'goals'],
-        'architecture': ['system design', 'architecture', 'component', 'service',
-                          'module layout', 'data flow', 'infrastructure'],
-        'module': ['module', 'class', 'package', 'feature', 'component',
-                    'service', 'controller', 'middleware'],
-        'function': ['function', 'method', 'implement', 'algorithm', 'logic',
-                      'handler', 'endpoint', 'callback'],
-        'line': ['fix line', 'typo', 'rename', 'format', 'lint', 'indent',
-                  'spacing', 'syntax', 'comma', 'semicolon'],
+        "satellite": [
+            "overview",
+            "strategy",
+            "vision",
+            "roadmap",
+            "big picture",
+            "high level",
+            "macro",
+            "direction",
+            "goals",
+        ],
+        "architecture": [
+            "system design",
+            "architecture",
+            "component",
+            "service",
+            "module layout",
+            "data flow",
+            "infrastructure",
+        ],
+        "module": ["module", "class", "package", "feature", "component", "service", "controller", "middleware"],
+        "function": ["function", "method", "implement", "algorithm", "logic", "handler", "endpoint", "callback"],
+        "line": ["fix line", "typo", "rename", "format", "lint", "indent", "spacing", "syntax", "comma", "semicolon"],
     }
 
     # Check from most zoomed-in to most zoomed-out
-    for level in ['line', 'function', 'module', 'architecture', 'satellite']:
+    for level in ["line", "function", "module", "architecture", "satellite"]:
         for kw in levels[level]:
             if kw in p:
                 return level
-    return 'function'  # default
+    return "function"  # default
 
 
 # ── P1: Expose Hidden Store Methods as MCP Tools ──────────────
+
 
 def _register_hidden_tools(mcp, store):
     """Register tools for store methods that had no MCP exposure."""
@@ -776,14 +886,17 @@ def _register_hidden_tools(mcp, store):
         """
         # Wire severity_inference: auto-infer severity when not explicitly provided
         inferred_info = ""
-        if not severity or severity == 'auto':
+        if not severity or severity == "auto":
             try:
                 from core.learning.severity_inference import infer_severity
+
                 result = infer_severity(detection_type, what_was_missed, store)
-                severity = result.get('severity', 'P1')
-                inferred_info = f"\nSeverity auto-inferred as {severity} (confidence: {result.get('confidence', 'N/A')})"
+                severity = result.get("severity", "P1")
+                inferred_info = (
+                    f"\nSeverity auto-inferred as {severity} (confidence: {result.get('confidence', 'N/A')})"
+                )
             except Exception:
-                severity = 'P1'  # Safe default if inference unavailable
+                severity = "P1"  # Safe default if inference unavailable
         try:
             store.record_missed_detection(detection_type, what_was_missed, how_found, suggested_rule, severity=severity)
             return (
@@ -803,25 +916,25 @@ def _register_hidden_tools(mcp, store):
             tool_name: Optional filter for a specific tool name
         """
         import time as _t
+
         try:
             days = max(1, min(30, days))
             conn = store._connect()
             c = conn.cursor()
-            cutoff = _t.strftime("%Y-%m-%d %H:%M:%S",
-                                  _t.gmtime(_t.time() - days * 86400))
+            cutoff = _t.strftime("%Y-%m-%d %H:%M:%S", _t.gmtime(_t.time() - days * 86400))
             if tool_name:
                 c.execute(
                     "SELECT tool_name, args_summary, result_summary, duration_ms, created_at "
                     "FROM tool_usage_log WHERE created_at > ? AND tool_name = ? "
                     "ORDER BY created_at DESC LIMIT 50",
-                    (cutoff, tool_name)
+                    (cutoff, tool_name),
                 )
             else:
                 c.execute(
                     "SELECT tool_name, args_summary, result_summary, duration_ms, created_at "
                     "FROM tool_usage_log WHERE created_at > ? "
                     "ORDER BY created_at DESC LIMIT 50",
-                    (cutoff,)
+                    (cutoff,),
                 )
             rows = c.fetchall()
             store._close(conn)
@@ -850,7 +963,7 @@ def _register_hidden_tools(mcp, store):
                 return "No thinking patterns recorded yet."
 
             if pattern_name:
-                patterns = [p for p in patterns if pattern_name.lower() in p.get('pattern_name', '').lower()]
+                patterns = [p for p in patterns if pattern_name.lower() in p.get("pattern_name", "").lower()]
 
             if not patterns:
                 return f"No patterns matching '{pattern_name}'."
@@ -860,13 +973,16 @@ def _register_hidden_tools(mcp, store):
                 out += f"### {p.get('pattern_name', 'Unknown')}\n"
                 out += f"- **System adaptation:** {p.get('system_adaptation', 'none')}\n"
                 out += f"- **Confidence:** {p.get('confidence', 0):.0%}\n"
-                out += f"- **Occurrences:** {p.get('occurrence_count', p.get('evidence_count', p.get('evidence', 0)))}\n\n"
+                out += (
+                    f"- **Occurrences:** {p.get('occurrence_count', p.get('evidence_count', p.get('evidence', 0)))}\n\n"
+                )
             return out
         except Exception as e:
             return f"❌ Failed to search: {e}"
 
 
 # ── P2: Contradiction Detector ────────────────────────────────
+
 
 def _check_decision_contradictions(store, new_decision: str) -> list[str]:
     """Check if a new decision contradicts existing ones using semantic search.
@@ -881,22 +997,26 @@ def _check_decision_contradictions(store, new_decision: str) -> list[str]:
         # Check for potential contradictions
         new_lower = new_decision.lower()
         contradiction_signals = [
-            ('use ', 'don\'t use '), ('adopt ', 'avoid '),
-            ('enable', 'disable'), ('add ', 'remove '),
-            ('postgresql', 'mongodb'), ('postgresql', 'mysql'),
-            ('mongodb', 'sql'), ('rest', 'graphql'),
-            ('monolith', 'microservice'), ('sync', 'async'),
+            ("use ", "don't use "),
+            ("adopt ", "avoid "),
+            ("enable", "disable"),
+            ("add ", "remove "),
+            ("postgresql", "mongodb"),
+            ("postgresql", "mysql"),
+            ("mongodb", "sql"),
+            ("rest", "graphql"),
+            ("monolith", "microservice"),
+            ("sync", "async"),
         ]
 
         for past in similar:
-            past_text = (past.get('decision', '') + ' ' + past.get('rationale', '')).lower()
-            similarity = past.get('score', 0)
+            past_text = (past.get("decision", "") + " " + past.get("rationale", "")).lower()
+            similarity = past.get("score", 0)
 
             # High similarity but opposite conclusions = contradiction
             if similarity > 0.6:
                 for pos, neg in contradiction_signals:
-                    if (pos in new_lower and neg in past_text) or \
-                       (neg in new_lower and pos in past_text):
+                    if (pos in new_lower and neg in past_text) or (neg in new_lower and pos in past_text):
                         warnings.append(
                             f"⚠️ POTENTIAL CONTRADICTION with Decision #{past.get('id', '?')}:\n"
                             f"   Past: {past['decision'][:100]}\n"
@@ -913,28 +1033,28 @@ def _check_decision_contradictions(store, new_decision: str) -> list[str]:
 # ── P2: Mistake Taxonomy Classifier ───────────────────────────
 
 MISTAKE_TAXONOMY = {
-    'knowledge_gap': ['didn\'t know', 'unaware', 'new to', 'first time', 'unfamiliar'],
-    'assumption_failure': ['assumed', 'expected', 'thought it would', 'turned out'],
-    'edge_case_blindness': ['edge case', 'boundary', 'null', 'empty', 'zero', 'overflow'],
-    'premature_commitment': ['too early', 'premature', 'should have waited', 'rushed'],
-    'wrong_abstraction': ['abstraction', 'over-engineered', 'wrong pattern', 'wrong level'],
-    'scope_creep': ['scope', 'grew', 'bloated', 'too much', 'feature creep'],
-    'optimization_trap': ['premature optimization', 'unnecessary optimization', 'over-optimized'],
-    'cargo_culting': ['cargo cult', 'copied', 'blindly', 'without understanding'],
-    'recency_anchoring': ['latest', 'trending', 'hype', 'shiny', 'new framework'],
-    'complexity_creep': ['too complex', 'over-complicated', 'simpler', 'unnecessary complexity'],
-    'security_amnesia': ['security', 'vulnerability', 'injection', 'auth', 'permission'],
-    'data_integrity': ['data loss', 'corruption', 'inconsistent', 'race condition', 'concurrency'],
+    "knowledge_gap": ["didn't know", "unaware", "new to", "first time", "unfamiliar"],
+    "assumption_failure": ["assumed", "expected", "thought it would", "turned out"],
+    "edge_case_blindness": ["edge case", "boundary", "null", "empty", "zero", "overflow"],
+    "premature_commitment": ["too early", "premature", "should have waited", "rushed"],
+    "wrong_abstraction": ["abstraction", "over-engineered", "wrong pattern", "wrong level"],
+    "scope_creep": ["scope", "grew", "bloated", "too much", "feature creep"],
+    "optimization_trap": ["premature optimization", "unnecessary optimization", "over-optimized"],
+    "cargo_culting": ["cargo cult", "copied", "blindly", "without understanding"],
+    "recency_anchoring": ["latest", "trending", "hype", "shiny", "new framework"],
+    "complexity_creep": ["too complex", "over-complicated", "simpler", "unnecessary complexity"],
+    "security_amnesia": ["security", "vulnerability", "injection", "auth", "permission"],
+    "data_integrity": ["data loss", "corruption", "inconsistent", "race condition", "concurrency"],
 }
 
 
 def _classify_mistake_type(mistake: str, root_cause: str) -> str:
     """Auto-classify a mistake into one of 12 taxonomy categories."""
-    text = (mistake + ' ' + root_cause).lower()
+    text = (mistake + " " + root_cause).lower()
     scores = {cat: 0 for cat in MISTAKE_TAXONOMY}
     for cat, keywords in MISTAKE_TAXONOMY.items():
         for kw in keywords:
             if kw in text:
                 scores[cat] += 1
     best = max(scores, key=scores.get)
-    return best if scores[best] > 0 else 'knowledge_gap'  # default
+    return best if scores[best] > 0 else "knowledge_gap"  # default

@@ -36,6 +36,7 @@ class LiveWebResearcher:
 
     async def _ddg(self, query: str) -> List[Dict[str, str]]:
         import urllib.parse
+
         try:
             async with httpx.AsyncClient(timeout=self.timeout, headers=UA, follow_redirects=True) as c:
                 r = await c.get(f"https://html.duckduckgo.com/html/?q={urllib.parse.quote(query)}")
@@ -53,8 +54,11 @@ class LiveWebResearcher:
 
     async def _jina_search(self, query: str) -> List[Dict[str, str]]:
         import urllib.parse
+
         try:
-            async with httpx.AsyncClient(timeout=self.timeout, headers={**UA, "X-Respond-With": "json"}, follow_redirects=True) as c:
+            async with httpx.AsyncClient(
+                timeout=self.timeout, headers={**UA, "X-Respond-With": "json"}, follow_redirects=True
+            ) as c:
                 r = await c.get(f"https://s.jina.ai/{urllib.parse.quote(query)}")
             if r.status_code != 200:
                 return []
@@ -80,8 +84,9 @@ class LiveWebResearcher:
             for a in soup.select("ul.results-standard a.title")[: self.k]:
                 url = a.get("href", "")
                 if url.startswith("http"):
-                    out.append({"title": a.get("title") or a.get_text(" ", strip=True)[:100],
-                                "url": url, "provider": "mojeek"})
+                    out.append(
+                        {"title": a.get("title") or a.get_text(" ", strip=True)[:100], "url": url, "provider": "mojeek"}
+                    )
             return out
         except Exception:
             return []
@@ -89,8 +94,13 @@ class LiveWebResearcher:
     async def _wikipedia(self, query: str) -> List[Dict[str, str]]:
         """Facts backbone — Wikipedia search API (keyless, stable JSON)."""
         try:
-            params = {"action": "query", "list": "search", "srsearch": query,
-                      "format": "json", "srlimit": min(self.k, 10)}
+            params = {
+                "action": "query",
+                "list": "search",
+                "srsearch": query,
+                "format": "json",
+                "srlimit": min(self.k, 10),
+            }
             async with httpx.AsyncClient(timeout=self.timeout, headers=UA, follow_redirects=True) as c:
                 r = await c.get("https://en.wikipedia.org/w/api.php", params=params)
             if r.status_code != 200:
@@ -112,10 +122,13 @@ class LiveWebResearcher:
         try:
             results = await asyncio.wait_for(
                 asyncio.gather(
-                    self._ddg(query), self._mojeek(query), self._wikipedia(query), self._jina_search(query),
-                    return_exceptions=True
+                    self._ddg(query),
+                    self._mojeek(query),
+                    self._wikipedia(query),
+                    self._jina_search(query),
+                    return_exceptions=True,
                 ),
-                timeout=4.0
+                timeout=4.0,
             )
             ddg = results[0] if isinstance(results[0], list) else []
             mojeek = results[1] if isinstance(results[1], list) else []

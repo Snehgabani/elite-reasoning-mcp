@@ -58,9 +58,7 @@ def _default_llm_call(prompt: str, temperature: float) -> tuple[str, str]:
             "temperature": temperature,
         }
     ).encode()
-    req = urllib.request.Request(
-        _LLM_PROXY_URL, data=body, headers={"Content-Type": "application/json"}
-    )
+    req = urllib.request.Request(_LLM_PROXY_URL, data=body, headers={"Content-Type": "application/json"})
     last_err: Exception | None = None
     for _ in range(2):  # one retry on transient failure (self-diagnosis fix, 08-12)
         try:
@@ -202,8 +200,13 @@ def run_adaptive_consensus(
 
     if not answers:
         return {
-            "answer": "", "model": "", "samples_used": 0, "agreement": 0.0,
-            "faithfulness_mean": 0.0, "path_scores": [], "stopped_early": False,
+            "answer": "",
+            "model": "",
+            "samples_used": 0,
+            "agreement": 0.0,
+            "faithfulness_mean": 0.0,
+            "path_scores": [],
+            "stopped_early": False,
         }
 
     samples_used = len(answers)
@@ -249,9 +252,7 @@ def run_adaptive_consensus(
             {
                 "sample": i,
                 "faithfulness": round(a["faithfulness"], 3),
-                "cluster": next(
-                    (ci for ci, c in enumerate(clusters) if i in c), -1
-                ),
+                "cluster": next((ci for ci, c in enumerate(clusters) if i in c), -1),
                 "temperature": round(a["temperature"], 2),
             }
             for i, a in enumerate(answers)

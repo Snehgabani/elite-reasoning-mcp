@@ -25,7 +25,7 @@ class StanfordSTORMResearchEngine:
             "2. Multi-Disciplinary Mental Model Frameworks",
             "3. Empirical Evidence & Live Triangulated Data",
             "4. Hegelian Dialectical Red-Team Attack & Counter-Arguments",
-            "5. Synthesis & Strategic Recommendations"
+            "5. Synthesis & Strategic Recommendations",
         ]
 
         # Step 2: Live Research
@@ -39,7 +39,7 @@ class StanfordSTORMResearchEngine:
         mental_models = [
             "Inversion (Munger): What failure modes must be avoided?",
             "Second-Order Effects: What non-obvious consequences arise in T+1?",
-            "Game Theory: How will rational actors respond to this strategy?"
+            "Game Theory: How will rational actors respond to this strategy?",
         ]
 
         # Step 5: Full Report Synthesis
@@ -68,10 +68,10 @@ Live internet research was triangulated across {len(citations)} authoritative so
 Primary strategic approach proposed for {topic}.
 
 ### Antithesis (Hostile Adversary Attack)
-{red_res['antithesis']}
+{red_res["antithesis"]}
 
 ## 5. Synthesis & Final Recommendations
-{red_res['thesis']} was successfully reconciled with Antithesis counter-evidence.
+{red_res["thesis"]} was successfully reconciled with Antithesis counter-evidence.
 
 ### Key Takeaways
 1. Grounded in live empirical URL provenance.
@@ -84,8 +84,9 @@ Primary strategic approach proposed for {topic}.
             "outline": outline,
             "citations": citations,
             "mental_models": mental_models,
-            "report_markdown": report_md
+            "report_markdown": report_md,
         }
+
 
 async def deep_research_report(topic: str) -> str:
     engine = StanfordSTORMResearchEngine()
