@@ -89,7 +89,7 @@ def build_doctor_report(store, profile=None, mcp=None) -> dict[str, Any]:
         blockers.append("elite.db does not exist or is not readable")
     if current_schema != CURRENT_SCHEMA_VERSION:
         blockers.append(f"Database schema version mismatch: {current_schema} != {CURRENT_SCHEMA_VERSION}")
-    minimum_tool_count = 5 if tool_profile == "core" else 20
+    minimum_tool_count = 3 if tool_profile in ("core", "unified") else 20
     if tool_count is not None and tool_count < minimum_tool_count:
         blockers.append(f"Unexpectedly low `{tool_profile}` MCP tool count: {tool_count}")
     if tool_profile == "core" and tool_count is not None and tool_count > 8:
