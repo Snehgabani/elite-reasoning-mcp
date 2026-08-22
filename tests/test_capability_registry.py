@@ -9,7 +9,16 @@ from core.orchestration.capabilities import (
     parse_jsonc,
     scan_zed_context_servers,
 )
-from core.tools.goal_prompt_polisher import PolishResult
+from dataclasses import dataclass
+
+@dataclass
+class PolishResult:
+    original_prompt: str
+    polished_prompt: str
+    original_score: int
+    polished_score: int
+    intent: str
+    complexity: int
 
 
 def test_parse_jsonc_supports_zed_comments_and_trailing_commas():

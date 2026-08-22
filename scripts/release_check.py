@@ -188,7 +188,7 @@ def main() -> int:
                 "from core.runtime import package_version; "
                 "mcp=create_mcp_server('/tmp/elite-release-check-brain'); "
                 "tools=set(mcp._tool_manager._tools); "
-                "required={'elite_prepare','elite_progress','elite_verify','elite_memory','elite_admin'}; "
+                "required={'elite_prepare','elite_verify','elite_memory'}; "
                 "assert tools == required, tools; "
                 "assert mcp._mcp_server.version == package_version(); "
                 "assert not mcp._resource_manager._resources; "

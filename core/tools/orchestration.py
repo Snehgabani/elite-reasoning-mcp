@@ -12,7 +12,7 @@ import json as _json
 import logging
 import os
 import urllib.request
-from typing import TYPE_CHECKING, Optional, cast
+from typing import Any, Optional, cast
 from urllib.parse import urlparse
 
 from core.eval.exporters import EvalHarness, eval_harness_markdown
@@ -31,11 +31,8 @@ from core.reasoning.nuclear_prompt import nuclear_prompt_markdown, protocol_reco
 
 logger = logging.getLogger(__name__)
 
-if TYPE_CHECKING:
-    from core.tools.goal_prompt_polisher import GoalPromptPolisher
-
 # Module-level polisher instance (set by register())
-_polisher: "GoalPromptPolisher | None" = None
+_polisher: Any = None
 _DEFAULT_GEMINI_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
 _GEMINI_HOST = "generativelanguage.googleapis.com"
 _EVAL_HARNESSES = frozenset({"promptfoo", "deepeval", "inspect", "all"})
@@ -199,7 +196,7 @@ def orchestrate_request(user_prompt: str) -> str:
                 original_score=polish_result.original_score,
                 polished_score=polish_result.polished_score,
                 complexity_score=polish_result.complexity,
-                enhancements_applied=polish_result.enhancements_applied,
+                enhancements_applied=getattr(polish_result, "enhancements_applied", []),
             )
         except Exception as error:
             logger.debug("Prompt polishing failed safely: %s", safe_error_detail(error))
@@ -558,15 +555,17 @@ def _heuristic_orchestration(
         plan += f"| Complexity | {polish_result.complexity}/5 |\n"
         plan += f"| Intent | {polish_result.intent} |\n\n"
 
-        if polish_result.goals_aligned:
+        goals_aligned = getattr(polish_result, "goals_aligned", None)
+        if goals_aligned:
             plan += "### 🎯 Goals Aligned\n"
-            for g in polish_result.goals_aligned:
+            for g in goals_aligned:
                 plan += f"- {g}\n"
             plan += "\n"
 
-        if polish_result.enhancements_applied:
+        enhancements_applied = getattr(polish_result, "enhancements_applied", None)
+        if enhancements_applied:
             plan += "### ✨ Enhancements Applied\n"
-            for e in polish_result.enhancements_applied:
+            for e in enhancements_applied:
                 plan += f"- `{e}`\n"
             plan += "\n"
 
@@ -606,7 +605,7 @@ def _heuristic_orchestration(
         plan += "- Use `run_elite_eval_suite` as a cheap local smoke gate before heavier external eval frameworks.\n"
 
     # ── Quality Directives (from polisher) ──
-    if polish_result is not None and polish_result.enhancements_applied:
+    if polish_result is not None and getattr(polish_result, "enhancements_applied", None):
         plan += "\n## Quality Directives\n"
         plan += "_Auto-injected by the Goal-Aligned Prompt Polisher:_\n\n"
         # Extract just the directive text from the polished prompt
@@ -628,15 +627,8 @@ def register(mcp, store):
     """Register orchestration tools with the MCP server."""
     global _polisher
 
-    # Initialize the prompt polisher with store access
-    try:
-        from core.tools.goal_prompt_polisher import GoalPromptPolisher
-
-        _polisher = GoalPromptPolisher(store)
-        logger.info("GoalPromptPolisher initialized for orchestration")
-    except Exception as e:
-        logger.debug(f"GoalPromptPolisher not available: {e}")
-        _polisher = None
+    # Polisher disabled in core v3
+    _polisher = None
 
     @mcp.tool()
     def orchestrate_request_tool(user_prompt: str) -> str:

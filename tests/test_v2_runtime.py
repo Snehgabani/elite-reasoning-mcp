@@ -11,10 +11,8 @@ from core.runtime import package_version, runtime_identity
 
 CORE_TOOLS = {
     "elite_prepare",
-    "elite_progress",
     "elite_verify",
     "elite_memory",
-    "elite_admin",
 }
 
 
@@ -43,7 +41,7 @@ async def test_stdio_protocol_advertises_runtime_version_and_typed_errors(tmp_pa
             prompts = await session.list_prompts()
             goal_prompt = await session.get_prompt("goal", {"objective": "Fix authentication with tests"})
             secret_run_id = "sk-12345678901234567890"
-            invalid = await session.call_tool("elite_progress", {"run_id": secret_run_id})
+            invalid = await session.call_tool("elite_verify", {"check": "status", "run_id": secret_run_id})
             prepared = await session.call_tool(
                 "elite_prepare",
                 {"user_prompt": "Build a feature with tests and validation.", "persist": True},
@@ -101,7 +99,7 @@ def test_cli_reports_version_doctor_and_safe_upgrade_preview(tmp_path, capsys, m
     assert capsys.readouterr().out.strip() == package_version()
 
     assert main(["upgrade", "--dry-run"]) == 0
-    assert "upgrade elite-reasoning-mcp" in capsys.readouterr().out
+    assert "upgrade elite-verify-mcp" in capsys.readouterr().out
 
     monkeypatch.setenv("HOME", str(tmp_path / "home"))
     assert main(["init", "--ide", "cursor"]) == 2
@@ -115,7 +113,7 @@ def test_cli_reports_version_doctor_and_safe_upgrade_preview(tmp_path, capsys, m
     assert main(["--brain-dir", str(tmp_path / "brain"), "demo", "--json"]) == 0
     demo = json.loads(capsys.readouterr().out)
     assert demo["status"] == "ok"
-    assert demo["tool_count"] == 5
+    assert demo["tool_count"] == 3
     assert demo["failing_draft"]["verification_status"] == "FAIL"
     assert demo["passing_draft"]["verification_status"] == "PASS"
     assert demo["privacy"] == {"network_requests": 0, "raw_prompt_persisted": False}
@@ -124,5 +122,5 @@ def test_cli_reports_version_doctor_and_safe_upgrade_preview(tmp_path, capsys, m
     report = json.loads(capsys.readouterr().out)
     assert report["tool_profile"] == "core"
     assert report["protocol_server_version"] == package_version()
-    assert report["tool_count"] == 5
+    assert report["tool_count"] == 3
     assert report["database_schema_version"] == report["expected_database_schema_version"] == 7

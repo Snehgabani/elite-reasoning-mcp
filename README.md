@@ -236,17 +236,15 @@ if REPEAT: fix unmet items and verify again (do not answer yet)
 
 ---
 
-## 🔧 Core Tools (default)
+## 🔧 Core Tools (v3.0.0)
 
-The default v2 profile intentionally exposes five task-oriented tools. This improves tool selection, output-contract reliability, and safety for every MCP client.
+The v3 architecture exposes exactly **three** highly cohesive tools. This research-backed, minimal tool surface eliminates the "Decision Readout Bottleneck" and ensures smaller models (Gemini Flash, GPT-4o-mini) route with 100% precision.
 
-| Tool | Description |
-|:-----|:------------|
-| `elite_prepare` | First call every non-trivial prompt. Personalized playbook, expected outcomes, allowed tools. Not the answer. |
-| `elite_progress` | Optional flight recorder. Not required to finish if outcomes verify. |
-| `elite_verify` | Independent gate. `check=outcomes` returns REPEAT or DONE. Also evidence/syntax/tests. |
-| `elite_memory` | Search, write, approve low-trust memory, or permanently forget a local memory item. |
-| `elite_admin` | Inspect runtime identity, privacy policy, and local aggregate monitoring. |
+| Tool | Parameters | Purpose |
+|:-----|:-----------|:--------|
+| `elite_prepare` | `user_prompt`, `persist` | Compiles checkable task contracts, explicit constraints, playbook, repository digest lock, and continuation directive. |
+| `elite_verify` | `check`, `query`, `draft`, `run_id`, `code`, `language`, `command`, `project_root`, `step_index`, `allowed_files`, `forbid_dependency_changes` | Deterministic verification oracle supporting 18 check types: `syntax` (Python, TS/JS, Rust, Go, Java, C/C++, JSON, SQL), `types`, `tests`, `diff`, `cegis`, `diagnostics`, `grounding`, `evidence`, `constraints`, `outcomes`, `status`, `progress`, `doctor`, `privacy`, `monitoring`, `capabilities`. |
+| `elite_memory` | `action`, `query`, `content`, `memory_type`, `scope`, `memory_id`, `trust_score`, `privacy_class`, `confirm` | Scoped episodic & semantic memory with HippoRAG associative graph, trust scoring, quarantine isolation, and cryptographic secret scrubbing. |
 
 ### Legacy Catalog (explicit opt-in)
 

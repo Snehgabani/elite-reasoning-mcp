@@ -1,7 +1,7 @@
 [project]
-name = "elite-reasoning-mcp"
-version = "2.9.1"
-description = "MCP server that compiles checkable task contracts, retrieves quote-grounded web evidence, and verifies drafts for coding agents — especially cheap/small host models."
+name = "elite-verify-mcp"
+version = "3.0.0"
+description = "Deterministic verification oracle and workflow integrity MCP server for coding agents — making smaller models produce senior-engineer quality code."
 readme = "README.md"
 requires-python = ">=3.11"
 license = {text = "MIT"}
@@ -119,6 +119,7 @@ all = [
 ]
 
 [project.scripts]
+elite-verify-mcp = "core.integration.mcp_server:main"
 elite-reasoning-mcp = "core.integration.mcp_server:main"
 elite-audit = "core.cli.noncoder:main"
 
@@ -173,6 +174,10 @@ exclude = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 norecursedirs = ["_archive", ".venv", "telemetry-ui", "brain", "brain_central"]
+filterwarnings = [
+    "ignore::UserWarning:pydantic_settings.*",
+    "ignore:.*lifespan.*:UserWarning",
+]
 
 [tool.ruff]
 line-length = 120

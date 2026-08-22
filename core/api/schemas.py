@@ -1,4 +1,4 @@
-"""Versioned response schemas for the five-tool MCP surface."""
+"""Versioned response schemas for the three-tool MCP surface."""
 
 from __future__ import annotations
 
@@ -45,13 +45,6 @@ class PrepareResult(BaseModel):
     warnings: list[str] = Field(default_factory=list)
 
 
-class ProgressResult(BaseModel):
-    status: Literal["ok"] = "ok"
-    run_id: str
-    workflow_status: str
-    steps: list[WorkflowStep]
-    continuation: dict[str, Any] = Field(default_factory=dict)
-    warnings: list[str] = Field(default_factory=list)
 
 
 class VerifyResult(BaseModel):
@@ -82,12 +75,6 @@ class MemoryResult(BaseModel):
     items: list[dict[str, Any]] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
 
-
-class AdminResult(BaseModel):
-    status: Literal["ok"] = "ok"
-    action: str
-    data: dict[str, Any]
-    warnings: list[str] = Field(default_factory=list)
 
 
 # Requirement-oriented v1 contracts retained alongside the compact gateway
@@ -125,9 +112,4 @@ class EliteMemoryResponse(BaseMcpResponse):
     trust_state: str = "approved"
 
 
-class EliteProgressResponse(BaseMcpResponse):
-    task_id: str
-    current_step: int
-    total_steps: int
-    completed_outcomes: list[str] = Field(default_factory=list)
-    remaining_outcomes: list[str] = Field(default_factory=list)
+

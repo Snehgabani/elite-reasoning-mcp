@@ -379,7 +379,7 @@ class SyntaxVerifier:
     name = "syntax"
 
     async def verify(self, request: VerifierRequest, context: VerifierContext) -> VerificationExecution:
-        from core.cognitive.leverage.deterministic_gates import validate_syntax
+        from core.verification.deterministic_gates import validate_syntax
 
         target = request.code or request.draft
         if not target.strip():
@@ -409,7 +409,7 @@ class SyntaxVerifier:
             data=data,
             subject_kind=f"source:{lang}",
             subject=f"{target}\0{repository_snapshot_digest}",
-            producer="core.cognitive.leverage.deterministic_gates.validate_syntax",
+            producer="core.verification.deterministic_gates.validate_syntax",
             evidence_payload={
                 "passed": bool(data.get("passed")),
                 "issues": list(data.get("issues") or []),

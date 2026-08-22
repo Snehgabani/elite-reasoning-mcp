@@ -11,11 +11,10 @@ from typing import Annotated, Any, Literal
 from mcp.types import ToolAnnotations
 from pydantic import Field
 
-from core.api.schemas import AdminResult, MemoryResult, PrepareResult, ProgressResult, VerifyResult, WorkflowStep
+from core.api.schemas import MemoryResult, PrepareResult, VerifyResult, WorkflowStep
 from core.orchestration.capabilities import build_capability_registry
 from core.orchestration.continuity import next_continuation
 from core.orchestration.workflow_run import build_workflow_run
-from core.runtime import runtime_identity
 from core.tools.doctor import build_doctor_report
 from core.tools.errors import validation_error
 from core.verification.models import VerificationStatus, evidence_record, subject_digest
@@ -24,13 +23,6 @@ from core.verification.registry import VerificationInputError, VerifierRequest, 
 
 _PREPARE_ANNOTATIONS = ToolAnnotations(
     title="Prepare task workflow",
-    readOnlyHint=False,
-    destructiveHint=False,
-    idempotentHint=False,
-    openWorldHint=False,
-)
-_PROGRESS_ANNOTATIONS = ToolAnnotations(
-    title="Update workflow progress",
     readOnlyHint=False,
     destructiveHint=False,
     idempotentHint=False,
@@ -50,13 +42,6 @@ _MEMORY_ANNOTATIONS = ToolAnnotations(
     # tool-level capability to MCP clients that use annotations for consent.
     destructiveHint=True,
     idempotentHint=False,
-    openWorldHint=False,
-)
-_ADMIN_ANNOTATIONS = ToolAnnotations(
-    title="Inspect Elite MCP runtime",
-    readOnlyHint=True,
-    destructiveHint=False,
-    idempotentHint=True,
     openWorldHint=False,
 )
 
@@ -122,7 +107,7 @@ def _persist_checked_result(store, run_id: str, result: VerifyResult) -> VerifyR
 
 
 def register(mcp, store, profile) -> None:
-    """Register the five public v2 gateway tools and continuity prompt."""
+    """Register the three public v3 gateway tools and continuity prompt."""
     verifier_registry = build_core_verifier_registry(store)
 
     @mcp.prompt(name="goal")
@@ -133,11 +118,11 @@ def register(mcp, store, profile) -> None:
             "Start by calling elite_prepare with this exact goal and persist=true. Retain run_id. "
             "After every Elite response inspect continuation. If stop_final_response=true, call required_tool "
             "with required_args before answering. Continue until checkpoint=done. If context becomes long or "
-            "you are unsure what comes next, call elite_progress(action='status', run_id=<saved run_id>)."
+            "you are unsure what comes next, call elite_verify(check='status', run_id=<saved run_id>)."
         )
 
     @mcp.tool(name="elite_prepare", annotations=_PREPARE_ANNOTATIONS)
-    def elite_prepare(
+    async def elite_prepare(
         user_prompt: Annotated[str, Field(min_length=1, max_length=16000)],
         persist: bool = True,
     ) -> PrepareResult:
@@ -145,7 +130,7 @@ def register(mcp, store, profile) -> None:
         run = build_workflow_run(user_prompt, store=store, persist=persist)
         warnings = []
         if not persist:
-            warnings.append("This workflow is not durable; elite_progress cannot update it after this call.")
+            warnings.append("This workflow is not durable; elite_verify cannot update it after this call.")
         contract = dict(run.get("task_contract") or {})
         return PrepareResult(
             run_id=str(run["run_id"]),
@@ -189,58 +174,6 @@ def register(mcp, store, profile) -> None:
             warnings=warnings,
         )
 
-    @mcp.tool(name="elite_progress", annotations=_PROGRESS_ANNOTATIONS)
-    def elite_progress(
-        run_id: Annotated[str, Field(min_length=3, max_length=128)],
-        action: Literal["status", "update"] = "status",
-        step_index: Annotated[int, Field(ge=0, le=1000)] = 0,
-        step_status: Literal["", "pending", "running", "passed", "failed", "skipped", "blocked"] = "",
-        evidence: Annotated[str, Field(max_length=2000)] = "",
-    ) -> ProgressResult:
-        """Resume durable state after context dilution; returns the exact next required checkpoint in continuation."""
-        normalized_action = action.strip().lower()
-        if normalized_action == "update":
-            allowed_statuses = {"pending", "running", "passed", "failed", "skipped", "blocked"}
-            normalized_status = step_status.strip().lower()
-            if step_index < 1 or normalized_status not in allowed_statuses:
-                raise validation_error(
-                    "For action=update, provide step_index >= 1 and a status of pending, running, passed, failed, skipped, or blocked."
-                )
-            run = store.get_workflow_run(run_id)
-            if run is None:
-                raise validation_error("Workflow run was not found.")
-            selected_step = next((step for step in run["steps"] if step["step_index"] == step_index), None)
-            if selected_step is None:
-                raise validation_error("Workflow step was not found.")
-            terminal_statuses = {"passed", "failed", "skipped", "blocked"}
-            if normalized_status in terminal_statuses and not evidence.strip():
-                raise validation_error("Terminal workflow updates require concise evidence or a blocker rationale.")
-            if normalized_status in {"passed", "skipped"}:
-                unfinished = [
-                    step["step_index"]
-                    for step in run["steps"]
-                    if step["step_index"] < step_index and step["status"] not in {"passed", "skipped"}
-                ]
-                if unfinished:
-                    raise validation_error(
-                        "Complete or explicitly skip earlier workflow steps before marking this step complete: "
-                        + ", ".join(str(index) for index in unfinished)
-                    )
-            if not store.update_workflow_step(run_id, step_index, normalized_status, evidence):
-                raise validation_error("Workflow step was not found.")
-        elif normalized_action != "status":
-            raise validation_error("action must be status or update.")
-
-        run = store.get_workflow_run(run_id)
-        if run is None:
-            raise validation_error("Workflow run was not found.")
-        return ProgressResult(
-            run_id=run_id,
-            workflow_status=str(run.get("status", "planned")),
-            steps=_workflow_steps(run),
-            continuation=next_continuation(store, run_id).to_dict(),
-        )
-
     @mcp.tool(name="elite_verify", annotations=_VERIFY_ANNOTATIONS)
     async def elite_verify(
         check: Literal[
@@ -258,6 +191,10 @@ def register(mcp, store, profile) -> None:
             "types",
             "outline",
             "callgraph",
+            "status",
+            "progress",
+            "privacy",
+            "monitoring",
         ] = "doctor",
         query: Annotated[str, Field(max_length=2000)] = "",
         draft: Annotated[str, Field(max_length=20000)] = "",
@@ -266,6 +203,7 @@ def register(mcp, store, profile) -> None:
         language: Annotated[str, Field(max_length=32)] = "python",
         command: Annotated[str, Field(max_length=400)] = "",
         project_root: Annotated[str, Field(max_length=1024)] = "",
+        step_index: Annotated[int, Field(ge=0, le=1000)] = 0,
         allowed_files: Annotated[list[str] | None, Field(max_length=100)] = None,
         forbid_dependency_changes: bool = False,
     ) -> VerifyResult:
@@ -282,6 +220,79 @@ def register(mcp, store, profile) -> None:
                     "warnings": list(registry.warnings),
                     "mcps": [cap.name for cap in registry.by_kind("mcp", recommendable_only=False)],
                     "skills": [cap.name for cap in registry.by_kind("skill", recommendable_only=False)],
+                },
+            )
+        if normalized_check == "status":
+            run = store.get_workflow_run(run_id)
+            if run is None:
+                raise validation_error("Workflow run was not found.")
+            return VerifyResult(
+                check="status",
+                data={
+                    "run_id": run_id,
+                    "workflow_status": str(run.get("status", "planned")),
+                    "steps": [s.model_dump() for s in _workflow_steps(run)],
+                    "continuation": next_continuation(store, run_id).to_dict(),
+                }
+            )
+        if normalized_check == "progress":
+            allowed_statuses = {"pending", "running", "passed", "failed", "skipped", "blocked"}
+            normalized_status = command.strip().lower()
+            if step_index < 1 or normalized_status not in allowed_statuses:
+                raise validation_error(
+                    "For check=progress, provide step_index >= 1 and a status of pending, running, passed, failed, skipped, or blocked in the command field."
+                )
+            run = store.get_workflow_run(run_id)
+            if run is None:
+                raise validation_error("Workflow run was not found.")
+            selected_step = next((step for step in run["steps"] if step["step_index"] == step_index), None)
+            if selected_step is None:
+                raise validation_error("Workflow step was not found.")
+            terminal_statuses = {"passed", "failed", "skipped", "blocked"}
+            if normalized_status in terminal_statuses and not query.strip():
+                raise validation_error("Terminal workflow updates require concise evidence or a blocker rationale in the query field.")
+            if normalized_status in {"passed", "skipped"}:
+                unfinished = [
+                    step["step_index"]
+                    for step in run["steps"]
+                    if step["step_index"] < step_index and step["status"] not in {"passed", "skipped"}
+                ]
+                if unfinished:
+                    raise validation_error(
+                        "Complete or explicitly skip earlier workflow steps before marking this step complete: "
+                        + ", ".join(str(index) for index in unfinished)
+                    )
+            if not store.update_workflow_step(run_id, step_index, normalized_status, query):
+                raise validation_error("Workflow step was not found.")
+            run = store.get_workflow_run(run_id)
+            if run is None:
+                raise validation_error("Workflow run was not found.")
+            return VerifyResult(
+                check="progress",
+                data={
+                    "run_id": run_id,
+                    "workflow_status": str(run.get("status", "planned")),
+                    "steps": [s.model_dump() for s in _workflow_steps(run)],
+                    "continuation": next_continuation(store, run_id).to_dict(),
+                }
+            )
+        if normalized_check == "privacy":
+            from core.privacy import raw_prompt_storage_enabled, telemetry_mode
+            return VerifyResult(
+                check="privacy",
+                data={
+                    "telemetry_mode": telemetry_mode(),
+                    "raw_prompt_storage_enabled": raw_prompt_storage_enabled(),
+                    "sync_requires_confirm": True,
+                },
+            )
+        if normalized_check == "monitoring":
+            return VerifyResult(
+                check="monitoring",
+                data={
+                    "local_only": True,
+                    "operational_summary": store.get_operational_summary(days=7),
+                    "tool_usage": store.get_tool_usage_stats(days=7),
                 },
             )
         if verifier_registry.supports(normalized_check):
@@ -316,11 +327,11 @@ def register(mcp, store, profile) -> None:
                 checked.continuation = next_continuation(store, run_id.strip()).to_dict()
                 checked.data["continuation"] = checked.continuation
             return checked
-        supported = ", ".join(("doctor", "capabilities", *verifier_registry.names()))
+        supported = ", ".join(("doctor", "capabilities", "status", "progress", "privacy", "monitoring", *verifier_registry.names()))
         raise validation_error(f"unsupported check; choose one of: {supported}.")
 
     @mcp.tool(name="elite_memory", annotations=_MEMORY_ANNOTATIONS)
-    def elite_memory(
+    async def elite_memory(
         action: Literal["search", "remember", "approve", "forget", "associative"] = "search",
         query: Annotated[str, Field(max_length=2000)] = "",
         content: Annotated[str, Field(max_length=5000)] = "",
@@ -392,38 +403,3 @@ def register(mcp, store, profile) -> None:
             return MemoryResult(action="associative", items=[item.model_dump() for item in result.ranked_memories])
         raise validation_error("action must be search, remember, approve, forget, or associative.")
 
-    @mcp.tool(name="elite_admin", annotations=_ADMIN_ANNOTATIONS)
-    def elite_admin(action: Literal["status", "privacy", "monitoring"] = "status") -> AdminResult:
-        """Inspect runtime identity, privacy policy, or active server profile."""
-        normalized_action = action.strip().lower()
-        if normalized_action == "status":
-            return AdminResult(
-                action="status",
-                data={
-                    "runtime": runtime_identity(),
-                    "tool_profile": getattr(mcp, "_elite_tool_profile", "unknown"),
-                    "active_ide": profile.ide_type,
-                    "sync_enabled": profile.sync_enabled,
-                },
-            )
-        if normalized_action == "privacy":
-            from core.privacy import raw_prompt_storage_enabled, telemetry_mode
-
-            return AdminResult(
-                action="privacy",
-                data={
-                    "telemetry_mode": telemetry_mode(),
-                    "raw_prompt_storage_enabled": raw_prompt_storage_enabled(),
-                    "sync_requires_confirm": True,
-                },
-            )
-        if normalized_action == "monitoring":
-            return AdminResult(
-                action="monitoring",
-                data={
-                    "local_only": True,
-                    "operational_summary": store.get_operational_summary(days=7),
-                    "tool_usage": store.get_tool_usage_stats(days=7),
-                },
-            )
-        raise validation_error("action must be status, privacy, or monitoring.")

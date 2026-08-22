@@ -17,7 +17,7 @@ from typing import Any
 from core.reasoning.task_contract import NextAction, TaskContract
 
 
-CORE_TOOLS = ("elite_prepare", "elite_progress", "elite_verify", "elite_memory", "elite_admin")
+CORE_TOOLS = ("elite_prepare", "elite_verify", "elite_memory")
 
 
 @dataclass(frozen=True)

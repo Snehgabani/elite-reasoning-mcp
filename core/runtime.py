@@ -9,24 +9,26 @@ import sys
 from pathlib import Path
 from typing import Literal
 
-PACKAGE_NAME = "elite-reasoning-mcp"
+PACKAGE_NAME = "elite-verify-mcp"
+LEGACY_PACKAGE_NAME = "elite-reasoning-mcp"
 ToolProfile = Literal["core", "legacy", "unified"]
 SUPPORTED_TOOL_PROFILES: frozenset[str] = frozenset({"core", "legacy", "unified"})
 
 
 def package_version() -> str:
     """Return the distribution version in both installed and source checkouts."""
-    try:
-        return importlib.metadata.version(PACKAGE_NAME)
-    except importlib.metadata.PackageNotFoundError:
-        pyproject = Path(__file__).resolve().parents[1] / "pyproject.toml"
+    for pkg in (PACKAGE_NAME, LEGACY_PACKAGE_NAME):
         try:
-            for line in pyproject.read_text(encoding="utf-8").splitlines():
-                if line.startswith("version = "):
-                    return line.split("=", 1)[1].strip().strip('"')
-        except OSError as exc:
-            # Source pyproject.toml not accessible in some execution contexts
-            _ = str(exc)
+            return importlib.metadata.version(pkg)
+        except importlib.metadata.PackageNotFoundError:
+            pass
+    pyproject = Path(__file__).resolve().parents[1] / "pyproject.toml"
+    try:
+        for line in pyproject.read_text(encoding="utf-8").splitlines():
+            if line.startswith("version = "):
+                return line.split("=", 1)[1].strip().strip('"')
+    except OSError as exc:
+        _ = str(exc)
     return "unknown"
 
 

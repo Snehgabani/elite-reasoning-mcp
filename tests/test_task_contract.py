@@ -65,7 +65,7 @@ def test_playbook_names_only_core_tools_and_verify_can_repeat():
 
     contract = compile_task_contract("Research MCP tool overhead and cite sources with URLs.")
     tools = allowed_tools_for(contract)
-    assert set(tools) <= {"elite_prepare", "elite_progress", "elite_verify", "elite_memory", "elite_admin"}
+    assert set(tools) <= {"elite_prepare", "elite_verify", "elite_memory"}
     assert "execute_mix" not in tools
     assert "god_tier_reasoning" not in tools
     steps = compile_playbook(contract)

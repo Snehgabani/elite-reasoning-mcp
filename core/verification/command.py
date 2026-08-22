@@ -8,12 +8,40 @@ import subprocess
 from typing import Any
 
 ALLOWED_TEST_PREFIXES = (
+    # Python
     "pytest",
     "python -m pytest",
     "python3 -m pytest",
     "ruff",
     "python -m ruff",
     "python3 -m ruff",
+    "pyright",
+    "python -m pyright",
+    "python3 -m pyright",
+    "mypy",
+    "python -m mypy",
+    "python3 -m mypy",
+    # TypeScript / JavaScript
+    "tsc",
+    "npx tsc",
+    "npm test",
+    "npx jest",
+    "npx vitest",
+    "yarn test",
+    "pnpm test",
+    "bun test",
+    # Rust
+    "cargo test",
+    "cargo check",
+    "cargo clippy",
+    # Go
+    "go test",
+    "go vet",
+    "go build",
+    # Java
+    "mvn test",
+    "gradle test",
+    "./gradlew test",
 )
 
 _ENV_ALLOWLIST = frozenset({"HOME", "LANG", "LC_ALL", "PATH", "SYSTEMROOT", "TEMP", "TMP", "TMPDIR", "VIRTUAL_ENV"})

@@ -52,8 +52,8 @@
       "sample_size": null,
       "result": {},
       "evidence": {
-        "artifact": "tests/test_cognitive_benchmarks.py",
-        "command": "pytest tests/test_cognitive_benchmarks.py -q",
+        "artifact": "tests/test_gateway_workflow_controls.py",
+        "command": "pytest tests/test_gateway_workflow_controls.py -q",
         "artifact_sha256": null
       },
       "replication_status": "repository_tests_only",

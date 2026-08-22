@@ -617,7 +617,53 @@ wheels = [
 
 [[package]]
 name = "elite-reasoning-mcp"
-version = "2.9.1"
+version = "2.9.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "beautifulsoup4" },
+    { name = "fastapi" },
+    { name = "fastmcp" },
+    { name = "httpx" },
+    { name = "langchain" },
+    { name = "langchain-core" },
+    { name = "langchain-openai" },
+    { name = "langgraph" },
+    { name = "mcp" },
+    { name = "networkx" },
+    { name = "pydantic" },
+    { name = "pydantic-settings" },
+    { name = "python-dotenv" },
+    { name = "rich" },
+    { name = "scipy", version = "1.17.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "scipy", version = "1.18.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "uvicorn" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/30/0a/a0b056c0d3c972c07c654aa557ad62bb3914e36d86d35a52a66ce568ab59/elite_reasoning_mcp-2.9.0.tar.gz", hash = "sha256:adf348b74f9af035f2e2e21ae6c4aa34c14c2074dc636fe29718eeff2f3a90cd", size = 966039, upload-time = "2026-08-21T18:50:56.377Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/9c/9d/439aa386b00b439f7a68b664592dcfc92b4f2ec845a56ba4f6c69de55715/elite_reasoning_mcp-2.9.0-py3-none-any.whl", hash = "sha256:d8206efd4bf8054f993b2c6c907ec7c269b6e16dee66f7c74cb1068194fcb067", size = 573110, upload-time = "2026-08-21T18:50:54.716Z" },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "bandit" },
+    { name = "pyright" },
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "ruff" },
+]
+graph = [
+    { name = "langchain-core" },
+    { name = "langgraph" },
+    { name = "networkx" },
+]
+vectors = [
+    { name = "sentence-transformers" },
+    { name = "sqlite-vec" },
+]
+
+[[package]]
+name = "elite-verify-mcp"
+version = "3.0.0"
 source = { editable = "." }
 dependencies = [
     { name = "beautifulsoup4" },
@@ -630,24 +676,7 @@ dependencies = [
 
 [package.optional-dependencies]
 all = [
-    { name = "bandit" },
-    { name = "fastapi" },
-    { name = "langchain" },
-    { name = "langchain-core" },
-    { name = "langchain-openai" },
-    { name = "langgraph" },
-    { name = "networkx" },
-    { name = "pyright" },
-    { name = "pytest" },
-    { name = "pytest-asyncio" },
-    { name = "python-dotenv" },
-    { name = "rich" },
-    { name = "ruff" },
-    { name = "scipy", version = "1.17.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
-    { name = "scipy", version = "1.18.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
-    { name = "sentence-transformers" },
-    { name = "sqlite-vec" },
-    { name = "uvicorn" },
+    { name = "elite-reasoning-mcp", extra = ["dev", "graph", "vectors"] },
 ]
 dev = [
     { name = "bandit" },

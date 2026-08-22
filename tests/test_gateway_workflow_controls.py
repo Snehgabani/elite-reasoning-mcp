@@ -30,33 +30,33 @@ async def test_gateway_requires_evidence_and_ordered_workflow_completion(tmp_pat
     prepared = await tools["elite_prepare"].fn(user_prompt="Build a tested feature.", persist=True)
 
     with pytest.raises(EliteToolError, match="Terminal workflow updates require"):
-        await tools["elite_progress"].fn(
+        await tools["elite_verify"].fn(
+            check="progress",
             run_id=prepared.run_id,
-            action="update",
             step_index=1,
-            step_status="passed",
+            command="passed",
         )
 
     with pytest.raises(EliteToolError, match="earlier workflow steps"):
-        await tools["elite_progress"].fn(
+        await tools["elite_verify"].fn(
+            check="progress",
             run_id=prepared.run_id,
-            action="update",
             step_index=2,
-            step_status="passed",
-            evidence="plan complete",
+            command="passed",
+            query="plan complete",
         )
 
     for step_index in range(1, 7):
-        progress = await tools["elite_progress"].fn(
+        progress = await tools["elite_verify"].fn(
+            check="progress",
             run_id=prepared.run_id,
-            action="update",
             step_index=step_index,
-            step_status="passed",
-            evidence=f"evidence for step {step_index}",
+            command="passed",
+            query=f"evidence for step {step_index}",
         )
 
-    assert progress.workflow_status == "completed"
-    assert all(step.status == "passed" for step in progress.steps)
+    assert progress.data["workflow_status"] == "completed"
+    assert all(step["status"] == "passed" for step in progress.data["steps"])
     assert prepared.goal
     assert prepared.constraints
     assert prepared.next_action in {"none", "evidence", "verify_constraints", "verify_tests"}
@@ -223,7 +223,7 @@ async def test_gateway_exposes_privacy_safe_local_monitoring(tmp_path):
     tools = mcp._tool_manager._tools
 
     prepared = await tools["elite_prepare"].fn(user_prompt="Build a monitored feature.", persist=True)
-    monitoring = await tools["elite_admin"].fn(action="monitoring")
+    monitoring = await tools["elite_verify"].fn(check="monitoring")
 
     assert monitoring.data["local_only"] is True
     summary = monitoring.data["operational_summary"]
@@ -236,7 +236,7 @@ async def test_gateway_exposes_privacy_safe_local_monitoring(tmp_path):
     await tools["elite_verify"].fn(
         check="syntax", run_id=prepared.run_id, code="def monitored() -> bool:\n    return True\n"
     )
-    continued = await tools["elite_admin"].fn(action="monitoring")
+    continued = await tools["elite_verify"].fn(check="monitoring")
     assert continued.data["operational_summary"]["continuity"]["runs_with_mid_work_checks"] == 1
     assert continued.data["operational_summary"]["continuity"]["post_prepare_continuation_rate"] == 1.0
 

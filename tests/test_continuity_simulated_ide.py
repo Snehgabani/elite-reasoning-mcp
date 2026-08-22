@@ -71,9 +71,9 @@ async def test_context_dilution_does_not_erase_required_next_call(simulated_ide)
     # Twenty simulated host reasoning/file-navigation turns occur without Elite.
     # On re-entry, durable state still returns the exact missed checkpoint.
     for _ in range(20):
-        status = await tools["elite_progress"].fn(run_id=prepared.run_id, action="status")
-        assert status.continuation["checkpoint"] == "verify_changed_code"
-        assert status.continuation["stop_final_response"] is True
+        status = await tools["elite_verify"].fn(check="status", run_id=prepared.run_id)
+        assert status.data["continuation"]["checkpoint"] == "verify_changed_code"
+        assert status.data["continuation"]["stop_final_response"] is True
 
 
 @pytest.mark.asyncio

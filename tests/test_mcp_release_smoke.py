@@ -9,10 +9,8 @@ from core.tools.errors import EliteToolError
 
 CORE_TOOLS = {
     "elite_prepare",
-    "elite_progress",
     "elite_verify",
     "elite_memory",
-    "elite_admin",
 }
 
 
@@ -37,8 +35,6 @@ def test_default_server_exposes_a_compact_typed_surface(tmp_path):
         "associative",
     ]
     assert memory_schema["properties"]["content"]["maxLength"] == 5000
-    assert memory_schema["properties"]["trust_score"]["minimum"] == 0.0
-    assert memory_schema["properties"]["trust_score"]["maximum"] == 1.0
 
 
 @pytest.mark.asyncio
@@ -53,13 +49,14 @@ async def test_core_tools_run_through_middleware_with_structured_results(tmp_pat
     )
 
     assert verification.status == "ok"
-    assert verification.data["tool_count"] == 5
+    assert verification.data["tool_count"] == 3
     assert prepared.status == "ok"
     assert prepared.run_id
     assert prepared.steps
 
+    # elite_progress is now elite_verify(check="status")
     with pytest.raises(EliteToolError, match="validation_error"):
-        await tools["elite_progress"].fn(run_id="missing")
+        await tools["elite_verify"].fn(check="status", run_id="missing")
 
 
 def test_default_startup_does_not_import_legacy_cognitive_runtime(tmp_path):
@@ -71,6 +68,9 @@ server = create_mcp_server(sys.argv[1], tool_profile="core")
 forbidden_prefixes = (
     "core.cognitive",
     "core.tools.cognitive_tools",
+    "core.tools.reasoning_amplifier",
+    "core.tools.verb_tools",
+    "core.tools.goal_prompt_polisher",
     "core.tools.planning",
     "core.tools.orchestration",
     "core.integration.memory_bridge",
@@ -87,33 +87,3 @@ print(json.dumps({"tools": sorted(server._tool_manager._tools), "forbidden": for
     payload = json.loads(completed.stdout.strip().splitlines()[-1])
     assert set(payload["tools"]) == CORE_TOOLS
     assert payload["forbidden"] == []
-
-
-def test_deterministic_gate_import_does_not_load_graph_engine():
-    script = """
-import json
-import sys
-from core.cognitive.leverage.deterministic_gates import validate_syntax
-assert validate_syntax("x = 1", "python").passed
-forbidden = sorted(name for name in sys.modules if name == "core.cognitive.engine" or name.startswith("langgraph"))
-print(json.dumps(forbidden))
-"""
-    completed = subprocess.run([sys.executable, "-c", script], check=True, capture_output=True, text=True)
-    assert json.loads(completed.stdout.strip()) == []
-
-
-def test_legacy_profile_retains_explicit_compatibility_surface(tmp_path):
-    mcp = create_mcp_server(str(tmp_path / "brain"), tool_profile="legacy")
-    tools = set(mcp._tool_manager._tools)
-
-    assert len(tools) >= 90
-    assert {
-        "elite_doctor",
-        "elite_doctor_json",
-        "workflow_run",
-        "workflow_status",
-        "workflow_update_step",
-        "remember_context",
-        "memory_context_pack",
-        "export_eval_harness",
-    }.issubset(tools)

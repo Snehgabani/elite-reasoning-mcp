@@ -54,3 +54,32 @@ def test_command_adapter_reports_timeout_without_exception_leak(monkeypatch):
     result = run_allowlisted_command("pytest", timeout_seconds=3)
     assert result["executed"] is False
     assert result["reason"] == "command timed out after 3 seconds"
+
+
+def test_command_adapter_accepts_polyglot_test_runners(monkeypatch, tmp_path):
+    executed_cmds = []
+
+    def _run(argv, **kwargs):
+        executed_cmds.append(argv)
+        return subprocess.CompletedProcess(argv, 0, stdout="All checks passed\n", stderr="")
+
+    monkeypatch.setenv("ELITE_ALLOW_TEST_COMMAND", "1")
+    monkeypatch.setattr(subprocess, "run", _run)
+
+    polyglot_commands = [
+        "npm test",
+        "npx vitest run",
+        "tsc --noEmit",
+        "cargo test --all",
+        "cargo check",
+        "go test ./...",
+        "go vet ./...",
+        "pyright core",
+    ]
+
+    for cmd in polyglot_commands:
+        res = run_allowlisted_command(cmd, cwd=str(tmp_path))
+        assert res["passed"] is True, f"Failed on command: {cmd}"
+        assert res["executed"] is True
+
+    assert len(executed_cmds) == len(polyglot_commands)

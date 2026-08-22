@@ -9,7 +9,7 @@ import tempfile
 from typing import Any
 
 FORBIDDEN_CORE_DISTRIBUTIONS = ("fastapi", "langchain", "langchain_openai", "langgraph", "networkx", "scipy")
-CORE_TOOLS = {"elite_prepare", "elite_progress", "elite_verify", "elite_memory", "elite_admin"}
+CORE_TOOLS = {"elite_prepare", "elite_verify", "elite_memory"}
 
 
 async def _run() -> None:

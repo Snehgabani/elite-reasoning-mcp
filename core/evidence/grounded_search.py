@@ -126,13 +126,13 @@ def _truncate_quotes(quotes: list[EvidenceQuote]) -> list[EvidenceQuote]:
 
 
 async def _default_search(query: str, k: int) -> dict[str, Any]:
-    from core.cognitive.leverage.web_research import LiveWebResearcher
+    from core.evidence.web_research import LiveWebResearcher
 
     return await LiveWebResearcher(timeout=3.0, k=k).search_and_triangulate(query, k=k)
 
 
 async def _default_read(url: str, query: str) -> dict[str, Any]:
-    from core.cognitive.leverage.deep_read import deep_read_url
+    from core.evidence.deep_read import deep_read_url
 
     return await deep_read_url(url, query=query)
 

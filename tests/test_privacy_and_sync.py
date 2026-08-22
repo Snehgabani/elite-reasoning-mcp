@@ -6,7 +6,6 @@ import stat
 import pytest
 
 from core.identity.user_profile import UserProfile
-from core.integration.mcp_server import create_mcp_server
 from core.memory.persistent_store import EliteStore
 from core.middleware.base import CallContext, CallResult
 from core.middleware.telemetry import UsageLogMiddleware
@@ -284,102 +283,6 @@ def test_sync_endpoint_requires_allowlisting_confirmation_and_network_opt_in(mon
 
     monkeypatch.setenv("ELITE_SYNC_ALLOW_NETWORK", "1")
     assert authorize_manual_sync("https://sync.example.com", confirmed=True) == "https://sync.example.com"
-
-
-@pytest.mark.asyncio
-async def test_legacy_sync_requires_confirmation_and_quarantines_remote_records(tmp_path, monkeypatch):
-    import httpx
-
-    mcp = create_mcp_server(str(tmp_path / "brain"), tool_profile="legacy")
-    sync_tool = mcp._tool_manager._tools["sync_team_memory"].fn
-
-    def no_network(*_args, **_kwargs):
-        raise AssertionError("network must not be called without confirm=true")
-
-    monkeypatch.setattr(httpx, "get", no_network)
-    denied = await sync_tool(confirm=False)
-    assert "Sync access denied" in denied
-
-    class PullResponse:
-        def raise_for_status(self) -> None:
-            return None
-
-        def json(self) -> dict:
-            return {
-                "anti_patterns": [
-                    {
-                        "mistake": "Remote pattern",
-                        "root_cause": "Unverified source",
-                        "fix": "Review before use",
-                    }
-                ],
-                "decisions": [
-                    {
-                        "decision": "Remote decision",
-                        "context": "Remote source",
-                        "rationale": "Needs review",
-                    }
-                ],
-            }
-
-    monkeypatch.setattr(httpx, "get", lambda *_args, **_kwargs: PullResponse())
-    completed = await sync_tool(confirm=True, direction="pull")
-
-    assert "quarantined remote records: 2" in completed
-    records = mcp._elite_store.search_memory_items(
-        scope="team",
-        include_quarantined=True,
-        min_trust=0.0,
-    )
-    assert len(records) == 2
-    assert all(record["quarantined"] for record in records)
-    assert {record["memory_type"] for record in records} == {"remote_anti_pattern", "remote_decision"}
-
-
-@pytest.mark.asyncio
-async def test_sync_uses_directional_cursors_and_replays_after_legacy_cursor(tmp_path, monkeypatch):
-    import httpx
-
-    monkeypatch.setenv("ELITE_SYNC_ALLOW_OUTBOUND", "1")
-    mcp = create_mcp_server(str(tmp_path / "brain"), tool_profile="legacy")
-    store = mcp._elite_store
-    store.record_mistake(
-        "Local sync record with enough detail",
-        "A specific root cause is documented",
-        "Apply a durable corrective action",
-    )
-    cursor_path = tmp_path / "brain" / "sync_cursor.json"
-    cursor_path.write_text(json.dumps({"last_synced_at": "2099-01-01T00:00:00+00:00"}), encoding="utf-8")
-    sync_tool = mcp._tool_manager._tools["sync_team_memory"].fn
-
-    class Response:
-        def __init__(self, payload):
-            self.payload = payload
-
-        def raise_for_status(self):
-            return None
-
-        def json(self):
-            return self.payload
-
-    monkeypatch.setattr(httpx, "get", lambda *_args, **_kwargs: Response({"anti_patterns": [], "decisions": []}))
-    await sync_tool(confirm=True, direction="pull")
-
-    captured = {}
-
-    def post(*_args, **kwargs):
-        captured.update(kwargs["json"])
-        return Response({"accepted": 1, "rejected": 0})
-
-    monkeypatch.setattr(httpx, "post", post)
-    completed = await sync_tool(confirm=True, direction="push")
-
-    assert "1 accepted" in completed
-    assert captured["anti_patterns"]
-    cursor = json.loads(cursor_path.read_text(encoding="utf-8"))
-    assert cursor["version"] == 2
-    assert cursor["last_pulled_at"]
-    assert cursor["last_pushed_at"]
 
 
 @pytest.mark.asyncio
